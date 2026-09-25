@@ -36,5 +36,21 @@ output_folder_deleted: True
 
 ## comparison
 Every count is identical between the runs; only time (641.0 s -> 585.7 s) differs. Threaded decoding kept.
-The original MeetingTool kept 76 frames from this same recording (its own test run); this port keeps 75.
+The original MeetingTool kept 76 frames from this same recording: the count of JPEG files in its own output folder for that recording (read-only, counted on 2026-09-25). This port keeps 75; the difference is not explained frame by frame (the review lists the candidate causes).
 Memory is bounded by the budget: at most 150 candidates held, peak working set 252 MB for a 41.6-minute recording.
+
+## run 3 - commit 5f20bf7, after the review correction (budget tie-break as the original, local files only)
+duration_seconds: 2496
+samples_analysed: 4992
+candidates: 369
+max_candidates_held: 150
+frames_kept: 75
+frames_written_then_deleted: 75
+discarded_budget: 219
+discarded_low_score: 2781
+discarded_minimum_gap: 1841
+discarded_near_duplicate: 75
+seconds_taken: 534.1
+peak_working_set_mb: 251
+output_folder_deleted: True
+Every count is identical to runs 1 and 2 (the tie-break can change which frames are kept, not how many).
