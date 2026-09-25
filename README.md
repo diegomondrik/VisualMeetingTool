@@ -22,6 +22,25 @@ Recordings, audio, transcripts and reports belong to clients. `.gitignore`
 keeps them out, and `tests/test_repository_guard.py` fails if one is tracked
 anyway.
 
+## Reading the frames with Gemini
+
+The frames of a meeting (`python -m meetingtool.frames`) are read with
+Gemini's paid tier, using your own key. Save it once in the Windows
+Credential Manager; it is never shown or written anywhere:
+
+```
+python -m meetingtool.reading key set
+python -m meetingtool.reading read --frames <frames folder>
+```
+
+The key must come from a Google Cloud project with billing enabled. On the
+free tier Google may use what is sent to improve its products, and meeting
+frames are client data. What each frame shows is written to
+`frames_read.md` in the frames folder, which must be outside any
+repository. A run that cannot be completed writes nothing and says why;
+there is no lower-quality fallback. `key status` shows only whether a key
+is saved and its length, and `key delete` removes it.
+
 ## Running the tests
 
 Python 3.11 or newer, no other library needed:
