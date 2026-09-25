@@ -1,0 +1,8 @@
+schema_version: "1"
+backend: github
+enforcement: advisory
+target_repository: diegomondrik/meetingtool-v4
+target_visibility: private
+protected_branch: main
+required_check: ingol-bootstrap / bootstrap
+hosting_gate: github-pro-private-protection-available-pending-live-verification

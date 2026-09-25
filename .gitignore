@@ -1,0 +1,38 @@
+# INGOL generated and local state must never become authoritative source.
+.ingol/generated/
+generated/
+
+# Meeting data: client recordings, transcripts and reports never enter the
+# repository. A test also fails if one does (WI028, datos de clientes).
+*.mp4
+*.MP4
+*.mov
+*.m4a
+*.wav
+*.docx
+*.vtt
+meetings/
+projects/
+frames/
+
+# Credentials.
+.env
+*.env
+
+# Python and local build/test state.
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.venv/
+venv/
+build/
+dist/
+*.egg-info/
+.cache/
+.tmp/
+
+# IDE and OS state.
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
