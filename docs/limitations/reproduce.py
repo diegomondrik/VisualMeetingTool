@@ -6,17 +6,20 @@ Run from the repository root:
     python docs/limitations/reproduce.py WI05-P3-2 WI02-P3-E    # some entries
     python docs/limitations/reproduce.py --ingol-repo C:/path/to/ingol   # INGOL's too
 
-Every entry carries the register's claim: `open` (the limitation reproduces),
-`fixed` (it no longer does) or `not-reproducible` (it cannot be reproduced
-here; the entry says why). The script runs each reproduction, prints what it
-saw, and exits 1 when a result differs from the claim, so the register
-cannot go stale in silence when a limitation is fixed. Before running
-anything it compares the register's entry identifiers with its own and
-exits 1 if they differ. `--flip ID` inverts one claim on purpose, to see the
+Each entry's claim is read from the first words of its State cell in the
+register: `open` (the limitation reproduces), `fixed` (it no longer does) or
+`not reproducible` (it cannot be reproduced here; the entry says why). The
+script keeps no copy of the claims. It runs each reproduction, prints what it
+saw, and exits 1 when a result differs from the register's claim, so the
+register cannot go stale in silence when a limitation is fixed, nor state
+something the reproduction does not show. Before running anything it checks
+that the register's entries and its own reproductions are the same set,
+each state readable, and exits 1 if not. `--flip ID` inverts one claim on purpose, to see the
 check fail.
 
-Nothing is written inside the repository and nothing goes to the network:
-every file is made in a temporary folder. The INGOL entries (H1, H3, H4,
+Nothing is written inside the repository (not even Python's bytecode cache)
+and nothing goes to the network (Go builds with GOPROXY=off and
+GOTOOLCHAIN=local): every file is made in a temporary folder. The INGOL entries (H1, H3, H4,
 H6) need a local clone of INGOL and Go; the script builds INGOL at the
 revision this project's wrapper pins and runs INGOL's own commands against
 copies of this project. Without --ingol-repo they are reported as skipped.
@@ -39,6 +42,7 @@ from unittest import mock
 REPO = Path(__file__).resolve().parents[2]
 REGISTER = REPO / "docs" / "limitations" / "REGISTER.md"
 sys.path.insert(0, str(REPO))
+sys.dont_write_bytecode = True  # no __pycache__ inside the repository
 
 from meetingtool import repository_guard  # noqa: E402
 from meetingtool.frames import extract as extract_module  # noqa: E402
@@ -50,9 +54,9 @@ from tests import test_frames as frames_fixture  # noqa: E402
 ENTRIES = []
 
 
-def entry(identifier, claim, needs_ingol=False):
+def entry(identifier, needs_ingol=False):
     def register(function):
-        ENTRIES.append((identifier, claim, needs_ingol, function))
+        ENTRIES.append((identifier, needs_ingol, function))
         return function
     return register
 
@@ -62,6 +66,7 @@ def git(*args, cwd=None, check=True):
 
 
 def run_python(args, cwd, env=None):
+    env = {**(os.environ if env is None else env), "PYTHONDONTWRITEBYTECODE": "1"}
     return subprocess.run([sys.executable, *args], cwd=cwd, capture_output=True, text=True, env=env)
 
 
@@ -166,8 +171,9 @@ class Ingol:
         self.cli = self.root / f"ingol{suffix}"
         self.checker = self.root / f"bootstrap-check{suffix}"
         for binary, package in ((self.cli, "./cmd/ingol"), (self.checker, "./cmd/bootstrap-check")):
+            # No module download and no toolchain switch: a cold cache fails here instead of reaching the network.
             subprocess.run(["go", "build", "-o", str(binary), package], cwd=self.installation, check=True,
-                           capture_output=True)
+                           capture_output=True, env={**os.environ, "GOPROXY": "off", "GOTOOLCHAIN": "local"})
 
     def run(self, *args, cwd=None, env=None):
         return subprocess.run([str(self.cli), *args], cwd=cwd, capture_output=True, text=True, env=env)
@@ -203,7 +209,7 @@ def ingol(args, root):
     return _ingol
 
 
-@entry("H1", "open", needs_ingol=True)
+@entry("H1", needs_ingol=True)
 def h1(args, root):
     ing = ingol(args, root)
     target = root / "h1-existing-project"
@@ -214,13 +220,13 @@ def h1(args, root):
     return refused, f"ingol init on a folder with one file: exit {result.returncode}: {result.stderr.strip()}"
 
 
-@entry("H2", "not-reproducible")
+@entry("H2")
 def h2(args, root):
     return None, ("needs a private repository on GitHub's free plan; the owner's account has Pro, where the "
                   "protection exists. Source: GitHub's plans documentation, read 2026-09-25 (INGOL D-162)")
 
 
-@entry("H3", "open", needs_ingol=True)
+@entry("H3", needs_ingol=True)
 def h3(args, root):
     ing = ingol(args, root)
     body = f"INGOL-Work-Item: {PR6_WORK_ITEM}"
@@ -250,7 +256,7 @@ def h3(args, root):
             f"ingol-bootstrap.yml\" {'named' if reason else 'NOT named'}")
 
 
-@entry("H4", "open", needs_ingol=True)
+@entry("H4", needs_ingol=True)
 def h4(args, root):
     ing = ingol(args, root)
     project = root / "h4-new"
@@ -281,7 +287,7 @@ def h4(args, root):
                         f"(\"not byte-identical to this installation's own copy\")")
 
 
-@entry("H5", "open")
+@entry("H5")
 def h5(args, root):
     wrapper = WRAPPER.read_text(encoding="utf-8")
     backend = (REPO / ".ingol" / "backends" / "github.yaml").read_text(encoding="utf-8")
@@ -294,7 +300,7 @@ def h5(args, root):
             "token was not attempted: that would be an attack, not a reproduction")
 
 
-@entry("H6", "open", needs_ingol=True)
+@entry("H6", needs_ingol=True)
 def h6(args, root):
     ing = ingol(args, root)
     project = ing.project_clone("h6-project", "HEAD")
@@ -313,21 +319,21 @@ def h6(args, root):
 
 # --- Work item 1, the skeleton (01M3C5MCNJ0FQJW936SZYSNPS6) -----------------------------------
 
-@entry("WI01-P2-1", "fixed")
+@entry("WI01-P2-1")
 def wi01_p2_1(args, root):
     paths = ["a.mp3", "a.mkv", "a.webm", "transcript.txt", "report_acme.md", "handoff_1.json", "frames/f1.jpg"]
     missed = [p for p in paths if not repository_guard.is_meeting_data(p)]
     return bool(missed), f"guard misses {missed or 'none'} of {paths} (widened by a977049, WI02)"
 
 
-@entry("WI01-P2-2", "fixed")
+@entry("WI01-P2-2")
 def wi01_p2_2(args, root):
     code = ["meetingtool/projects/store.py", "meetingtool/frames/extract.py", "tests/frames/x.py"]
     wrongly = [p for p in code if ignored(p)]
     return bool(wrongly), f"code paths ignored by .gitignore: {wrongly or 'none'} (anchored by ba02528; generated/ is H6)"
 
 
-@entry("WI01-P2-3", "open")
+@entry("WI01-P2-3")
 def wi01_p2_3(args, root):
     tested, integrated = "165cfff6a3b35fb7006c800afebbbe0dd7fa4d9b", "37294079a15dd4690cd9977a71f511d76221f204"
     changed = git("diff", "--name-only", tested, integrated, cwd=REPO).stdout.split()
@@ -337,14 +343,14 @@ def wi01_p2_3(args, root):
             f"all evidence or approval: {allowed}")
 
 
-@entry("WI01-P3-1", "fixed")
+@entry("WI01-P3-1")
 def wi01_p3_1(args, root):
     upper = ["a.MP4", "deep/B.DOCX", "c.Mp3"]
     missed = [p for p in upper if not ignored(p)]
     return bool(missed), f"upper-case extensions not ignored on Linux matching: {missed or 'none'} (ba02528)"
 
 
-@entry("WI01-P3-2", "open")
+@entry("WI01-P3-2")
 def wi01_p3_2(args, root):
     repository = root / "p3-2"
     repository.mkdir()
@@ -362,7 +368,7 @@ def wi01_p3_2(args, root):
             f"recording.mp4.zip flagged: {zipped}")
 
 
-@entry("WI01-P3-3", "open")
+@entry("WI01-P3-3")
 def wi01_p3_3(args, root):
     env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
     result = run_python(["-m", "unittest", "discover", "-s", str(REPO / "tests")], cwd=root, env=env)
@@ -373,21 +379,21 @@ def wi01_p3_3(args, root):
 
 # --- Work item 2, the guard (01M3CG1XGTT95MT2WNTMH1TXR2) --------------------------------------
 
-@entry("WI02-P2-A", "open")
+@entry("WI02-P2-A")
 def wi02_p2_a(args, root):
     fixtures = ["tests/fixtures/slide.png", "tests/fixtures/sample.mp4", "tests/fixtures/transcript_sample.txt"]
     flagged = [p for p in fixtures if repository_guard.is_meeting_data(p)]
     return flagged == fixtures, f"test fixtures rejected by the guard: {flagged}"
 
 
-@entry("WI02-P2-B", "open")
+@entry("WI02-P2-B")
 def wi02_p2_b(args, root):
     path = "meetingtool/projects/acme/memory.json"
     guard, gitignore = repository_guard.is_meeting_data(path), ignored(path)
     return (not guard and not gitignore, f"{path}: guard flags it {guard}, .gitignore ignores it {gitignore}")
 
 
-@entry("WI02-P3-A", "open")
+@entry("WI02-P3-A")
 def wi02_p3_a(args, root):
     paths = ["report_acme.md", "handoff_1.json", "transcript.txt", "Frames/x/f.json", "MEETINGS/a/b.json"]
     not_ignored = [p for p in paths if not ignored(p)]
@@ -396,7 +402,7 @@ def wi02_p3_a(args, root):
             f"not ignored by .gitignore on Linux matching: {not_ignored}; all caught by the guard: {guarded == paths}")
 
 
-@entry("WI02-P3-B", "open")
+@entry("WI02-P3-B")
 def wi02_p3_b(args, root):
     result = run_python(["-m", "unittest", "tests.test_repository_guard.GitignoreTest"], cwd=REPO)
     upper = ignored("Frames/x/file.json")
@@ -404,7 +410,7 @@ def wi02_p3_b(args, root):
             f"GitignoreTest exit {result.returncode} while Frames/x/file.json is ignored: {upper}")
 
 
-@entry("WI02-P3-C", "open")
+@entry("WI02-P3-C")
 def wi02_p3_c(args, root):
     env = {**os.environ, "GIT_DIR": str(root / "no-such-git-dir")}
     broken = subprocess.run(["git", "-C", str(REPO), "check-ignore", "-q", "--no-index", "x.mp4"],
@@ -415,14 +421,14 @@ def wi02_p3_c(args, root):
             f"with git broken (check-ignore exit {broken}) the \"not ignored\" test exits {result.returncode}")
 
 
-@entry("WI02-P3-D", "open")
+@entry("WI02-P3-D")
 def wi02_p3_d(args, root):
     paths = ["export.zip", "attendees.csv", "slides.ppt", "budget.xls", "notas-reunion.txt"]
     missed = [p for p in paths if not repository_guard.is_meeting_data(p)]
     return missed == paths, f"not flagged by the guard: {missed}"
 
 
-@entry("WI02-P3-E", "open")
+@entry("WI02-P3-E")
 def wi02_p3_e(args, root):
     return (repository_guard.is_meeting_data("transcription.md"),
             f"transcription.md flagged as meeting data: {repository_guard.is_meeting_data('transcription.md')}")
@@ -431,7 +437,7 @@ def wi02_p3_e(args, root):
 # --- Work item 3, projects and meeting memory (01M3CGKPV51VTTK3S8V1JEF4HW) ----------------------
 # The review lists its P3 findings unnumbered; they are numbered here in the review's order.
 
-@entry("WI03-P2-1", "fixed")
+@entry("WI03-P2-1")
 def wi03_p2_1(args, root):
     data = root / "wi03-p2-1"
     store.create_project(data, "Acme", "Acme")
@@ -442,14 +448,14 @@ def wi03_p2_1(args, root):
     return True, "a path as project id was accepted"
 
 
-@entry("WI03-P2-2", "fixed")
+@entry("WI03-P2-2")
 def wi03_p2_2(args, root):
     name = "tests.test_projects.CommandLineTest.test_non_ansi_characters_survive_redirected_output"
     result = run_python(["-m", "unittest", name], cwd=REPO)
     return result.returncode != 0, f"redirected output with Łódź, ✓, →: test exit {result.returncode} (91231a1)"
 
 
-@entry("WI03-P2-3", "fixed")
+@entry("WI03-P2-3")
 def wi03_p2_3(args, root):
     pyproject = (REPO / "pyproject.toml").read_text(encoding="utf-8")
     declared = 'include = ["meetingtool", "meetingtool.*"]' in pyproject
@@ -459,7 +465,7 @@ def wi03_p2_3(args, root):
             "(c38353c; building a wheel would need setuptools, not installed here)")
 
 
-@entry("WI03-P3-1", "open")
+@entry("WI03-P3-1")
 def wi03_p3_1(args, root):
     slugs = {text: store.slugify(text, fallback="project") for text in ("Łódź", "Straße", "Søren", "東京", "Москва")}
     data = root / "wi03-p3-1"
@@ -472,7 +478,7 @@ def wi03_p3_1(args, root):
     return collided and slugs["Łódź"] == "odz", f"slugs {slugs}; a second non-Latin name collides: {collided}"
 
 
-@entry("WI03-P3-2", "open")
+@entry("WI03-P3-2")
 def wi03_p3_2(args, root):
     try:
         store.create_project(root / "wi03-p3-2", "x" * 300, "c")
@@ -483,7 +489,7 @@ def wi03_p3_2(args, root):
     return False, "a 300-character title was accepted"
 
 
-@entry("WI03-P3-3", "open")
+@entry("WI03-P3-3")
 def wi03_p3_3(args, root):
     data = root / "wi03-p3-3"
     store.create_project(data, "Acme", "c")
@@ -492,7 +498,7 @@ def wi03_p3_3(args, root):
     return returned != read, f"rebuild_knowledge's return equals knowledge_context's read: {returned == read}"
 
 
-@entry("WI03-P3-4", "open")
+@entry("WI03-P3-4")
 def wi03_p3_4(args, root):
     data = root / "wi03-p3-4"
     store.create_project(data, "Acme", "c")
@@ -506,14 +512,14 @@ def wi03_p3_4(args, root):
     return False, "no error"
 
 
-@entry("WI03-P3-5", "open")
+@entry("WI03-P3-5")
 def wi03_p3_5(args, root):
     with mock.patch.dict(os.environ, {store.DATA_DIR_ENV: "~/vmt-data"}):
         folder = store.default_data_dir()
     return str(folder).startswith("~"), f"{store.DATA_DIR_ENV}=~/vmt-data gives the folder {folder}"
 
 
-@entry("WI03-P3-6", "open")
+@entry("WI03-P3-6")
 def wi03_p3_6(args, root):
     data = root / "wi03-p3-6"
     store.create_project(data, "Acme", "c")
@@ -524,7 +530,7 @@ def wi03_p3_6(args, root):
     return order == ["Alpha review", "Zeta review"], f"added Zeta then Alpha in the same second, listed {order}"
 
 
-@entry("WI03-P3-7", "open")
+@entry("WI03-P3-7")
 def wi03_p3_7(args, root):
     text = (REPO / "docs/evidence/01M3CGKPV51VTTK3S8V1JEF4HW/owner-machine-run.txt").read_text(encoding="utf-8")
     held = [flag for flag in ("--context", "--summary", "--key-point") if flag in text]
@@ -533,14 +539,14 @@ def wi03_p3_7(args, root):
 
 # --- Work item 4, frames (01M3CGKPVGGAAK06A1RD5C3XWZ) ------------------------------------------
 
-@entry("WI04-P2-1", "fixed")
+@entry("WI04-P2-1")
 def wi04_p2_1(args, root):
     name = "tests.test_frames.SelectionTest.test_among_equal_scores_the_budget_keeps_the_earliest_as_the_original_did"
     result = run_python(["-m", "unittest", name], cwd=REPO)
     return result.returncode != 0, f"tie-break test exit {result.returncode} (5f20bf7)"
 
 
-@entry("WI04-P3-1", "open")
+@entry("WI04-P3-1")
 def wi04_p3_1(args, root):
     mutations = {
         "zone weight 0.4 -> 0.5": [("meetingtool/frames/signals.py", "W_ZONE = 0.4", "W_ZONE = 0.5")],
@@ -555,7 +561,7 @@ def wi04_p3_1(args, root):
     return all(outcome.values()), f"mutations surviving the frames tests: {outcome}"
 
 
-@entry("WI04-P3-2", "open")
+@entry("WI04-P3-2")
 def wi04_p3_2(args, root):
     class Nothing:
         duration = None
@@ -583,21 +589,21 @@ def wi04_p3_2(args, root):
             "decoded JPEG (extract.py, _content_gray_of_jpeg) and a shape mismatch skips the comparison")
 
 
-@entry("WI04-P3-3", "fixed")
+@entry("WI04-P3-3")
 def wi04_p3_3(args, root):
     result = run_python(["-m", "unittest", "tests.test_frames.NoNetworkTest.test_a_url_is_refused_before_anything_opens_it"],
                         cwd=REPO)
     return result.returncode != 0, f"URL refused before av.open: test exit {result.returncode} (5f20bf7)"
 
 
-@entry("WI04-P3-4", "fixed")
+@entry("WI04-P3-4")
 def wi04_p3_4(args, root):
     text = (REPO / "docs/evidence/01M3CGKPVGGAAK06A1RD5C3XWZ/real-recording-run.txt").read_text(encoding="utf-8")
     sourced = "the count of JPEG files in its own output folder" in text
     return not sourced, f"the 76-frame figure carries its source: {sourced} (67a6e4e)"
 
 
-@entry("WI04-P3-5", "open")
+@entry("WI04-P3-5")
 def wi04_p3_5(args, root):
     import heapq
     most = []
@@ -621,7 +627,7 @@ def wi04_p3_5(args, root):
     return bool(most) and max(most) == 3, f"budget 2: JPEGs held at once during a replacement, at most {max(most, default=0)}"
 
 
-@entry("WI04-P3-6", "open")
+@entry("WI04-P3-6")
 def wi04_p3_6(args, root):
     with workspace() as tmp:
         video, out = tmp / "v.mp4", tmp / "out"
@@ -632,7 +638,7 @@ def wi04_p3_6(args, root):
                                              "discard: the first one appears nowhere")
 
 
-@entry("WI04-P3-7", "open")
+@entry("WI04-P3-7")
 def wi04_p3_7(args, root):
     import av
     floor = re.search(r'"av>=(\d+)"', (REPO / "pyproject.toml").read_text(encoding="utf-8")).group(1)
@@ -642,7 +648,7 @@ def wi04_p3_7(args, root):
 
 # --- Work item 5, frame selection (01M3CSRVTHE26R86125VY676EJ) ---------------------------------
 
-@entry("WI05-P2-1", "open")
+@entry("WI05-P2-1")
 def wi05_p2_1(args, root):
     kept = {}
     for order, check_before in (("new", True), ("old", False)):
@@ -664,7 +670,7 @@ def wi05_p2_1(args, root):
             "with the previous order")
 
 
-@entry("WI05-P3-1", "open")
+@entry("WI05-P3-1")
 def wi05_p3_1(args, root):
     x = "meetingtool/frames/extract.py"
     mutations = {
@@ -690,7 +696,7 @@ def wi05_p3_1(args, root):
     return all(outcome.values()), f"mutations surviving the frames tests: {outcome}"
 
 
-@entry("WI05-P3-2", "open")
+@entry("WI05-P3-2")
 def wi05_p3_2(args, root):
     with workspace() as tmp:
         two, one = tmp / "two.txt", tmp / "one.txt"
@@ -706,7 +712,7 @@ def wi05_p3_2(args, root):
                                           f"with one timed line it is refused as having none: {refused}")
 
 
-@entry("WI05-P3-3", "open")
+@entry("WI05-P3-3")
 def wi05_p3_3(args, root):
     with workspace() as tmp:
         tab = tmp / "tab.txt"
@@ -724,7 +730,7 @@ def wi05_p3_3(args, root):
             f"630 s {spoken_split}; curly apostrophe not matched {curly}; the filler \"a ver\" matched {filler}")
 
 
-@entry("WI05-P3-4", "open")
+@entry("WI05-P3-4")
 def wi05_p3_4(args, root):
     name = "tests.test_frames.SelectionTest.test_among_equal_scores_the_budget_keeps_the_earliest_as_the_original_did"
     change = [("tests/test_frames.py",
@@ -735,7 +741,7 @@ def wi05_p3_4(args, root):
     return not passes, f"the tie-break test without its patch of _is_near_duplicate: {detail}"
 
 
-@entry("WI05-P3-5", "open")
+@entry("WI05-P3-5")
 def wi05_p3_5(args, root):
     x = "meetingtool/frames/extract.py"
     block = ("    references = None\n    if transcript is not None:\n        try:\n"
@@ -749,7 +755,7 @@ def wi05_p3_5(args, root):
     return passes, f"transcript read moved after av.open, the recording closed if it fails: {detail}"
 
 
-@entry("WI05-P3-6", "open")
+@entry("WI05-P3-6")
 def wi05_p3_6(args, root):
     change = [("meetingtool/frames/extract.py",
                "    return previous_gray is not None and previous_gray.shape == gray.shape and ssim(previous_gray, gray) > threshold\n",
@@ -760,7 +766,7 @@ def wi05_p3_6(args, root):
     return passes, f"the shape-mismatch branch made to raise: {detail}"
 
 
-@entry("WI05-P3-7", "open")
+@entry("WI05-P3-7")
 def wi05_p3_7(args, root):
     text = (REPO / "docs/evidence/01M3CSRVTHE26R86125VY676EJ/real-recording-run.txt").read_text(encoding="utf-8")
     unmeasured = "the internal gaps of 15 and 18 minutes seen before were not measured again" in text
@@ -771,7 +777,7 @@ def wi05_p3_7(args, root):
             f"another evidence file carrying the before numbers: {[str(p.relative_to(REPO)) for p in earlier] or 'none'}")
 
 
-@entry("WI05-P3-8", "open")
+@entry("WI05-P3-8")
 def wi05_p3_8(args, root):
     size = 60 * 1024 * 1024
     with workspace() as tmp:
@@ -789,8 +795,20 @@ def wi05_p3_8(args, root):
 
 # --- Running ---------------------------------------------------------------------------------
 
-def register_ids():
-    return re.findall(r"^\| `([A-Z0-9-]+)` \|", REGISTER.read_text(encoding="utf-8"), re.MULTILINE)
+STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))
+
+
+def register_claims():
+    """[(id, claim)] for every entry row of REGISTER.md. The claim is read from
+    the first words of the row's State cell (the one before the last); the
+    script keeps no copy of its own. None when the words are none of the three."""
+    rows = []
+    for line in REGISTER.read_text(encoding="utf-8").splitlines():
+        match = re.match(r"^\| `([A-Z0-9-]+)` \|", line)
+        if match:
+            state = [cell.strip() for cell in line.strip().strip("|").split("|")][-2]
+            rows.append((match.group(1), next((claim for words, claim in STATE_WORDS if state.startswith(words)), None)))
+    return rows
 
 
 def main(argv=None):
@@ -802,13 +820,16 @@ def main(argv=None):
     for stream in (sys.stdout, sys.stderr):
         stream.reconfigure(encoding="utf-8")  # entries print Ł, →; Windows' code page cannot
 
-    in_register, in_script = register_ids(), [identifier for identifier, *_ in ENTRIES]
+    rows = register_claims()
+    in_register, in_script = [i for i, _ in rows], [identifier for identifier, *_ in ENTRIES]
+    claims = dict(rows)
     duplicated = sorted({i for i in in_register if in_register.count(i) > 1})
     only_register = sorted(set(in_register) - set(in_script))
     only_script = sorted(set(in_script) - set(in_register))
-    if duplicated or only_register or only_script:
+    no_state = sorted(i for i, claim in rows if claim is None)
+    if duplicated or only_register or only_script or no_state:
         print(f"REGISTER MISMATCH: duplicated {duplicated}, without a reproduction {only_register}, "
-              f"without a register entry {only_script}")
+              f"without a register entry {only_script}, state not open/fixed/not reproducible {no_state}")
         return 1
     unknown = sorted(set(args.ids + args.flip) - set(in_script))
     if unknown:
@@ -819,9 +840,10 @@ def main(argv=None):
           f"ingol: {args.ingol_repo or 'not given, INGOL entries skipped'}\n")
     counts = {"MATCH": 0, "MISMATCH": 0, "SKIPPED": 0, "ERROR": 0}
     with workspace() as root:
-        for identifier, claim, needs_ingol, function in ENTRIES:
+        for identifier, needs_ingol, function in ENTRIES:
             if args.ids and identifier not in args.ids:
                 continue
+            claim = claims[identifier]
             if identifier in args.flip:
                 claim = {"open": "fixed", "fixed": "open", "not-reproducible": "open"}[claim]
             if needs_ingol and args.ingol_repo is None:

@@ -25,10 +25,18 @@ only to temporary folders and makes no network call.
 - **not reproducible here**: nothing on this machine can show it; the entry
   says why and where it comes from.
 
-The script carries the same state for each entry and exits 1 when what it
-sees differs, or when an entry here has no reproduction there (or the other
-way round). A fixed limitation therefore turns the script red until this
-register says so.
+The script reads each entry's state from the first words of its State cell
+here, and keeps no copy of its own. It exits 1 when what it sees differs
+from that state, when an entry here has no reproduction there (or the other
+way round), or when a state is none of the three. A fixed limitation
+therefore turns the script red until this register says so, and a state
+written here that the reproduction does not show turns it red too.
+
+**Not yet in this register:** the findings of the review of the work item
+that made it (`01M3CY2R6VQAB7QHEJT18YHR4P`), which are in its
+`independent-review.md`. They enter the register with the next work item
+that changes it, so that a review of this register does not have to review
+its own entries.
 
 **What "reproduces" means for a test gap.** Findings of the form "no test
 pins X" are reproduced by a mutation: X is changed on purpose in a throwaway
@@ -89,7 +97,7 @@ review's order.
 | `WI03-P2-3` | `pyproject.toml` listed only the top package, so an install would leave out the subpackages | fixed by `c38353c` (work item 4) | The subpackages are declared and the packaging test passes. Building a real wheel needs `setuptools`, not installed here |
 | `WI03-P3-1` | Project ids drop letters such as `Ł`, `ß`, `ø`; wholly non-Latin names all become `project` and collide | open | `Łódź` → `odz`; a second non-Latin project is refused as already existing |
 | `WI03-P3-2` | A very long project name raises a raw `OSError` on Windows instead of a clear error | open | A 300-character name |
-| `WI03-P3-3` | A summary with Windows line endings makes the knowledge text returned differ from the one read back | open | `rebuild_knowledge` and `knowledge_context` differ |
+| `WI03-P3-3` | A summary with Windows line endings makes the knowledge text returned differ from the one read back; the test comparing the file with the returned text is close to tautological | open | `rebuild_knowledge` and `knowledge_context` differ |
 | `WI03-P3-4` | A missing `knowledge.md` raises `FileNotFoundError`, not a clear error | open | The file deleted, then read |
 | `WI03-P3-5` | `~` in the data folder setting is not expanded | open | `MEETINGTOOL_DATA_DIR=~/vmt-data` gives a folder literally named `~` |
 | `WI03-P3-6` | Two meetings of the same day added within the same second list alphabetically, not in the order added | open | "Zeta" then "Alpha" list as Alpha, Zeta |
@@ -98,6 +106,11 @@ review's order.
 ## Work item 4, frames (`01M3CGKPVGGAAK06A1RD5C3XWZ`)
 
 Source: `docs/evidence/01M3CGKPVGGAAK06A1RD5C3XWZ/independent-review.md`.
+That review's table of known limitations also holds one row with no P
+label: a 41.6-minute recording takes about 10 minutes. It is a measured
+cost, not a finding, and reproducing it needs the owner's real recording;
+its number is in `real-recording-run.txt` of that work item, and it has no
+entry here.
 
 | ID | What it means | State | Seen by running |
 |---|---|---|---|
@@ -123,5 +136,5 @@ Source: `docs/evidence/01M3CSRVTHE26R86125VY676EJ/independent-review.md`.
 | `WI05-P3-4` | The tie-break test runs with the duplicate check switched off, so it does not test the tie-break on the real path | open | Without the switch the test fails |
 | `WI05-P3-5` | No test pins that the transcript is read before the video is opened | open | The reading moved after the video opens, closing it if the reading fails: tests still pass. A variant that leaves the video open is caught on Windows, but only because the test cannot delete a file in use |
 | `WI05-P3-6` | No test changes the resolution mid-recording, so that branch of the duplicate check never runs | open | That branch made to raise: tests still pass |
-| `WI05-P3-7` | The WI05 evidence did not measure again the 15- and 18-minute gaps that motivated it, and its "before" numbers exist only there | open | The evidence says so; no other evidence file holds those numbers |
+| `WI05-P3-7` | The WI05 evidence did not measure again the 15- and 18-minute gaps that motivated it, its "before" numbers exist only there, and the seconds of its two runs cannot be compared because they ran at the same time | open | The evidence says the gaps were not measured again; no other evidence file holds the before numbers. The concurrency is stated in the evidence and not reproduced |
 | `WI05-P3-8` | The Word transcript reader has no size limit (a local file the owner chooses, so not a trust issue) | open | A 60 KB file read as 60 MB of text |
