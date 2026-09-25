@@ -26,19 +26,20 @@ REPOSITORY = Path(__file__).resolve().parent.parent
 KEY = "AIzaTEST-" + "k3y" * 10  # distinctive, so any leak is found
 
 
-def answer_for(first, count, finish="STOP", skip=(), repeat=(), extra=0):
+def answer_for(first, count, finish="STOP", skip=(), repeat=(), extra=0, label="[FRAME {n}]"):
     blocks = []
     for n in range(first, first + count):
         if n in skip:
             continue
-        blocks.append(f"[FRAME {n}]\n- Window/App: Excel\n- Key Data: row {n}: 1, 2, 3")
+        blocks.append(label.format(n=n) + f"\n- Window/App: Excel\n- Key Data: row {n}: 1, 2, 3")
         if n in repeat:
             blocks.append(f"[FRAME {n}]\n- Content: uninformative")
     for n in range(first + count, first + count + extra):
         blocks.append(f"[FRAME {n}]\n- Content: uninformative")
     return {"candidates": [{"content": {"parts": [{"text": "\n\n".join(blocks)}]}, "finishReason": finish}],
             "usageMetadata": {"promptTokenCount": 1000 * count, "candidatesTokenCount": 100 * count,
-                              "thoughtsTokenCount": 50 * count}}
+                              "thoughtsTokenCount": 50 * count},
+            "modelVersion": "fake-flash-1"}
 
 
 class FakeGemini:
@@ -70,7 +71,15 @@ class FakeGemini:
                 else:
                     self._send(200, step(first, len(images)))
 
+            def _send_raw(self, status, raw):
+                self.send_response(status)
+                self.send_header("Content-Length", str(len(raw)))
+                self.end_headers()
+                self.wfile.write(raw)
+
             def _send(self, status, data):
+                if isinstance(data, bytes):
+                    return self._send_raw(status, data)
                 raw = json.dumps(data).encode("utf-8")
                 self.send_response(status)
                 self.send_header("Content-Type", "application/json")
@@ -122,11 +131,14 @@ class ChunkingTest(Workspace):
         first = fake.requests[0]
         self.assertEqual(first["path"], f"/v1beta/models/{gemini.MODEL}:generateContent")
         self.assertEqual(first["body"]["contents"][0]["parts"][0]["text"], gemini.PROMPT)
-        self.assertEqual(first["body"]["generationConfig"]["maxOutputTokens"], gemini.MAX_OUTPUT_TOKENS)
+        self.assertEqual(first["body"]["generationConfig"]["maxOutputTokens"], 49152)
+        self.assertEqual(gemini.MAX_OUTPUT_TOKENS, 49152, "the original's 4096 cut real answers; 70 frames need ~38,500")
         sent = base64.b64decode(first["images"][0]["inline_data"]["data"])
         self.assertEqual(sent, (self.frames / "frame_001_t00-00-01.jpg").read_bytes())
         self.assertEqual((result.frames, result.requests, result.attempts), (5, 3, 3))
         self.assertEqual((result.input_tokens, result.output_tokens, result.thinking_tokens), (5000, 500, 250))
+        self.assertAlmostEqual(result.estimated_cost_usd, gemini.token_cost(5000, 750))
+        self.assertEqual(result.model_versions, ("fake-flash-1",))
         text = self.output().read_text(encoding="utf-8")
         self.assertEqual([n for n in range(1, 6) if f"[FRAME {n}]" in text], [1, 2, 3, 4, 5])
         self.assertIn("FRAME 5: frame_005_t00-00-05.jpg", text)
@@ -219,9 +231,65 @@ class RetryTest(Workspace):
     def test_no_answer_at_all_is_retried_then_refused(self):
         with self.assertRaises(gemini.ReadingError) as caught:
             gemini.read_frames(self.frames, KEY, endpoint="http://127.0.0.1:9/v1beta/models", chunk_size=2,
-                               sleep=self.sleeps.append)
+                               sleep=self.sleeps.append, max_cost_usd=10.0)
         self.assertEqual(self.sleeps, list(gemini.RETRY_DELAYS))
         self.assertIn("no answer", str(caught.exception))
+
+    def test_an_answer_that_is_not_json_is_retried_once_then_refused_without_a_traceback(self):
+        with FakeGemini([lambda f, c: b"<html>not json</html>"] * 2) as fake:
+            with self.assertRaises(gemini.ReadingError):
+                self.read(fake)
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+
+class BudgetTest(Workspace):
+    """WI07-AC06's ceiling (INGOL D-173): no attempt is sent if it could go over the budget."""
+
+    def test_the_default_budget_is_the_ceiling_the_owner_set(self):
+        self.assertEqual(gemini.MAX_COST_USD, 0.50)
+        # The real run: 81 frames in chunks of 70 and 11. Each attempt, at its worst, fits the budget,
+        # and so do the first attempts of both chunks together.
+        self.assertLess(gemini.worst_attempt_cost(70) + gemini.worst_attempt_cost(11), 0.50)
+
+    def test_a_budget_too_small_for_one_request_sends_nothing(self):
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError) as caught:
+                self.read(fake, max_cost_usd=0.01)
+        self.assertIn("budget of US$0.01", str(caught.exception))
+        self.assertEqual(fake.requests, [])
+
+    def test_a_retry_that_could_go_over_the_budget_is_not_sent(self):
+        worst = gemini.worst_attempt_cost(2)
+        with FakeGemini([lambda f, c: answer_for(f, c, skip={f})]) as fake:
+            with self.assertRaises(gemini.ReadingError) as caught:
+                self.read(fake, max_cost_usd=worst + 0.0005)
+        self.assertEqual(len(fake.requests), 1)
+        self.assertIn("stopped before sending frames 1-2", str(caught.exception))
+        self.assertFalse(self.output().exists())
+
+    def test_an_attempt_with_no_answer_is_counted_at_its_maximum(self):
+        with self.assertRaises(gemini.ReadingError) as caught:
+            gemini.read_frames(self.frames, KEY, endpoint="http://127.0.0.1:9/v1beta/models", chunk_size=2,
+                               sleep=self.sleeps.append)
+        worst = gemini.worst_attempt_cost(2)
+        self.assertIn(f"US${2 * worst:.2f} already spent", str(caught.exception))
+        self.assertIn("budget of US$0.50", str(caught.exception))
+
+
+class LabelTest(Workspace):
+    """P2-2 of the review: a label the model wraps in bold, a list mark or another letter case still counts."""
+
+    def test_labels_in_bold_in_a_list_or_in_another_case_are_accepted(self):
+        for label in ("**[FRAME {n}]**", "- [FRAME {n}]", "[Frame {n}]", "> [FRAME {n}]"):
+            with self.subTest(label=label):
+                text = gemini.check_answer(answer_for(1, 3, label=label), 1, 3)
+                self.assertIn("row 3", text)
+
+    def test_a_label_inside_a_sentence_is_not_a_block(self):
+        answer = answer_for(1, 2)
+        answer["candidates"][0]["content"]["parts"][0]["text"] += "\nsee also [FRAME 3] above"
+        gemini.check_answer(answer, 1, 2)
 
 
 class KeyNeverShownTest(Workspace):
@@ -251,6 +319,14 @@ class KeyNeverShownTest(Workspace):
             if path.suffix != ".jpg":
                 self.assertNotIn(KEY, path.read_text(encoding="utf-8"))
         self.assertTrue(self.output().exists())
+
+    def test_a_key_with_characters_no_gemini_key_has_is_refused_without_showing_it(self):
+        odd = "AIza\u00e9" + "x" * 30
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError) as caught:
+                gemini.read_frames(self.frames, odd, endpoint=fake.endpoint, sleep=self.sleeps.append)
+        self.assertNotIn(odd, str(caught.exception))
+        self.assertEqual(fake.requests, [])
 
     def test_no_error_message_carries_the_key(self):
         for script in ([400], [503, 503, 503], [lambda f, c: answer_for(f, c, skip={f})] * 2):

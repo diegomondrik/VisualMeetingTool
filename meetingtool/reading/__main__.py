@@ -29,6 +29,9 @@ def main(argv=None, *, read_key=None, save_key=None, delete_key=None, ask_key=No
     commands = parser.add_subparsers(dest="command", required=True)
     read = commands.add_parser("read", help="read the frames of a folder")
     read.add_argument("--frames", required=True, help="folder of frame_*.jpg, outside any git repository")
+    read.add_argument("--max-cost", type=float, default=gemini.MAX_COST_USD,
+                      help=f"spend budget in US$ for this run (default {gemini.MAX_COST_USD:.2f}); a request that "
+                           "could go over it is not sent")
     key = commands.add_parser("key", help="the Gemini key in the Windows Credential Manager")
     key.add_argument("action", choices=["set", "status", "delete"])
     args = parser.parse_args(argv)
@@ -50,13 +53,14 @@ def main(argv=None, *, read_key=None, save_key=None, delete_key=None, ask_key=No
             print("error: no Gemini key is saved. Save yours with: python -m meetingtool.reading key set",
                   file=sys.stderr)
             return 2
-        result = gemini.read_frames(args.frames, saved, endpoint=endpoint, sleep=sleep)
+        result = gemini.read_frames(args.frames, saved, endpoint=endpoint, sleep=sleep, max_cost_usd=args.max_cost)
     except (gemini.ReadingError, credentials.CredentialError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
     print(f"{result.frames} frames read in {result.requests} request(s) ({result.attempts} attempt(s)), "
           f"{result.seconds:.1f}s; tokens: input {result.input_tokens}, output {result.output_tokens}, "
-          f"thinking {result.thinking_tokens}")
+          f"thinking {result.thinking_tokens}; estimated cost US${result.estimated_cost_usd:.3f} "
+          f"(budget US${args.max_cost:.2f}); model {', '.join(result.model_versions) or 'not reported'}")
     print(f"written: {result.output}")
     return 0
 
