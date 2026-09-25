@@ -1,0 +1,33 @@
+schema_version: "1"
+work_item: 01M3C5MCNJ0FQJW936SZYSNPS6
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3C5MCNJ0FQJW936SZYSNPS6-skeleton
+steps:
+  - write-the-meetingtool-package-with-a-version-and-a-standard-library-only-cli-wi01-ac01
+  - write-the-repository-guard-and-a-test-that-proves-it-can-fail-on-a-throwaway-repository-wi01-ac02
+  - run-the-whole-suite-on-the-owners-machine-and-commit-its-output-as-evidence-wi01-ac03
+  - independent-review-and-approval-record-then-the-protected-pull-request-run
+evaluations:
+  - criterion: WI01-AC01
+    method: deterministic
+    control: >-
+      tests/test_cli.py runs `python -m meetingtool --version` in a child
+      process, requires exit 0 and the package version on stdout, and
+      requires that importing meetingtool adds no module outside
+      sys.stdlib_module_names to sys.modules.
+  - criterion: WI01-AC02
+    method: adversarial
+    control: >-
+      tests/test_repository_guard.py creates a throwaway git repository,
+      tracks a file named like a recording, and requires the guard to report
+      that path; and requires the guard to report nothing on this
+      repository's own tracked files.
+  - criterion: WI01-AC03
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` on the integrated tree on
+      the owner's machine and commit its full output, the exit code and the
+      commit it ran against under docs/evidence/01M3C5MCNJ0FQJW936SZYSNPS6/.
