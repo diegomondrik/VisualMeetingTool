@@ -1,0 +1,88 @@
+schema_version: "1"
+id: 01M3D814MW97RJQR5Z7TQQDJM4
+objective: >
+  Read the extracted frames with Gemini's paid tier (INGOL decisions D-170,
+  D-173). The frames the extractor selected are sent to Gemini with the
+  user's own paid key, at most 70 per request, and what each frame shows
+  (application, content type, figures with their row, text, what is
+  highlighted) is written next to the frames, outside any repository.
+
+  From the original MeetingTool it keeps the vision instructions (one block
+  per frame, exact figures, [ILLEGIBLE] instead of guessing, visual signals)
+  and 70 frames per request. It fixes three of its defects. First, the
+  original capped the answer at 4096 output tokens, which a real 35-frame
+  answer already exceeded (9328), so answers were cut; here the cap is
+  raised and an answer counts as complete only if it finished normally and
+  holds exactly one block per frame sent. Second, on a Gemini error the
+  original fell back, nearly silently, to a worse local OCR; here there is
+  no fallback: a busy or rate-limited service is retried twice with a pause
+  and then the run fails with a clear message and writes nothing. Third, the
+  key travelled in the request URL, where an error message could show it;
+  here it travels in a header and never appears in any output, file or
+  error.
+
+  Each user brings their own key from a Google project with billing
+  enabled; it is kept in the Windows Credential Manager (generic credential
+  VisualMeetingTool/gemini, where the owner's key already is), with a
+  command to save it (shown nowhere, with a notice that a free-tier key lets
+  Google use what is sent), to show only whether it exists and its length,
+  and to delete it. No local OCR option, no summary, no Word report, no
+  installer and no other operating system are in this work item.
+
+  The reading talks to Gemini only through the standard library (urllib), so
+  no dependency is added. Tests use a fake Gemini on the local machine and
+  never reach the network; this public repository commits no frame and no
+  read text.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3D814MW97RJQR5Z7TQQDJM4/**
+  - docs/evidence/01M3D814MW97RJQR5Z7TQQDJM4/**
+  - meetingtool/reading/**
+  - tests/test_reading.py
+  - README.md
+acceptance:
+  - id: WI07-AC01
+    description: >
+      A folder of frames is read with one request per 70 frames (the chunk
+      size is a parameter), each request carrying the instructions and every
+      frame labelled with its number; the answers are written, only after
+      every request succeeded, to frames_read.md in the frames folder, which
+      must be outside any git work tree (refused before any request
+      otherwise).
+  - id: WI07-AC02
+    description: >
+      An answer that did not finish normally, or that lacks, repeats or adds
+      a frame block, is retried once and otherwise refused: the run fails,
+      naming what was wrong, and writes nothing.
+  - id: WI07-AC03
+    description: >
+      A 503, a 429, a 500 or a timeout is retried twice, after 30 and 60
+      seconds by default, and then the run fails with a clear message and
+      writes nothing; any other error (for example 400 for an invalid key)
+      fails at once. There is no fallback reading.
+  - id: WI07-AC04
+    description: >
+      The key travels in the x-goog-api-key header, never in the URL, and
+      appears in no output, file or error message of the command line, in
+      success or in failure, checked by a test that searches for it
+      everywhere the tool writes.
+  - id: WI07-AC05
+    description: >
+      The key is saved, reported (exists and length only) and deleted
+      through the Windows Credential Manager; with no key saved, reading
+      tells how to save one and sends nothing.
+  - id: WI07-AC06
+    description: >
+      One real run on the owner's machine, on the frames extracted again
+      from the non-confidential meeting of INGOL D-167, with the owner's
+      paid key, spending at most US$0.50, recorded under
+      docs/evidence/01M3D814MW97RJQR5Z7TQQDJM4/ as numbers only (frames,
+      requests, attempts, blocks, seconds, tokens, estimated cost); the
+      frames and the read text are deleted afterwards.
+  - id: WI07-AC07
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3D814MW97RJQR5Z7TQQDJM4/ before the pull request
+      (INGOL D-163).
