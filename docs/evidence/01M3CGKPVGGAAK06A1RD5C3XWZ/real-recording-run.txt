@@ -1,0 +1,40 @@
+# WI04-AC05 - extraction on a real meeting recording, numbers only (WI028-AC04)
+date: 2026-09-25
+machine: owner's Windows ARM64 machine, x64 Python 3.12.10 (emulated), PyAV 18.1.0
+recording: a real meeting the owner kept as a test recording for the original MeetingTool; read in place, never copied; its name and content are not recorded here
+output folder: outside any repository (a temporary folder); frames counted, then deleted
+settings: defaults (budget 150, 2 samples per second, camera strip 15%, minimum gap 3 s, minimum score 0.15, similarity threshold 0.95)
+
+## run 1 - commit c38353c (single-threaded decoding; the peak-memory probe was broken and read 0, discarded)
+duration_seconds: 2496
+samples_analysed: 4992
+candidates: 369
+max_candidates_held: 150
+frames_kept: 75
+frames_written_then_deleted: 75
+discarded_budget: 219
+discarded_low_score: 2781
+discarded_minimum_gap: 1841
+discarded_near_duplicate: 75
+seconds_taken: 641.0
+output_folder_deleted: True
+
+## run 2 - same code plus threaded decoding (stream.thread_type AUTO)
+duration_seconds: 2496
+samples_analysed: 4992
+candidates: 369
+max_candidates_held: 150
+frames_kept: 75
+frames_written_then_deleted: 75
+discarded_budget: 219
+discarded_low_score: 2781
+discarded_minimum_gap: 1841
+discarded_near_duplicate: 75
+seconds_taken: 585.7
+peak_working_set_mb: 252
+output_folder_deleted: True
+
+## comparison
+Every count is identical between the runs; only time (641.0 s -> 585.7 s) differs. Threaded decoding kept.
+The original MeetingTool kept 76 frames from this same recording (its own test run); this port keeps 75.
+Memory is bounded by the budget: at most 150 candidates held, peak working set 252 MB for a 41.6-minute recording.

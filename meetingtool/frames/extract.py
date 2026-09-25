@@ -112,6 +112,7 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     samples = candidates = max_pool = 0
     try:
         stream = container.streams.video[0]
+        stream.thread_type = "AUTO"  # decode on every core; frames and their order do not change
         duration = _duration(container, stream)
         interval = 1.0 / fps_analyze
         last_sampled = -interval
