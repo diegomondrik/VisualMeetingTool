@@ -1,0 +1,64 @@
+# adversarial checks of the register script (WI06-AC01, WI06-AC02) for 01M3CY2R6VQAB7QHEJT18YHR4P
+date_utc: 2026-09-25T18:55:13Z
+machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1; go version go1.26.5 windows/arm64
+method: fresh git clone of the work-item branch, at the tested commit, run from the clone root
+tested_commit: 1fce3d7f4a5500d88b7d87bc8535047cd2512147
+tested_tree: 8e0c8a063eba45b163264e0b24738bc57c99e561
+untracked_or_ignored_files_in_clone_after_run: 4 (Python's __pycache__ folders: meetingtool, meetingtool/frames, meetingtool/projects, tests)
+rerun_reason: first run
+command: five runs, each with one change on purpose, restored after it
+exit_code: see each run
+---- output
+## an open entry declared fixed
+command: python docs/limitations/reproduce.py WI05-P3-2 --flip WI05-P3-2
+exit_code: 1 (expected 1)
+# limitations register reproduction
+commit: 1fce3d7f4a5500d88b7d87bc8535047cd2512147
+python: 3.12.10
+ingol: not given, INGOL entries skipped
+
+WI05-P3-2  claim=fixed            seen=open             MISMATCH (0.0s)
+           a UTF-8 file with a BOM and two timed lines reads 1 block(s); with one timed line it is refused as having none: True
+
+{'MATCH': 0, 'MISMATCH': 1, 'SKIPPED': 0, 'ERROR': 0}
+
+
+## a fixed entry declared open
+command: python docs/limitations/reproduce.py WI03-P2-1 --flip WI03-P2-1
+exit_code: 1 (expected 1)
+# limitations register reproduction
+commit: 1fce3d7f4a5500d88b7d87bc8535047cd2512147
+python: 3.12.10
+ingol: not given, INGOL entries skipped
+
+WI03-P2-1  claim=open             seen=fixed            MISMATCH (0.0s)
+           a path as project id is refused: '../repo/x' is not a project identifier (91231a1)
+
+{'MATCH': 0, 'MISMATCH': 1, 'SKIPPED': 0, 'ERROR': 0}
+
+
+## a register row removed (WI02-P3-E)
+command: python docs/limitations/reproduce.py 
+exit_code: 1 (expected 1)
+REGISTER MISMATCH: duplicated [], without a reproduction [], without a register entry ['WI02-P3-E']
+
+
+## a register row with no reproduction added (WI09-P3-1)
+command: python docs/limitations/reproduce.py 
+exit_code: 1 (expected 1)
+REGISTER MISMATCH: duplicated [], without a reproduction ['WI09-P3-1'], without a register entry []
+
+
+## the reviewer's one-line fix of WI05-P3-2 applied, register unchanged
+command: python docs/limitations/reproduce.py WI05-P3-2
+exit_code: 1 (expected 1)
+# limitations register reproduction
+commit: 1fce3d7f4a5500d88b7d87bc8535047cd2512147
+python: 3.12.10
+ingol: not given, INGOL entries skipped
+
+WI05-P3-2  claim=open             seen=fixed            MISMATCH (0.0s)
+           a UTF-8 file with a BOM and two timed lines reads 2 block(s); with one timed line it is refused as having none: False
+
+{'MATCH': 0, 'MISMATCH': 1, 'SKIPPED': 0, 'ERROR': 0}
+
