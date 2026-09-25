@@ -1,0 +1,60 @@
+schema_version: "1"
+work_item: 01M3D814MW97RJQR5Z7TQQDJM4
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3D814MW97RJQR5Z7TQQDJM4-gemini-reading
+steps:
+  - read-frames-in-chunks-and-write-only-complete-answers-wi07-ac01-ac02
+  - retry-busy-and-rate-limited-twice-then-fail-clearly-wi07-ac03
+  - keep-the-key-in-a-header-and-out-of-every-output-wi07-ac04
+  - save-report-and-delete-the-key-in-the-windows-credential-manager-wi07-ac05
+  - run-once-on-the-real-meeting-with-the-paid-key-numbers-only-wi07-ac06
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi07-ac07
+evaluations:
+  - criterion: WI07-AC01
+    method: deterministic
+    control: >-
+      tests/test_reading.py runs a fake Gemini on localhost, reads a folder of
+      generated frames with a small chunk size, and checks the number of
+      requests, what each carries, and the file written; a frames folder
+      inside a git work tree is refused with no request sent.
+  - criterion: WI07-AC02
+    method: adversarial
+    control: >-
+      The fake answers with a missing block, a repeated block, an extra
+      block and a MAX_TOKENS finish; each is refused with nothing written,
+      and an incomplete answer followed by a complete one succeeds after one
+      retry.
+  - criterion: WI07-AC03
+    method: adversarial
+    control: >-
+      The fake answers 503, 429, 500 and 400 in sequences; the pauses asked
+      for are recorded instead of slept, and the number of requests and the
+      outcome are checked.
+  - criterion: WI07-AC04
+    method: adversarial
+    control: >-
+      A distinctive key is used through the command line in a successful
+      run and in failing runs; the test requires it in the request header
+      and nowhere else: not in the request path, standard output, standard
+      error, the written file or any exception message.
+  - criterion: WI07-AC05
+    method: deterministic
+    control: >-
+      On Windows, a credential with a test-only name is written, read,
+      reported and deleted through the module; the command line with no key
+      exits with instructions and the fake receives no request.
+  - criterion: WI07-AC06
+    method: external-evidence
+    control: >-
+      Extract the frames of the D-167 meeting again from a clean clone of
+      main, read them with the owner's paid key, commit only the numbers,
+      delete the frames and the read text.
+  - criterion: WI07-AC07
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3D814MW97RJQR5Z7TQQDJM4/.

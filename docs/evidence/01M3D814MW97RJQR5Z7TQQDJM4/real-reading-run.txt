@@ -1,0 +1,34 @@
+# WI07-AC06: one real reading with Gemini's paid tier (INGOL D-173, ceiling US$0.50)
+date_utc: 2026-09-25T22:45:47Z
+machine: owner's Windows ARM64 machine, x64 Python 3.12 (emulated)
+meeting: the real 117-minute meeting the owner chose as not confidential (INGOL D-167); read in place, never copied into any repository; no name, number or text of it is recorded here
+key: the owner's paid key (billing enabled, D-169), read from the Windows Credential Manager by the command; never shown
+reading_code: fresh clone of work-item/01M3D814MW97RJQR5Z7TQQDJM4-gemini-reading at 5769a776d4ea70c5a0253751717699c0e9e9dd4d
+extraction: the same meeting extracted again from a fresh clone of main 8754413 with its transcript (output of python -m meetingtool.frames, numbers only):
+  duration 7017.0s, 14035 samples, 798 candidates, 81 frames kept
+  discarded low_score: 9246
+  discarded minimum_gap: 3990
+  discarded near_duplicate: 717
+  candidates raised by the transcript: 506 (441 only because of it)
+  exit=0 seconds=2226
+frames_sent: 81
+budget: US$0.50 (D-173), enforced by the command before each attempt: worst case per attempt 70 frames US$0.264, 11 frames US$0.197 (input 1000 + 1500/frame at US$0.75/M, output cap 49152 at US$3.75/M)
+command: python -m meetingtool.reading read --frames <frames folder outside any repository>
+exit_code: 0
+---- output of the command (numbers only)
+81 frames read in 2 request(s) (2 attempt(s)), 80.4s; tokens: input 91542, output 18414, thinking 4914; estimated cost US$0.156 (budget US$0.50); model gemini-3.8-flash
+written: <frames folder outside any repository>\frames_read.md
+(no error output)
+---- counted in the written file (then deleted)
+blocks: 81
+illegible_marks: 1
+uninformative_blocks: 0
+estimated_cost_usd: 0.156 (input x 0.75 + (output + thinking) x 3.75 per million, list prices used for D-169; the exact charge is in the owner's Google billing, not read here)
+deleted 2026-09-25T22:47:08Z: the frames folder with every frame and frames_read.md; exists after deletion: False
+---- an earlier attempt, recorded for the record
+2026-09-25T22:05Z, reading code d249166: the command found no saved key (exit 2) and sent nothing, so nothing was billed.
+The Windows Credential Manager was showing an older version of the credential VisualMeetingTool/gemini: empty, last
+written at 16:41Z (the cmdkey attempt of session 110). At 21:45Z and again at 22:45Z it showed the paid key, last
+written at 17:47Z, with no write in between. The cause is not known. The executor's measurement script deleted the
+frames after that failure (its defect, since fixed: it now checks the key first and keeps the frames on any failure),
+so the meeting was extracted again with the same result (81 frames) before this run.
