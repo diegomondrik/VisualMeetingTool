@@ -42,3 +42,39 @@ Key points:
 - Punto_de_prueba
 [exit 0]
 data folder used: C:\Users\Diego\VisualMeetingTool-data
+
+# Re-run after the review correction (read-only commands, same data folder)
+date_utc: 2026-09-25T15:04:19Z
+$ python -m meetingtool.projects list
+prueba-f8	Prueba-F8	Interno
+[exit 0]
+$ python -m meetingtool.projects meetings --project prueba-f8
+2026-09-18	2026-09-18-arranque	Arranque
+2026-09-25	2026-09-25-seguimiento	Seguimiento
+[exit 0]
+$ python -m meetingtool.projects knowledge --project prueba-f8
+# Knowledge: Prueba-F8
+
+Client: Interno
+
+## Context
+
+Proyecto_de_prueba_de_INGOL_F8
+
+## Meetings
+
+### 2026-09-18: Arranque
+
+Primera_reunion_de_prueba
+
+### 2026-09-25: Seguimiento
+
+Segunda_reunion_de_prueba
+
+Key points:
+
+- Punto_de_prueba
+[exit 0]
+$ python -m meetingtool.projects meetings --project ../prueba-f8
+error: '../prueba-f8' is not a project identifier
+[exit 2]

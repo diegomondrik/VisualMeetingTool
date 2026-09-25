@@ -37,6 +37,11 @@ def build_parser():
 
 
 def main(argv=None):
+    # Summaries may hold any character; a redirected Windows console would
+    # otherwise encode with the ANSI code page and fail.
+    for stream in (sys.stdout, sys.stderr):
+        if hasattr(stream, "reconfigure"):
+            stream.reconfigure(encoding="utf-8")
     args = build_parser().parse_args(argv)
     data_dir = args.data_dir or store.default_data_dir()
     try:

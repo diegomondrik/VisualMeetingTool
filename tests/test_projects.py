@@ -85,6 +85,7 @@ class KnowledgeTest(DataFolderTestCase):
         self.assertIn("ERP migration for finance", text)
         self.assertIn("Agreed on the data model.", text)
         self.assertIn("- Keep one ledger", text)
+        self.assertIn("- Weekly sync", text)
         self.assertLess(text.index("### 2026-09-01: Kickoff"), text.index("### 2026-09-15: Design review (technical)"))
         on_disk = (self.data / "acme" / "knowledge.md").read_text(encoding="utf-8")
         self.assertEqual(on_disk, text)
@@ -101,6 +102,58 @@ class DataFolderLocationTest(unittest.TestCase):
             with self.assertRaisesRegex(store.ProjectError, "inside the git work tree"):
                 store.create_project(inside, "Acme", "Acme")
             self.assertFalse(inside.exists(), "nothing may be written before the refusal")
+
+    def test_adding_a_meeting_into_a_git_work_tree_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            repository = Path(directory) / "repo"
+            subprocess.run(["git", "init", "-q", str(repository)], check=True)
+            inside = repository / "client-data"
+            (inside / "acme").mkdir(parents=True)
+            (inside / "acme" / "project.json").write_text("{}", encoding="utf-8")
+            with self.assertRaisesRegex(store.ProjectError, "inside the git work tree"):
+                store.add_meeting(inside, "acme", "Status", "2026-09-20")
+            self.assertFalse((inside / "acme" / "meetings").exists())
+
+    def test_a_project_folder_linked_into_a_git_work_tree_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            data = base / "data"
+            data.mkdir()
+            repository = base / "repo"
+            subprocess.run(["git", "init", "-q", str(repository)], check=True)
+            target = repository / "acme"
+            target.mkdir()
+            (target / "project.json").write_text("{}", encoding="utf-8")
+            link = data / "acme"
+            try:
+                os.symlink(target, link, target_is_directory=True)
+            except OSError:
+                if os.name != "nt":
+                    raise
+                subprocess.run(["cmd", "/c", "mklink", "/J", str(link), str(target)], check=True, capture_output=True)
+            with self.assertRaisesRegex(store.ProjectError, "inside the git work tree"):
+                store.add_meeting(data, "acme", "Status", "2026-09-20")
+            self.assertFalse((target / "meetings").exists())
+
+    def test_a_git_file_as_in_worktrees_and_submodules_also_marks_a_work_tree(self):
+        with tempfile.TemporaryDirectory() as directory:
+            worktree = Path(directory)
+            (worktree / ".git").write_text("gitdir: /elsewhere/.git/worktrees/x\n", encoding="utf-8")
+            with self.assertRaisesRegex(store.ProjectError, "inside the git work tree"):
+                store.check_data_dir(worktree / "data")
+
+    def test_a_path_instead_of_a_project_identifier_is_refused(self):
+        with tempfile.TemporaryDirectory() as directory:
+            base = Path(directory)
+            data = base / "data"
+            repository = base / "repo"
+            subprocess.run(["git", "init", "-q", str(repository)], check=True)
+            (repository / "x").mkdir()
+            (repository / "x" / "project.json").write_text("{}", encoding="utf-8")
+            for bad in ("../repo/x", str(repository / "x"), "Acme", "a/b"):
+                with self.subTest(project=bad), self.assertRaisesRegex(store.ProjectError, "not a project identifier"):
+                    store.add_meeting(data, bad, "Status", "2026-09-20")
+            self.assertFalse((repository / "x" / "meetings").exists())
 
     def test_this_repository_is_refused_as_a_data_folder(self):
         with self.assertRaisesRegex(store.ProjectError, "inside the git work tree"):
@@ -147,6 +200,24 @@ class CommandLineTest(DataFolderTestCase):
         knowledge = self.run_cli("knowledge", "--project", "acme").stdout
         self.assertIn("- Go-live 1 Oct", knowledge)
         self.assertEqual(self.run_cli("list").stdout, "acme\tAcme\tAcme Inc\n")
+
+    def test_non_ansi_characters_survive_redirected_output(self):
+        self.run_cli("new", "--name", "Łódź plan", "--client", "Klient ✓")
+        self.run_cli("add-meeting", "--project", "odz-plan", "--title", "Revisión", "--date", "2026-09-22",
+                     "--summary", "Acordado → avanzar")
+        for args in (("list",), ("meetings", "--project", "odz-plan"), ("knowledge", "--project", "odz-plan")):
+            with self.subTest(command=args[0]):
+                result = subprocess.run(
+                    [sys.executable, "-m", "meetingtool.projects", "--data-dir", str(self.data), *args],
+                    cwd=REPOSITORY, capture_output=True,
+                )
+                self.assertEqual(result.returncode, 0, result.stderr.decode("utf-8", "replace"))
+                result.stdout.decode("utf-8")
+        knowledge = subprocess.run(
+            [sys.executable, "-m", "meetingtool.projects", "--data-dir", str(self.data), "knowledge", "--project", "odz-plan"],
+            cwd=REPOSITORY, capture_output=True,
+        ).stdout.decode("utf-8")
+        self.assertIn("Acordado → avanzar", knowledge)
 
     def test_errors_exit_with_status_2_and_a_message(self):
         result = self.run_cli("meetings", "--project", "missing")

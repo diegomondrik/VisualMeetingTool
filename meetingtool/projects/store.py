@@ -79,7 +79,13 @@ def _now_utc():
 
 
 def _project_dir(data_dir, project_id):
+    # A project id is a slug, never a path: "../repo/x" or an absolute path
+    # would write outside the data folder. The final folder is checked too,
+    # in case a link inside the data folder points into a repository.
+    if project_id != slugify(project_id, fallback=""):
+        raise ProjectError(f"{project_id!r} is not a project identifier")
     folder = Path(data_dir) / project_id
+    check_data_dir(folder)
     if not (folder / "project.json").is_file():
         raise ProjectError(f"project {project_id} does not exist in {Path(data_dir).resolve()}")
     return folder
@@ -129,8 +135,8 @@ def _parse_date(value):
 def add_meeting(data_dir, project_id, title, date, meeting_type="", recording="", transcript="",
                 summary="", key_points=()):
     """Add a meeting to a project, rebuild its knowledge file, and return the
-    meeting record."""
-    data_dir = check_data_dir(data_dir)
+    meeting record. _project_dir checks the project's own folder, which also
+    covers a data folder inside a git work tree."""
     folder = _project_dir(data_dir, project_id)
     iso_date = _parse_date(date)
     if iso_date is None:
