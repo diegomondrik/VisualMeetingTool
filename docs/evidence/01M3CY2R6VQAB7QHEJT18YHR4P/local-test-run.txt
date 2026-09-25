@@ -1,11 +1,11 @@
 # local suite run (INGOL D-163, WI06-AC04) for 01M3CY2R6VQAB7QHEJT18YHR4P
-date_utc: 2026-09-25T18:55:30Z
+date_utc: 2026-09-25T19:15:30Z
 machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1; go version go1.26.5 windows/arm64
 method: fresh git clone of the work-item branch, at the tested commit, run from the clone root
-tested_commit: 1fce3d7f4a5500d88b7d87bc8535047cd2512147
-tested_tree: 8e0c8a063eba45b163264e0b24738bc57c99e561
-untracked_or_ignored_files_in_clone_after_run: 4 (Python's __pycache__ folders: meetingtool, meetingtool/frames, meetingtool/projects, tests)
-rerun_reason: first run
+tested_commit: 9d7577ae41e5c466bd5af7a808be6c803193f533
+tested_tree: 5de5c6f0710455b25e2d905ee71c10932d918be6
+untracked_or_ignored_files_in_clone_after_run: ['meetingtool/__pycache__/', 'meetingtool/frames/__pycache__/', 'meetingtool/projects/__pycache__/', 'tests/__pycache__/']
+rerun_reason: correction of the review's P2-1 (the claim is read from the register)
 command: python -m unittest discover -s tests -v
 exit_code: 0
 ---- output
@@ -66,6 +66,6 @@ test_the_contracted_extension_list_is_complete (test_repository_guard.GuardRules
 test_the_old_pipeline_output_names_are_rejected (test_repository_guard.GuardRulesTest.test_the_old_pipeline_output_names_are_rejected) ... ok
 
 ----------------------------------------------------------------------
-Ran 55 tests in 14.908s
+Ran 55 tests in 14.581s
 
 OK
