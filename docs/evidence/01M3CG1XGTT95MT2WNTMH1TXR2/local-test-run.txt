@@ -1,0 +1,29 @@
+# local suite run for 01M3CG1XGTT95MT2WNTMH1TXR2 (INGOL D-163)
+date_utc: 2026-09-25T14:45:56Z
+machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1
+method: fresh git clone of the work-item branch, checked out at the tested commit, suite run from the clone root
+tested_commit: a977049d9d8b7fa784c79f617840cf4e292d8a80
+tested_tree: f5adcfaf8fb53e160e6aec5edb6a7577b6c701f6
+untracked_or_ignored_files_in_clone_before_run: 0
+rerun_reason: first run (WI02-AC04)
+command: python -m unittest discover -s tests -v
+---- output
+test_import_needs_only_the_standard_library (test_cli.VersionTest.test_import_needs_only_the_standard_library) ... ok
+test_version_flag_prints_the_package_version (test_cli.VersionTest.test_version_flag_prints_the_package_version) ... ok
+test_a_code_folder_named_projects_below_the_root_is_not_ignored (test_repository_guard.GitignoreTest.test_a_code_folder_named_projects_below_the_root_is_not_ignored) ... ok
+test_every_extension_is_ignored_in_two_letter_cases (test_repository_guard.GitignoreTest.test_every_extension_is_ignored_in_two_letter_cases) ... ok
+test_root_data_folders_are_ignored (test_repository_guard.GitignoreTest.test_root_data_folders_are_ignored) ... ok
+test_guard_names_one_tracked_file_per_rule_in_a_throwaway_repository (test_repository_guard.GuardOnRepositoriesTest.test_guard_names_one_tracked_file_per_rule_in_a_throwaway_repository) ... ok
+test_this_repository_tracks_no_meeting_data (test_repository_guard.GuardOnRepositoriesTest.test_this_repository_tracks_no_meeting_data) ... ok
+test_every_listed_extension_is_rejected_in_any_case (test_repository_guard.GuardRulesTest.test_every_listed_extension_is_rejected_in_any_case) ... ok
+test_everything_under_a_root_data_folder_is_rejected (test_repository_guard.GuardRulesTest.test_everything_under_a_root_data_folder_is_rejected) ... ok
+test_ordinary_paths_are_accepted (test_repository_guard.GuardRulesTest.test_ordinary_paths_are_accepted) ... ok
+test_the_contracted_extension_list_is_complete (test_repository_guard.GuardRulesTest.test_the_contracted_extension_list_is_complete) ... ok
+test_the_old_pipeline_output_names_are_rejected (test_repository_guard.GuardRulesTest.test_the_old_pipeline_output_names_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 12 tests in 3.422s
+
+OK
+---- exit_code: 0
+integration_rule: the integrated commit may differ from tested_commit only under docs/evidence/01M3CG1XGTT95MT2WNTMH1TXR2/ and .ingol/work-items/01M3CG1XGTT95MT2WNTMH1TXR2/approvals/; check with: git diff --name-only <tested_commit> <integrated_commit>

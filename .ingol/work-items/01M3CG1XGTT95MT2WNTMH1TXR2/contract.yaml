@@ -1,0 +1,62 @@
+schema_version: "1"
+id: 01M3CG1XGTT95MT2WNTMH1TXR2
+objective: >
+  Widen the repository guard to the whole category of client meeting data
+  the approved WI-028 contract promises to keep out (INGOL D-162), closing
+  finding P2-1 of the skeleton's independent review before any work item
+  starts producing meeting data. Today the guard recognises six extensions;
+  other recordings (.mp3, .mkv, .webm...), extracted frames, subtitle files
+  and the file names the old MeetingTool pipeline gave its transcripts,
+  reports and handoffs (report_*.md, handoff_*.json, transcript*.txt) pass
+  unnoticed.
+
+  The guard rejects a tracked path when any of three rules matches: its
+  extension marks it as video, audio, image, subtitle or office/PDF
+  document; its file name matches a meeting-output pattern of the old
+  pipeline; or it lives under one of
+  the root data folders (meetings/, projects/, frames/). `.gitignore`
+  follows the same list so such files are not staged by accident.
+
+  This work item goes first, alone, so the two parallel work items that
+  follow (projects and meeting memory; image extraction) never need to
+  touch the guard.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3CG1XGTT95MT2WNTMH1TXR2/**
+  - docs/evidence/01M3CG1XGTT95MT2WNTMH1TXR2/**
+  - meetingtool/repository_guard.py
+  - tests/test_repository_guard.py
+  - .gitignore
+acceptance:
+  - id: WI02-AC01
+    description: >
+      The guard rejects, in any letter case, every tracked path whose
+      extension is one of: video .mp4 .mov .mkv .webm .avi .wmv .m4v;
+      audio .m4a .wav .mp3 .aac .ogg .flac .wma .opus; image .jpg .jpeg
+      .png .gif .bmp .webp .tif .tiff .heic; subtitle .vtt .srt; document
+      .docx .doc .pdf .pptx .xlsx; every path whose file name starts with
+      report_, handoff_ or transcript and ends in .md, .txt or .json (the
+      old pipeline's outputs; a code file such as report_writer.py stays
+      allowed); and every path under the root
+      folders meetings/, projects/ or frames/. It accepts ordinary source,
+      test and documentation paths, including a code folder named projects
+      or frames that is not at the root.
+  - id: WI02-AC02
+    description: >
+      The guard is shown able to fail for each of its three rules: a test
+      builds a throwaway git repository, force-tracks one file per rule, and
+      requires the guard to name each of them; and it reports nothing on
+      this repository's own tracked files.
+  - id: WI02-AC03
+    description: >
+      `.gitignore` ignores every extension and root folder of WI02-AC01,
+      checked by a test with `git check-ignore --no-index` on sample paths
+      in more than one letter case, and does not ignore a code folder named
+      projects below the root.
+  - id: WI02-AC04
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3CG1XGTT95MT2WNTMH1TXR2/ before the pull request
+      (INGOL D-163).
