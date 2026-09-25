@@ -4,16 +4,17 @@ generated/
 
 # Meeting data: client recordings, transcripts and reports never enter the
 # repository. A test also fails if one does (WI028, datos de clientes).
-*.mp4
-*.MP4
-*.mov
-*.m4a
-*.wav
-*.docx
-*.vtt
-meetings/
-projects/
-frames/
+# Patterns cover every letter case: on Linux git matches case exactly.
+*.[mM][pP]4
+*.[mM][oO][vV]
+*.[mM]4[aA]
+*.[wW][aA][vV]
+*.[dD][oO][cC][xX]
+*.[vV][tT][tT]
+# Anchored to the root so a code subpackage with the same name is never ignored.
+/meetings/
+/projects/
+/frames/
 
 # Credentials.
 .env
