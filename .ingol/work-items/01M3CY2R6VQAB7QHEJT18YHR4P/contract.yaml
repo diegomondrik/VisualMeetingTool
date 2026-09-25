@@ -1,0 +1,57 @@
+schema_version: "1"
+id: 01M3CY2R6VQAB7QHEJT18YHR4P
+objective: >
+  The project's own limitations register (INGOL WI028-AC08): every problem
+  found so far, in INGOL while using it (findings H1 to H6 of INGOL's F8) and
+  in this project (the P2 and P3 findings of the independent reviews under
+  docs/evidence/), recorded once, each with the command that reproduces it.
+  An entry is reproduced by running something, not by quoting the review
+  that found it; an entry that cannot be reproduced here says so and why,
+  and an entry that was fixed says which commit fixed it and shows, by
+  running something, that it no longer reproduces.
+
+  The commands are gathered in one script that states, entry by entry, what
+  the register claims (reproduces, fixed, or cannot be reproduced here) and
+  exits non-zero when what it sees differs, so the register cannot silently
+  go stale when a limitation is fixed. It writes only to temporary folders
+  and makes no network call. The entries about INGOL need a local clone of
+  INGOL; the script builds INGOL at the exact version this project's wrapper
+  pins and runs INGOL's own commands and checker against copies of this
+  project.
+
+  No code of the product changes: this work item adds the register, its
+  script and their evidence.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3CY2R6VQAB7QHEJT18YHR4P/**
+  - docs/evidence/01M3CY2R6VQAB7QHEJT18YHR4P/**
+  - docs/limitations/**
+acceptance:
+  - id: WI06-AC01
+    description: >
+      docs/limitations/REGISTER.md holds one entry for each of INGOL's
+      findings H1 to H6 and for each P2 and P3 finding of the five
+      independent reviews under docs/evidence/, with its source, what it
+      means, its state (open, fixed with the fixing commit, or not
+      reproducible here with the reason) and the command that reproduces
+      it; the script compares the register's entries with its own before
+      running anything and exits 1, naming them, if an entry of the
+      register has no reproduction or a reproduction has no entry.
+  - id: WI06-AC02
+    description: >
+      docs/limitations/reproduce.py runs every reproduction, prints for each
+      one what the register claims and what it saw, and exits 1 when any
+      result differs from the claim; an entry whose claim is flipped on
+      purpose makes it exit 1, so the check can fail.
+  - id: WI06-AC03
+    description: >
+      One full run of the script on the owner's machine, with the INGOL
+      entries included, every entry matching its claim, its complete output
+      committed under docs/evidence/01M3CY2R6VQAB7QHEJT18YHR4P/.
+  - id: WI06-AC04
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3CY2R6VQAB7QHEJT18YHR4P/ before the pull request
+      (INGOL D-163).
