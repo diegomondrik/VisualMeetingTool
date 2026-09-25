@@ -1,0 +1,15 @@
+schema_version: "2"
+project_id: ingol
+supported_schema_range: "1-2"
+approval_profile: bootstrap-controlled
+backend: local-git
+enforcement: advisory
+protected_branch: main
+platform_evidence:
+  windows_arm64: pending
+  macos: pending
+opaque_project_binding: "a878d4c48bf2391151204218a7c467a5bcd788ccebed01c89ce52c7a26b43def"
+install_profile: minimal
+staleness_policy:
+  threshold: "168h"
+adapter_compatibility: []
