@@ -112,6 +112,14 @@ class SelectionTest(Workspace):
         self.assertGreater(result.discards["budget"], 0)
         self.assertGreater(result.candidates, 2)
 
+    def test_among_equal_scores_the_budget_keeps_the_earliest_as_the_original_did(self):
+        tie = self.tmp / "tie.mp4"
+        write_video(tie, [(SLIDE_A, 2, False), (SLIDE_B, 2, False), (SLIDE_C, 2, False)])
+        scores = iter([0.5, 0.5, 0.7, 0.1, 0.1])  # samples at 1, 2, 3, 4, 5 s
+        with mock.patch.object(extract_module, "composite_score", lambda *args: next(scores)):
+            result = extract_frames(tie, self.out, budget=2, fps_analyze=1.0, min_gap=0.0)
+        self.assertEqual(result.kept_times, [1.0, 3.0])
+
     def test_a_candidate_that_cannot_enter_a_full_pool_is_never_encoded(self):
         real_jpeg = extract_module._jpeg
         calls = []
@@ -221,6 +229,14 @@ class NoNetworkTest(Workspace):
         with mock.patch.object(socket, "socket", refuse), mock.patch.object(socket, "create_connection", refuse):
             result = extract_frames(self.video, self.out)
         self.assertTrue(result.kept)
+
+    def test_a_url_is_refused_before_anything_opens_it(self):
+        # FFmpeg is native code the socket patch cannot see; refusing anything but
+        # a local file is what keeps it from opening a connection.
+        with mock.patch.object(extract_module.av, "open", side_effect=AssertionError("av.open was called")):
+            for source in ("https://example.com/meeting.mp4", "rtmp://example.com/live", str(self.tmp / "missing.mp4")):
+                with self.subTest(source=source), self.assertRaisesRegex(FramesError, "not a local file"):
+                    extract_frames(source, self.out)
 
 
 class NoFfmpegExecutableTest(Workspace):

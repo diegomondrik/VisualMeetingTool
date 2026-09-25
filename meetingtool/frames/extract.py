@@ -100,6 +100,9 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
         )
     if budget < 1:
         raise FramesError("the frame budget must be at least 1")
+    if not Path(video_path).is_file():
+        # a local file only: av.open would also accept a URL and open a connection
+        raise FramesError(f"recording {video_path} is not a local file")
     try:
         container = av.open(str(video_path))
     except (av.error.FFmpegError, OSError) as error:
@@ -107,7 +110,10 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
 
     discards = collections.Counter()
     log_lines = []
-    pool = []  # min-heap of (score, order, timestamp, jpeg bytes), at most `budget` long
+    # min-heap of (score, -order, timestamp, jpeg bytes), at most `budget` long. Among equal
+    # scores the later candidate sorts lower and leaves first, so the earliest is kept, as in
+    # the original's stable sort by score.
+    pool = []
     candidate_times = []
     samples = candidates = max_pool = 0
     try:
@@ -149,7 +155,7 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
                 discards["budget"] += 1
                 log_lines.append((timestamp, f"budget (score={score:.3f})"))
                 continue
-            entry = (score, candidates, timestamp, _jpeg(rgb))
+            entry = (score, -candidates, timestamp, _jpeg(rgb))
             if len(pool) >= budget:
                 dropped = heapq.heappushpop(pool, entry)
                 discards["budget"] += 1
