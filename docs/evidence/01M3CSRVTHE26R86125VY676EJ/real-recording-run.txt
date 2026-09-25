@@ -1,0 +1,60 @@
+# WI05-AC04 - frame selection on a real meeting recording, numbers only
+date: 2026-09-25
+machine: owner's Windows ARM64 machine, x64 Python 3.12.10 (emulated), PyAV 18.1.0
+recording: a real 117-minute Teams meeting the owner chose as not confidential (INGOL D-167); read in place, never copied; its name and content are not recorded here
+transcript: the meeting's Teams .docx, read in place; its content stays in memory and is not recorded here
+output folder: outside any repository; frames counted, then deleted
+settings: defaults (budget 150, 2 samples per second, camera strip 15%, minimum gap 3 s, minimum score 0.15, similarity threshold 0.95)
+code: commit fca3382 (this work item); the two runs below ran at the same time on the machine, so their seconds are slower than a run alone
+
+## before - main 8bd99e2 (previous code), same recording, run earlier the same day
+duration_seconds: 7017
+samples_analysed: 14035
+candidates: 360
+frames_kept: 35
+discarded_budget: 210
+discarded_low_score: 11874
+discarded_minimum_gap: 1800
+discarded_near_duplicate: 115
+seconds_taken: 1778
+gaps seen in the kept frames: 15 and 18 minutes inside the meeting; last frame at minute 80.3
+
+## run A - this work item, no transcript (the duplicate fix alone)
+duration_seconds: 7017
+samples_analysed: 14035
+candidates: 360
+max_candidates_held: 78
+frames_kept: 78
+frames_written_then_deleted: 78
+discarded_budget: 0
+discarded_low_score: 11874
+discarded_minimum_gap: 1800
+discarded_near_duplicate: 282
+longest_gap_without_a_frame_minutes: 37.1 (the end of the meeting: last frame at minute 79.8)
+seconds_taken: 2422.9
+peak_working_set_mb: not measured (the probe returned 0; discarded)
+output_folder_deleted: True
+
+## run B - this work item, with the transcript
+duration_seconds: 7017
+samples_analysed: 14035
+candidates: 798
+max_candidates_held: 81
+frames_kept: 81
+frames_written_then_deleted: 81
+discarded_budget: 0
+discarded_low_score: 9246
+discarded_minimum_gap: 3990
+discarded_near_duplicate: 717
+candidates_raised_by_transcript: 506
+candidates_only_because_of_transcript: 441
+longest_gap_without_a_frame_minutes: 37.1 (the end of the meeting: last frame at minute 79.8)
+seconds_taken: 2232.2
+peak_working_set_mb: not measured (the probe returned 0; discarded)
+output_folder_deleted: True
+
+## comparison
+The candidates are the same 360 before and in run A: the fix changes only what enters the budget. Before, 115 of the 150 budget places went to duplicates and 210 candidates were dropped for lack of room; with duplicates dropped first, 78 distinct candidates remain, the budget is never full, and nothing is dropped for room. 35 -> 78 frames.
+The transcript raises 506 candidates, 441 of which would not have been candidates without it; almost all of them repeat a screen already kept (717 near-duplicates), and the frames kept go from 78 to 81. It changes which moments are sampled more than how many frames are kept.
+The longest gap is now the end of the meeting: from minute 79.8 to 117 every candidate repeats the last kept frame. Whether the screen really stayed the same there was not checked against the video (that would mean opening the meeting's images); the internal gaps of 15 and 18 minutes seen before were not measured again in these runs.
+Memory: the pool held at most 81 candidates (budget 150); the peak working set was not measured.
