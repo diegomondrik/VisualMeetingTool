@@ -2,11 +2,17 @@
 
 The recording is decoded with PyAV, which bundles FFmpeg, so no ffmpeg
 executable is needed. The selection is the original MeetingTool's (see
-signals.py) with three changes: only the best `budget` candidates are held,
+signals.py) with these changes: only the best `budget` candidates are held,
 as JPEG bytes, so memory stays bounded; near-duplicates are found with a numpy
-SSIM (similarity.py); and that check, like the scoring, looks only below the
-camera strip. The opening slide needs no special case: the first sample has
-nothing to compare with, and the next one enters on time coverage alone.
+SSIM (similarity.py); that check, like the scoring, looks only below the
+camera strip; and a near-duplicate of the previous distinct candidate is
+dropped before it can take a budget place (the original dropped duplicates
+only after the budget, so they crowded distinct frames out). The check after
+the budget stays: removing a candidate can leave two duplicates side by side.
+An optional transcript raises the score of samples near a phrase that points
+at the screen (transcript.py). The opening slide needs no special case: the
+first sample has nothing to compare with, and the next one enters on time
+coverage alone.
 """
 
 import collections
@@ -22,6 +28,7 @@ from PIL import Image
 
 from meetingtool.frames.signals import composite_score, to_gray
 from meetingtool.frames.similarity import ssim
+from meetingtool.frames.transcript import TranscriptError, VisualReferences
 
 MAX_WIDTH = 1280
 MAX_HEIGHT = 720
@@ -43,6 +50,8 @@ class ExtractionResult:
     kept_times: list
     candidate_times: list
     discards: collections.Counter
+    boosted: int = 0      # candidates whose score the transcript raised
+    boosted_in: int = 0   # of those, the ones that were below the minimum score without it
 
 
 def enclosing_git_work_tree(path):
@@ -63,15 +72,29 @@ def _content_area(rgb, roi_top):
     return rgb[int(rgb.shape[0] * roi_top):, :]
 
 
-def _jpeg(rgb):
+def _saved_size(rgb):
     image = Image.fromarray(rgb)
     width, height = image.size
     if width > MAX_WIDTH or height > MAX_HEIGHT:
         scale = min(MAX_WIDTH / width, MAX_HEIGHT / height)
         image = image.resize((max(1, int(width * scale)), max(1, int(height * scale))), Image.LANCZOS)
+    return image
+
+
+def _jpeg(rgb):
     buffer = io.BytesIO()
-    image.save(buffer, "JPEG", quality=JPEG_QUALITY)
+    _saved_size(rgb).save(buffer, "JPEG", quality=JPEG_QUALITY)
     return buffer.getvalue()
+
+
+def _content_gray_at_saved_size(rgb, roi_top):
+    """What the check after the budget compares, before JPEG compression."""
+    return to_gray(_content_area(np.asarray(_saved_size(rgb).convert("RGB")), roi_top))
+
+
+def _is_near_duplicate(previous_gray, gray, threshold):
+    """Whether a candidate repeats the previous distinct one, checked before the budget."""
+    return previous_gray is not None and previous_gray.shape == gray.shape and ssim(previous_gray, gray) > threshold
 
 
 def _content_gray_of_jpeg(data, roi_top):
@@ -88,9 +111,11 @@ def _duration(container, stream):
 
 
 def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=0.15, min_gap=3.0,
-                   min_score=0.15, ssim_threshold=0.95):
+                   min_score=0.15, ssim_threshold=0.95, transcript=None):
     """Select up to `budget` frames of the recording and write them to
-    output_dir as frame_NNN_tHH-MM-SS.jpg, with a log of every discard."""
+    output_dir as frame_NNN_tHH-MM-SS.jpg, with a log of every discard.
+    `transcript`, a Teams .docx or a text file with [HH:MM:SS] lines, is read
+    before anything else is opened or written."""
     output_dir = Path(output_dir)
     work_tree = enclosing_git_work_tree(output_dir)
     if work_tree is not None:
@@ -100,6 +125,12 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
         )
     if budget < 1:
         raise FramesError("the frame budget must be at least 1")
+    references = None
+    if transcript is not None:
+        try:
+            references = VisualReferences.from_file(transcript)
+        except TranscriptError as error:
+            raise FramesError(str(error)) from error
     if not Path(video_path).is_file():
         # a local file only: av.open would also accept a URL and open a connection
         raise FramesError(f"recording {video_path} is not a local file")
@@ -115,7 +146,8 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     # the original's stable sort by score.
     pool = []
     candidate_times = []
-    samples = candidates = max_pool = 0
+    samples = candidates = max_pool = boosted = boosted_in = 0
+    last_distinct_gray = None
     try:
         stream = container.streams.video[0]
         stream.thread_type = "AUTO"  # decode on every core; frames and their order do not change
@@ -142,7 +174,8 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
                 log_lines.append((timestamp, f"minimum_gap ({timestamp - last_candidate:.1f}s after the previous candidate)"))
                 prev_gray = gray
                 continue
-            score = composite_score(prev_gray, gray, timestamp, duration, budget, candidate_times)
+            base_score = composite_score(prev_gray, gray, timestamp, duration, budget, candidate_times)
+            score = references.boost(base_score, timestamp) if references else base_score
             prev_gray = gray
             if score < min_score:
                 discards["low_score"] += 1
@@ -151,6 +184,15 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
             candidates += 1
             candidate_times.append(timestamp)
             last_candidate = timestamp
+            if score > base_score:
+                boosted += 1
+                boosted_in += base_score < min_score
+            saved_gray = _content_gray_at_saved_size(rgb, roi_top)
+            if _is_near_duplicate(last_distinct_gray, saved_gray, ssim_threshold):
+                discards["near_duplicate"] += 1
+                log_lines.append((timestamp, "near_duplicate (before the budget)"))
+                continue
+            last_distinct_gray = saved_gray
             if len(pool) >= budget and score <= pool[0][0]:
                 discards["budget"] += 1
                 log_lines.append((timestamp, f"budget (score={score:.3f})"))
@@ -191,4 +233,5 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     run = datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
     lines = [f"{run} | {timestamp_label(t)} | {reason}" for t, reason in sorted(log_lines, key=lambda x: x[0])]
     (output_dir / DISCARD_LOG).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
-    return ExtractionResult(duration, samples, candidates, max_pool, kept, kept_times, candidate_times, discards)
+    return ExtractionResult(duration, samples, candidates, max_pool, kept, kept_times, candidate_times, discards,
+                            boosted, boosted_in)

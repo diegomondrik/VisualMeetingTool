@@ -1,0 +1,75 @@
+schema_version: "1"
+id: 01M3CSRVTHE26R86125VY676EJ
+objective: >
+  Two improvements to frame selection, asked for by the owner after comparing
+  the port with the original MeetingTool (INGOL decision D-168).
+
+  First, a defect shared with the original: near-duplicates were dropped only
+  after the budget had chosen the best-scoring candidates, so duplicates took
+  budget places and distinct candidates were discarded for lack of room. On a
+  real 117-minute meeting the budget kept 150, 115 of them turned out to be
+  duplicates, 35 frames were kept, and 210 candidates had been discarded by
+  the budget, with gaps of 15 and 18 minutes without a frame. From now on a
+  candidate is compared, as it is found, with the previous candidate that was
+  not itself a near-duplicate (content area only, at the saved size, the same
+  structural-similarity threshold), and a near-duplicate never enters the
+  pool: the budget chooses among distinct candidates. The comparison after the budget stays, because two candidates
+  can become neighbours once the budget has removed what stood between them.
+  Memory stays bounded: one more grayscale image is held.
+
+  Second, the transcript boost the original had and the port left out: when
+  someone in the meeting says a phrase that points at the screen ("mirá",
+  "fijate", "en pantalla", "as you can see", ...) within 30 seconds of a
+  sample, that sample's score rises by 0.12, capped at 1. The original's
+  keyword list and window are kept; matching is by whole words instead of
+  substrings, so "ver" no longer matches inside "verdad" or "volver". The
+  transcript is read from a Teams .docx with the standard library (no new
+  dependency) or from a text file with [HH:MM:SS] lines; its content stays in
+  memory and is never written.
+
+  Transcripts are client data and this repository is public: tests build
+  their transcript at run time in a temporary folder, and the real run on
+  the owner's machine records only numbers.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3CSRVTHE26R86125VY676EJ/**
+  - docs/evidence/01M3CSRVTHE26R86125VY676EJ/**
+  - meetingtool/frames/**
+  - tests/test_frames.py
+acceptance:
+  - id: WI05-AC01
+    description: >
+      A near-duplicate of the previous distinct candidate never enters the pool:
+      on a synthetic recording where a long still slide produces several
+      candidates and the budget is tight, the kept frames are all distinct
+      slides and every slide change is kept, where the previous order
+      (budget first) loses a slide; the discard log names the early
+      duplicates as near_duplicate.
+  - id: WI05-AC02
+    description: >
+      The transcript boost adds 0.12 (capped at 1) to a sample within 30
+      seconds of a transcript block holding a visual-reference phrase,
+      matched by whole words, and nothing otherwise; a sample boosted into
+      the candidates is counted in the result.
+  - id: WI05-AC03
+    description: >
+      A Teams .docx transcript (speaker, then M:SS or H:MM:SS, then the
+      text) and a text transcript with [HH:MM:SS] lines are both read into
+      timed blocks with only the standard library; a transcript that cannot
+      be read is refused with a clear error before any frame is written, and
+      the command line accepts --transcript.
+  - id: WI05-AC04
+    description: >
+      One run on the same real 117-minute meeting on the owner's machine,
+      output outside any repository, recorded under
+      docs/evidence/01M3CSRVTHE26R86125VY676EJ/ as numbers only (frames kept,
+      discards by reason, boosted samples, longest gap without a frame,
+      seconds taken), against the 35 frames of the previous code; the frames
+      are deleted after counting.
+  - id: WI05-AC05
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3CSRVTHE26R86125VY676EJ/ before the pull request
+      (INGOL D-163).

@@ -1,6 +1,7 @@
 """Tests for meetingtool.frames. Every recording is synthesised at test time
 with PyAV and deleted afterwards: this public repository commits no media."""
 
+import contextlib
 import os
 import re
 import shutil
@@ -10,6 +11,7 @@ import sys
 import tempfile
 import tomllib
 import unittest
+import zipfile
 from pathlib import Path
 from unittest import mock
 
@@ -17,7 +19,7 @@ import av
 import numpy as np
 from PIL import Image
 
-from meetingtool.frames import FramesError, extract_frames, signals
+from meetingtool.frames import FramesError, extract_frames, signals, transcript
 from meetingtool.frames import extract as extract_module
 from meetingtool.frames.similarity import ssim
 
@@ -116,7 +118,10 @@ class SelectionTest(Workspace):
         tie = self.tmp / "tie.mp4"
         write_video(tie, [(SLIDE_A, 2, False), (SLIDE_B, 2, False), (SLIDE_C, 2, False)])
         scores = iter([0.5, 0.5, 0.7, 0.1, 0.1])  # samples at 1, 2, 3, 4, 5 s
-        with mock.patch.object(extract_module, "composite_score", lambda *args: next(scores)):
+        # The sample at 3 s repeats the one at 2 s; the check before the budget (WI05-AC01)
+        # is switched off so this test still reaches the budget's tie-break.
+        with mock.patch.object(extract_module, "composite_score", lambda *args: next(scores)), \
+                mock.patch.object(extract_module, "_is_near_duplicate", lambda *args: False):
             result = extract_frames(tie, self.out, budget=2, fps_analyze=1.0, min_gap=0.0)
         self.assertEqual(result.kept_times, [1.0, 3.0])
 
@@ -254,6 +259,118 @@ class NoFfmpegExecutableTest(Workspace):
         self.assertEqual(result.returncode, 0, result.stderr)
         self.assertIn("frames kept", result.stdout)
         self.assertTrue(list(self.out.glob("frame_*.jpg")))
+
+
+class DuplicatesBeforeTheBudgetTest(Workspace):
+    """WI05-AC01: a repeated screen cannot take the place of a distinct one."""
+
+    def extract_long_a_then_b(self, check_before_budget=True):
+        video = self.tmp / "long-a.mp4"
+        write_video(video, [(SLIDE_A, 4, False), (SLIDE_B, 2, False)])
+        scores = iter([0.9, 0.9, 0.9, 0.5, 0.1])  # samples at 1, 2, 3 s (A) and 4, 5 s (B)
+        patches = [mock.patch.object(extract_module, "composite_score", lambda *args: next(scores))]
+        if not check_before_budget:
+            patches.append(mock.patch.object(extract_module, "_is_near_duplicate", lambda *args: False))
+        with contextlib.ExitStack() as stack:
+            for patch in patches:
+                stack.enter_context(patch)
+            return extract_frames(video, self.out, budget=2, fps_analyze=1.0, min_gap=0.0)
+
+    def test_repeats_are_dropped_before_the_budget_so_every_slide_is_kept(self):
+        result = self.extract_long_a_then_b()
+        self.assertEqual([which_slide(self.out / name) for name in result.kept], ["A", "B"])
+        self.assertEqual(result.discards["near_duplicate"], 2)
+        log = (self.out / "frames_discarded.log").read_text(encoding="utf-8")
+        self.assertEqual(log.count("near_duplicate (before the budget)"), 2)
+
+    def test_the_old_order_loses_the_slide_so_this_test_can_fail(self):
+        result = self.extract_long_a_then_b(check_before_budget=False)
+        self.assertEqual([which_slide(self.out / name) for name in result.kept], ["A"])
+        self.assertGreater(result.discards["budget"], 0)
+
+
+def write_teams_docx(path, blocks):
+    """A minimal Word file shaped like a Teams transcript: each paragraph is a
+    line break, 'Speaker   M:SS', a line break, then the text."""
+    paragraphs = "".join(
+        f'<w:p><w:r><w:br/><w:t xml:space="preserve">{speaker}   {clock}</w:t><w:br/><w:t>{text}</w:t></w:r></w:p>'
+        for speaker, clock, text in blocks
+    )
+    document = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                f'<w:body><w:p><w:r><w:t>Meeting title</w:t></w:r></w:p>{paragraphs}</w:body></w:document>')
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("word/document.xml", document)
+
+
+BLOCKS = [("Ana Pérez", "0:04", "Buen día a todos."),
+          ("Juan Gómez", "1:22", "Fijate el total de la columna."),
+          ("Ana Pérez", "1:02:03", "Es verdad, hay que volver a eso.")]
+
+
+class TranscriptTest(Workspace):
+    """WI05-AC02 and WI05-AC03."""
+
+    def test_the_boost_is_whole_words_within_the_window_and_capped(self):
+        references = transcript.VisualReferences([(100, "Mirá el total"), (500, "es verdad"), (900, "hay que volver")])
+        self.assertEqual(references.times, [100])
+        self.assertTrue(references.near(75))
+        self.assertTrue(references.near(130))
+        self.assertFalse(references.near(131))
+        self.assertAlmostEqual(references.boost(0.5, 100), 0.62)
+        self.assertEqual(references.boost(0.95, 100), 1.0)
+        self.assertEqual(references.boost(0.5, 500), 0.5)
+        self.assertTrue(transcript.has_visual_reference("vamos a VER el número"))
+        self.assertFalse(transcript.has_visual_reference("la verdad, volver a revisar"))
+
+    def test_a_teams_docx_and_a_timed_text_read_to_the_same_blocks(self):
+        docx = self.tmp / "meeting.docx"
+        write_teams_docx(docx, BLOCKS)
+        text = self.tmp / "meeting.txt"
+        text.write_text("\n".join(f"[{transcript._seconds(c) // 3600:02d}:{transcript._seconds(c) % 3600 // 60:02d}:"
+                                  f"{transcript._seconds(c) % 60:02d}] {s}:\n{t}" for s, c, t in BLOCKS), encoding="utf-8")
+        from_docx = transcript.read_blocks(docx)
+        from_text = transcript.read_blocks(text)
+        self.assertEqual([start for start, _ in from_docx], [4, 82, 3723])
+        self.assertEqual([start for start, _ in from_text], [4, 82, 3723])
+        self.assertEqual([transcript.has_visual_reference(t) for _, t in from_docx], [False, True, False])
+        self.assertEqual([transcript.has_visual_reference(t) for _, t in from_text], [False, True, False])
+
+    def test_a_sample_below_the_minimum_becomes_a_candidate_only_next_to_a_phrase(self):
+        near = self.tmp / "near.txt"
+        near.write_text("[00:00:05] Ana:\nfijate acá", encoding="utf-8")
+        far = self.tmp / "far.txt"
+        far.write_text("[00:10:00] Ana:\nfijate acá", encoding="utf-8")
+        with mock.patch.object(extract_module, "composite_score", lambda *args: 0.1):
+            without = extract_frames(self.video, self.out)
+            too_far = extract_frames(self.video, self.out, transcript=far)
+            boosted = extract_frames(self.video, self.out, transcript=near)
+        self.assertEqual((without.candidates, too_far.candidates), (0, 0))
+        self.assertGreater(boosted.candidates, 0)
+        self.assertEqual(boosted.boosted_in, boosted.candidates)
+        self.assertTrue(boosted.kept)
+
+    def test_an_unreadable_transcript_is_refused_before_anything_is_written(self):
+        broken = self.tmp / "broken.docx"
+        broken.write_bytes(b"not a word file")
+        untimed = self.tmp / "untimed.txt"
+        untimed.write_text("hello\nno times here\n", encoding="utf-8")
+        for source in (broken, untimed, self.tmp / "missing.docx"):
+            with self.subTest(source=source.name), self.assertRaises(FramesError):
+                extract_frames(self.video, self.out, transcript=source)
+            self.assertFalse(self.out.exists())
+
+    def test_the_command_line_accepts_a_transcript(self):
+        docx = self.tmp / "meeting.docx"
+        write_teams_docx(docx, BLOCKS)
+        result = subprocess.run(
+            [sys.executable, "-m", "meetingtool.frames", "--video", str(self.video), "--out", str(self.out),
+             "--transcript", str(docx)],
+            cwd=REPOSITORY, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("raised by the transcript", result.stdout)
 
 
 class PackagingTest(unittest.TestCase):

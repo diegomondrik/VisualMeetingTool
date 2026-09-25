@@ -1,0 +1,51 @@
+schema_version: "1"
+work_item: 01M3CSRVTHE26R86125VY676EJ
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3CSRVTHE26R86125VY676EJ-frame-selection
+steps:
+  - drop-near-duplicates-before-they-enter-the-budget-pool-wi05-ac01
+  - read-teams-docx-and-timed-text-transcripts-with-the-standard-library-wi05-ac03
+  - boost-samples-near-a-visual-reference-phrase-by-whole-words-wi05-ac02
+  - run-once-on-the-same-real-meeting-and-record-numbers-only-wi05-ac04
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi05-ac05
+evaluations:
+  - criterion: WI05-AC01
+    method: adversarial
+    control: >-
+      tests/test_frames.py builds a recording where one slide stays on
+      screen long enough to yield several candidates and sets a budget that
+      the old order would fill with its duplicates; requires every slide to
+      be kept, and requires the same recording to lose a slide when the
+      pre-pool check is patched out, so the test fails if the fix is
+      removed.
+  - criterion: WI05-AC02
+    method: deterministic
+    control: >-
+      tests/test_frames.py checks the boost on timed blocks: +0.12 within 30
+      s of a phrase, none outside, none for a word that only contains a
+      keyword, capped at 1; and on a synthetic recording that a sample below
+      the minimum score becomes a candidate only when the transcript has a
+      phrase next to it.
+  - criterion: WI05-AC03
+    method: deterministic
+    control: >-
+      tests/test_frames.py writes a minimal Teams-shaped .docx and a
+      [HH:MM:SS] text file in a temporary folder, requires both to parse to
+      the same timed blocks, requires an unreadable file to raise
+      FramesError with no frame written, and runs the command line with
+      --transcript.
+  - criterion: WI05-AC04
+    method: external-evidence
+    control: >-
+      Run the extractor with the transcript on the owner's real meeting with
+      output outside any repository; commit only the numeric summary next
+      to the previous code's numbers; delete the frames after counting.
+  - criterion: WI05-AC05
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3CSRVTHE26R86125VY676EJ/.
