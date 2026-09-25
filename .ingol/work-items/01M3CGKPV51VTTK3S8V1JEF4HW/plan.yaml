@@ -1,0 +1,51 @@
+schema_version: "1"
+work_item: 01M3CGKPV51VTTK3S8V1JEF4HW
+status: approved
+next_gate: independent-review-then-open-the-pull-request-alongside-work-2-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3CGKPV51VTTK3S8V1JEF4HW-projects
+steps:
+  - write-the-project-and-meeting-store-with-a-data-folder-outside-any-git-work-tree-wi03-ac01-ac02-ac04
+  - rebuild-the-knowledge-file-after-every-meeting-and-expose-it-to-the-next-summary-wi03-ac03
+  - add-the-command-line-and-run-it-in-tests-and-once-on-the-owners-machine-wi03-ac05
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi03-ac06
+evaluations:
+  - criterion: WI03-AC01
+    method: deterministic
+    control: >-
+      tests/test_projects.py creates projects in a temporary data folder,
+      checks the derived identifier and the listing, and requires a second
+      project with the same identifier to raise an error naming it.
+  - criterion: WI03-AC02
+    method: deterministic
+    control: >-
+      tests/test_projects.py adds meetings out of date order and with a
+      repeated date and title, requires the listing in date order with both
+      repeated meetings present, and requires an invalid date to raise.
+  - criterion: WI03-AC03
+    method: deterministic
+    control: >-
+      tests/test_projects.py adds two meetings and requires the knowledge
+      file and knowledge_context to hold both, the earlier first, with the
+      project context, summaries and key points.
+  - criterion: WI03-AC04
+    method: adversarial
+    control: >-
+      tests/test_projects.py creates a throwaway git repository and requires
+      creating a project with a data folder inside it to raise an error
+      naming the folder, and requires the default data folder to lie outside
+      this repository.
+  - criterion: WI03-AC05
+    method: deterministic
+    control: >-
+      tests/test_projects.py drives python -m meetingtool.projects in child
+      processes against a temporary data folder; and the same commands are
+      run once in the default data folder on the owner's machine, commands
+      and output committed as evidence.
+  - criterion: WI03-AC06
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3CGKPV51VTTK3S8V1JEF4HW/.

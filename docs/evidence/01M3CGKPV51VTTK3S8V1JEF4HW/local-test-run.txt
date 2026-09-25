@@ -1,0 +1,47 @@
+# local suite run for 01M3CGKPV51VTTK3S8V1JEF4HW (INGOL D-163)
+date_utc: 2026-09-25T15:04:29Z
+machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1
+method: fresh git clone of the work-item branch, checked out at the tested commit, suite run from the clone root
+tested_commit: 91231a1fef0afbe424668b74ae1dcbf6d3a35545
+tested_tree: 293ba658dcbd2b719d89e8bb0592db563a910f98
+untracked_or_ignored_files_in_clone_before_run: 0
+rerun_reason: first run (WI03-AC06), on the commit after the review correction
+command: python -m unittest discover -s tests -v
+---- output
+test_import_needs_only_the_standard_library (test_cli.VersionTest.test_import_needs_only_the_standard_library) ... ok
+test_version_flag_prints_the_package_version (test_cli.VersionTest.test_version_flag_prints_the_package_version) ... ok
+test_a_project_with_two_meetings_round_trips_through_the_command_line (test_projects.CommandLineTest.test_a_project_with_two_meetings_round_trips_through_the_command_line) ... ok
+test_errors_exit_with_status_2_and_a_message (test_projects.CommandLineTest.test_errors_exit_with_status_2_and_a_message) ... ok
+test_non_ansi_characters_survive_redirected_output (test_projects.CommandLineTest.test_non_ansi_characters_survive_redirected_output) ... ok
+test_a_data_folder_inside_a_git_work_tree_is_refused (test_projects.DataFolderLocationTest.test_a_data_folder_inside_a_git_work_tree_is_refused) ... ok
+test_a_git_file_as_in_worktrees_and_submodules_also_marks_a_work_tree (test_projects.DataFolderLocationTest.test_a_git_file_as_in_worktrees_and_submodules_also_marks_a_work_tree) ... ok
+test_a_path_instead_of_a_project_identifier_is_refused (test_projects.DataFolderLocationTest.test_a_path_instead_of_a_project_identifier_is_refused) ... ok
+test_a_project_folder_linked_into_a_git_work_tree_is_refused (test_projects.DataFolderLocationTest.test_a_project_folder_linked_into_a_git_work_tree_is_refused) ... ok
+test_adding_a_meeting_into_a_git_work_tree_is_refused (test_projects.DataFolderLocationTest.test_adding_a_meeting_into_a_git_work_tree_is_refused) ... ok
+test_the_default_data_folder_is_outside_this_repository (test_projects.DataFolderLocationTest.test_the_default_data_folder_is_outside_this_repository) ... ok
+test_the_environment_variable_sets_the_data_folder (test_projects.DataFolderLocationTest.test_the_environment_variable_sets_the_data_folder) ... ok
+test_this_repository_is_refused_as_a_data_folder (test_projects.DataFolderLocationTest.test_this_repository_is_refused_as_a_data_folder) ... ok
+test_the_knowledge_holds_every_meeting_earlier_first (test_projects.KnowledgeTest.test_the_knowledge_holds_every_meeting_earlier_first) ... ok
+test_a_meeting_for_a_missing_project_is_rejected (test_projects.MeetingTest.test_a_meeting_for_a_missing_project_is_rejected) ... ok
+test_an_invalid_date_is_rejected (test_projects.MeetingTest.test_an_invalid_date_is_rejected) ... ok
+test_date_order_does_not_depend_on_the_file_system_listing_order (test_projects.MeetingTest.test_date_order_does_not_depend_on_the_file_system_listing_order) ... ok
+test_meetings_are_listed_in_date_order_and_repeats_survive (test_projects.MeetingTest.test_meetings_are_listed_in_date_order_and_repeats_survive) ... ok
+test_a_second_project_with_the_same_identifier_is_rejected (test_projects.ProjectTest.test_a_second_project_with_the_same_identifier_is_rejected) ... ok
+test_create_and_list_projects (test_projects.ProjectTest.test_create_and_list_projects) ... ok
+test_a_code_folder_named_projects_below_the_root_is_not_ignored (test_repository_guard.GitignoreTest.test_a_code_folder_named_projects_below_the_root_is_not_ignored) ... ok
+test_every_extension_is_ignored_in_two_letter_cases (test_repository_guard.GitignoreTest.test_every_extension_is_ignored_in_two_letter_cases) ... ok
+test_root_data_folders_are_ignored (test_repository_guard.GitignoreTest.test_root_data_folders_are_ignored) ... ok
+test_guard_names_one_tracked_file_per_rule_in_a_throwaway_repository (test_repository_guard.GuardOnRepositoriesTest.test_guard_names_one_tracked_file_per_rule_in_a_throwaway_repository) ... ok
+test_this_repository_tracks_no_meeting_data (test_repository_guard.GuardOnRepositoriesTest.test_this_repository_tracks_no_meeting_data) ... ok
+test_every_listed_extension_is_rejected_in_any_case (test_repository_guard.GuardRulesTest.test_every_listed_extension_is_rejected_in_any_case) ... ok
+test_everything_under_a_root_data_folder_is_rejected (test_repository_guard.GuardRulesTest.test_everything_under_a_root_data_folder_is_rejected) ... ok
+test_ordinary_paths_are_accepted (test_repository_guard.GuardRulesTest.test_ordinary_paths_are_accepted) ... ok
+test_the_contracted_extension_list_is_complete (test_repository_guard.GuardRulesTest.test_the_contracted_extension_list_is_complete) ... ok
+test_the_old_pipeline_output_names_are_rejected (test_repository_guard.GuardRulesTest.test_the_old_pipeline_output_names_are_rejected) ... ok
+
+----------------------------------------------------------------------
+Ran 30 tests in 4.990s
+
+OK
+---- exit_code: 0
+integration_rule: the integrated commit may differ from tested_commit only under docs/evidence/01M3CGKPV51VTTK3S8V1JEF4HW/ and .ingol/work-items/01M3CGKPV51VTTK3S8V1JEF4HW/approvals/; check with: git diff --name-only <tested_commit> <integrated_commit>

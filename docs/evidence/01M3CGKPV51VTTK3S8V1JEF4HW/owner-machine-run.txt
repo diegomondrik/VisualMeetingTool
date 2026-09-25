@@ -1,0 +1,80 @@
+# WI03-AC05 - run on the owner's machine, default data folder (WI028-AC03)
+date_utc: 2026-09-25T14:52:10Z
+code: main 8f44a2c plus this work item's working tree, committed unchanged right after this run in the commit that adds this file
+data folder env MEETINGTOOL_DATA_DIR set: no
+$ python -m meetingtool.projects new --name Prueba-F8 --client Interno --context Proyecto_de_prueba_de_INGOL_F8
+created project prueba-f8
+[exit 0]
+$ python -m meetingtool.projects add-meeting --project prueba-f8 --title Seguimiento --date 2026-09-25 --summary Segunda_reunion_de_prueba --key-point Punto_de_prueba
+added meeting 2026-09-25-seguimiento
+[exit 0]
+$ python -m meetingtool.projects add-meeting --project prueba-f8 --title Arranque --date 2026-09-18 --summary Primera_reunion_de_prueba
+added meeting 2026-09-18-arranque
+[exit 0]
+$ python -m meetingtool.projects list
+prueba-f8	Prueba-F8	Interno
+[exit 0]
+$ python -m meetingtool.projects meetings --project prueba-f8
+2026-09-18	2026-09-18-arranque	Arranque
+2026-09-25	2026-09-25-seguimiento	Seguimiento
+[exit 0]
+$ python -m meetingtool.projects knowledge --project prueba-f8
+# Knowledge: Prueba-F8
+
+Client: Interno
+
+## Context
+
+Proyecto_de_prueba_de_INGOL_F8
+
+## Meetings
+
+### 2026-09-18: Arranque
+
+Primera_reunion_de_prueba
+
+### 2026-09-25: Seguimiento
+
+Segunda_reunion_de_prueba
+
+Key points:
+
+- Punto_de_prueba
+[exit 0]
+data folder used: C:\Users\Diego\VisualMeetingTool-data
+
+# Re-run after the review correction (read-only commands, same data folder)
+date_utc: 2026-09-25T15:04:19Z
+$ python -m meetingtool.projects list
+prueba-f8	Prueba-F8	Interno
+[exit 0]
+$ python -m meetingtool.projects meetings --project prueba-f8
+2026-09-18	2026-09-18-arranque	Arranque
+2026-09-25	2026-09-25-seguimiento	Seguimiento
+[exit 0]
+$ python -m meetingtool.projects knowledge --project prueba-f8
+# Knowledge: Prueba-F8
+
+Client: Interno
+
+## Context
+
+Proyecto_de_prueba_de_INGOL_F8
+
+## Meetings
+
+### 2026-09-18: Arranque
+
+Primera_reunion_de_prueba
+
+### 2026-09-25: Seguimiento
+
+Segunda_reunion_de_prueba
+
+Key points:
+
+- Punto_de_prueba
+[exit 0]
+$ python -m meetingtool.projects meetings --project ../prueba-f8
+error: '../prueba-f8' is not a project identifier
+[exit 2]
