@@ -1,0 +1,59 @@
+schema_version: "1"
+work_item: 01M3CGKPVGGAAK06A1RD5C3XWZ
+status: approved
+next_gate: independent-review-then-open-the-pull-request-alongside-work-1-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3CGKPVGGAAK06A1RD5C3XWZ-frames
+steps:
+  - port-the-selection-signals-and-write-a-numpy-structural-similarity-wi04-ac02
+  - write-the-bounded-memory-extractor-on-pyav-with-output-refused-inside-git-wi04-ac01-ac03
+  - prove-no-ffmpeg-executable-and-no-network-are-needed-wi04-ac01-ac04
+  - declare-runtime-packages-and-subpackage-discovery-in-pyproject-wi04-ac06
+  - run-once-on-a-real-meeting-recording-and-record-numbers-only-wi04-ac05
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi04-ac07
+evaluations:
+  - criterion: WI04-AC01
+    method: deterministic
+    control: >-
+      tests/test_frames.py runs python -m meetingtool.frames in a child
+      process with a PATH from which every folder holding an ffmpeg
+      executable was removed, and requires exit 0 and frames written.
+  - criterion: WI04-AC02
+    method: deterministic
+    control: >-
+      tests/test_frames.py encodes a synthetic video with PyAV at test time
+      and requires one kept frame per slide change, none for camera-strip
+      changes, the minimum gap and budget respected, the repeated slide
+      dropped, and ssim 1 for identical images and below the threshold for
+      different ones.
+  - criterion: WI04-AC03
+    method: adversarial
+    control: >-
+      tests/test_frames.py checks names, order, JPEG format and size of the
+      kept frames and the discard log's reasons; checks the candidate pool
+      never exceeds the budget; and requires an output folder inside a
+      throwaway git repository to be refused with nothing written.
+  - criterion: WI04-AC04
+    method: adversarial
+    control: >-
+      tests/test_frames.py patches socket.socket and socket.create_connection
+      to raise, runs an extraction, and requires it to succeed.
+  - criterion: WI04-AC05
+    method: external-evidence
+    control: >-
+      Run the extractor once on a real recording on the owner's machine with
+      output outside any repository; commit only the numeric summary; delete
+      the frames after counting.
+  - criterion: WI04-AC06
+    method: deterministic
+    control: >-
+      tests/test_frames.py parses pyproject.toml with tomllib and requires
+      av, numpy and pillow among the dependencies and package discovery
+      including meetingtool subpackages.
+  - criterion: WI04-AC07
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3CGKPVGGAAK06A1RD5C3XWZ/.

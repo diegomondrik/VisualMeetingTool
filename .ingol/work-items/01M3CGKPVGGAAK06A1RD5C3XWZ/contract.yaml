@@ -1,0 +1,92 @@
+schema_version: "1"
+id: 01M3CGKPVGGAAK06A1RD5C3XWZ
+objective: >
+  Work 2 of INGOL WI-028 (decision D-162): extract and select the images of
+  a meeting recording with nothing installed beside the Python packages.
+  The original MeetingTool needed ffmpeg installed on the machine, one of
+  the owner's complaints. This work item adds a `meetingtool.frames`
+  package that decodes the recording with PyAV (which bundles FFmpeg), and
+  ports the original selection algorithm: sample the video, score every
+  sample against the previous one by zone change, edge change and time
+  coverage, ignore the camera strip at the top, keep a minimum gap, apply
+  a budget by score, drop near-duplicates by structural similarity, and
+  save the kept frames as JPEG no larger than 1280x720 with a log of what
+  was discarded and why.
+
+  Three changes from the original: memory stays bounded (only the best
+  `budget` candidates are kept, as compressed JPEG, instead of every
+  candidate as a full-size image); structural similarity is computed with
+  numpy instead of scikit-image, so no further library is needed; and the
+  near-duplicate check compares
+  the content area only, below the camera strip, as the scoring already
+  did (the original compared whole frames, so a camera-strip change alone
+  could keep a duplicate slide).
+  Reading the images with an AI service, and the transcript boost, are not
+  part of this work item.
+
+  Frames of a real meeting are client data and this repository is public:
+  the output folder is refused inside any git work tree, tests build their
+  video synthetically at run time and commit no media (finding P2-A of the
+  guard's review), and a real run on the owner's machine records only
+  numbers. `pyproject.toml` declares the three runtime packages and finds
+  subpackages, so an install carries `meetingtool.frames` (and any other
+  subpackage).
+
+  This work item runs in parallel with work 1 (projects and meeting memory,
+  01M3CGKPV51VTTK3S8V1JEF4HW) and touches none of its files (condition 7 of
+  INGOL's dogfooding gate, WI028-AC07).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3CGKPVGGAAK06A1RD5C3XWZ/**
+  - docs/evidence/01M3CGKPVGGAAK06A1RD5C3XWZ/**
+  - meetingtool/frames/**
+  - tests/test_frames.py
+  - pyproject.toml
+acceptance:
+  - id: WI04-AC01
+    description: >
+      `python -m meetingtool.frames` extracts frames from a recording using
+      PyAV, with no ffmpeg executable reachable: a test runs it in a child
+      process whose PATH contains no ffmpeg and requires frames to be
+      written.
+  - id: WI04-AC02
+    description: >
+      On a synthetic recording built at test time (distinct slides held for
+      several seconds, repeated slides, and changes confined to the top
+      camera strip), the selection keeps a frame for the opening slide and
+      for each slide change,
+      ignores changes inside the camera strip, respects the minimum gap and
+      the budget, and drops a repeated slide identical to the last kept
+      frame; the structural-similarity function returns 1 for identical
+      images and less for different ones.
+  - id: WI04-AC03
+    description: >
+      Kept frames are JPEG files no larger than 1280x720 named
+      frame_NNN_tHH-MM-SS.jpg in time order; a discard log names every
+      discarded sample's time and reason; no more than `budget` candidates
+      are held at any moment; and the output folder is refused, before
+      anything is written, when it is inside a git work tree.
+  - id: WI04-AC04
+    description: >
+      Extraction makes no network connection: a test replaces socket
+      creation with one that fails and requires extraction to succeed
+      (WI028-AC04).
+  - id: WI04-AC05
+    description: >
+      One run on a real meeting recording on the owner's machine, output
+      outside any repository, recorded under
+      docs/evidence/01M3CGKPVGGAAK06A1RD5C3XWZ/ as numbers only (duration,
+      samples analysed, frames kept, discards by reason, seconds taken, peak
+      memory), with no image, file name or content of the meeting; the
+      frames written are deleted after counting (WI028-AC04).
+  - id: WI04-AC06
+    description: >
+      `pyproject.toml` declares av, numpy and pillow as dependencies and
+      finds every `meetingtool` subpackage; a test reads it and checks both.
+  - id: WI04-AC07
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3CGKPVGGAAK06A1RD5C3XWZ/ before the pull request
+      (INGOL D-163).
