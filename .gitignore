@@ -2,19 +2,50 @@
 .ingol/generated/
 generated/
 
-# Meeting data: client recordings, transcripts and reports never enter the
-# repository. A test also fails if one does (WI028, datos de clientes).
-# Patterns cover every letter case: on Linux git matches case exactly.
-*.[mM][pP]4
+# Meeting data: client recordings, frames, transcripts and reports never
+# enter the repository. meetingtool/repository_guard.py holds the same list
+# and a test fails if one is tracked anyway. Patterns cover every letter
+# case: on Linux git matches case exactly.
+# Video.
+*.[aA][vV][iI]
+*.[mM]4[vV]
+*.[mM][kK][vV]
 *.[mM][oO][vV]
+*.[mM][pP]4
+*.[wW][eE][bB][mM]
+*.[wW][mM][vV]
+# Audio.
+*.[aA][aA][cC]
+*.[fF][lL][aA][cC]
 *.[mM]4[aA]
+*.[mM][pP]3
+*.[oO][gG][gG]
+*.[oO][pP][uU][sS]
 *.[wW][aA][vV]
-*.[dD][oO][cC][xX]
+*.[wW][mM][aA]
+# Images and extracted frames.
+*.[bB][mM][pP]
+*.[gG][iI][fF]
+*.[hH][eE][iI][cC]
+*.[jJ][pP][eE][gG]
+*.[jJ][pP][gG]
+*.[pP][nN][gG]
+*.[tT][iI][fF]
+*.[tT][iI][fF][fF]
+*.[wW][eE][bB][pP]
+# Subtitles.
+*.[sS][rR][tT]
 *.[vV][tT][tT]
-# Anchored to the root so a code subpackage with the same name is never ignored.
+# Documents and reports.
+*.[dD][oO][cC]
+*.[dD][oO][cC][xX]
+*.[pP][dD][fF]
+*.[pP][pP][tT][xX]
+*.[xX][lL][sS][xX]
+# Root data folders, anchored so a code folder with the same name is never ignored.
+/frames/
 /meetings/
 /projects/
-/frames/
 
 # Credentials.
 .env

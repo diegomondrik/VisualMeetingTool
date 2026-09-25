@@ -1,0 +1,39 @@
+schema_version: "1"
+work_item: 01M3CG1XGTT95MT2WNTMH1TXR2
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3CG1XGTT95MT2WNTMH1TXR2-guard
+steps:
+  - widen-the-guard-to-extensions-name-patterns-and-root-data-folders-wi02-ac01
+  - prove-each-rule-can-fail-on-a-throwaway-repository-wi02-ac02
+  - align-gitignore-and-test-it-with-check-ignore-wi02-ac03
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi02-ac04
+evaluations:
+  - criterion: WI02-AC01
+    method: deterministic
+    control: >-
+      tests/test_repository_guard.py feeds meeting_data_paths every listed
+      extension in lower and upper case, every name pattern and every root
+      folder, and a set of ordinary paths including meetingtool/projects/
+      and tests/frames/, and requires exactly the meeting-data paths back.
+  - criterion: WI02-AC02
+    method: adversarial
+    control: >-
+      tests/test_repository_guard.py force-tracks one file per rule in a
+      throwaway git repository and requires check_repository to name all of
+      them; and requires it to name nothing on this repository.
+  - criterion: WI02-AC03
+    method: deterministic
+    control: >-
+      tests/test_repository_guard.py runs git check-ignore --no-index on
+      sample paths for every extension and root folder, in two letter
+      cases, and requires them ignored, and requires
+      meetingtool/projects/store.py not ignored.
+  - criterion: WI02-AC04
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3CG1XGTT95MT2WNTMH1TXR2/.
