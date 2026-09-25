@@ -1,0 +1,22 @@
+# WI01-AC03 - corrida local de la suite (D-163)
+date_utc: 2026-09-25T13:35:04Z
+machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1
+method: fresh git clone of the work-item branch, checked out at the tested commit, suite run from the clone root
+tested_commit: ac128a8f6da0d5e2d0914557e1ac271bf0c3f1ba
+tested_tree: 66a94e0f987c6313717325f500c46eb1c3a6d2cd
+untracked_or_ignored_files_in_clone_before_run: 0
+rerun_reason: the branch was rebased twice after review: onto c136a71+ba02528 (public visibility D-164, .gitignore fix) and onto df56f26 (repository renamed VisualMeetingTool); git range-diff shows the reviewed patch 784af26 identical to ac128a8
+command: python -m unittest discover -s tests -v
+---- output
+test_import_needs_only_the_standard_library (test_cli.VersionTest.test_import_needs_only_the_standard_library) ... ok
+test_version_flag_prints_the_package_version (test_cli.VersionTest.test_version_flag_prints_the_package_version) ... ok
+test_every_meeting_data_extension_is_rejected_in_any_case (test_repository_guard.RepositoryGuardTest.test_every_meeting_data_extension_is_rejected_in_any_case) ... ok
+test_guard_names_a_tracked_recording_in_a_throwaway_repository (test_repository_guard.RepositoryGuardTest.test_guard_names_a_tracked_recording_in_a_throwaway_repository) ... ok
+test_this_repository_tracks_no_meeting_data (test_repository_guard.RepositoryGuardTest.test_this_repository_tracks_no_meeting_data) ... ok
+
+----------------------------------------------------------------------
+Ran 5 tests in 0.389s
+
+OK
+---- exit_code: 0
+integration_rule: the integrated commit may differ from tested_commit only under docs/evidence/01M3C5MCNJ0FQJW936SZYSNPS6/ and .ingol/work-items/01M3C5MCNJ0FQJW936SZYSNPS6/approvals/; check with: git diff --name-only <tested_commit> <integrated_commit>
