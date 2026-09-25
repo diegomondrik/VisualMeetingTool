@@ -1,0 +1,38 @@
+schema_version: "1"
+work_item: 01M3CY2R6VQAB7QHEJT18YHR4P
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3CY2R6VQAB7QHEJT18YHR4P-limitations
+steps:
+  - write-one-reproduction-per-finding-and-the-register-wi06-ac01-ac02
+  - flip-one-claim-on-purpose-and-see-the-script-fail-wi06-ac02
+  - run-every-reproduction-with-the-ingol-entries-and-commit-the-output-wi06-ac03
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi06-ac04
+evaluations:
+  - criterion: WI06-AC01
+    method: deterministic
+    control: >-
+      reproduce.py reads the entry identifiers of REGISTER.md and compares
+      them with its own reproductions before running any; a register entry
+      removed or added on purpose makes it exit 1 naming the entry.
+  - criterion: WI06-AC02
+    method: adversarial
+    control: >-
+      Run reproduce.py with one entry's claim flipped (an open limitation
+      declared fixed); it must report the mismatch and exit 1. Mutation
+      reproductions first check that the unmutated suite passes, so a
+      surviving mutation is never an artefact of a broken copy.
+  - criterion: WI06-AC03
+    method: external-evidence
+    control: >-
+      Run `python docs/limitations/reproduce.py --ingol-repo <local INGOL
+      clone>` on the owner's machine and commit its full output, exit code
+      and commit under docs/evidence/01M3CY2R6VQAB7QHEJT18YHR4P/.
+  - criterion: WI06-AC04
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3CY2R6VQAB7QHEJT18YHR4P/.

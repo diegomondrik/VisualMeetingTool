@@ -1,0 +1,110 @@
+# limitations register reproduction (WI06-AC03) for 01M3CY2R6VQAB7QHEJT18YHR4P
+date_utc: 2026-09-25T19:15:10Z
+machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1; go version go1.26.5 windows/arm64
+method: fresh git clone of the work-item branch, at the tested commit, run from the clone root
+tested_commit: 9d7577ae41e5c466bd5af7a808be6c803193f533
+tested_tree: 5de5c6f0710455b25e2d905ee71c10932d918be6
+untracked_or_ignored_files_in_clone_after_run: none
+rerun_reason: correction of the review's P2-1 (the claim is read from the register)
+command: python docs/limitations/reproduce.py --ingol-repo <local INGOL clone at any revision; the script checks out the wrapper's pin>
+exit_code: 0
+---- output
+# limitations register reproduction
+commit: 9d7577ae41e5c466bd5af7a808be6c803193f533
+python: 3.12.10
+ingol: C:\Users\Diego\Documents\Cowork\05_Proyectos\SDAD Methodology\Ingol\repo
+
+H1         claim=open             seen=open             MATCH (5.8s)
+           ingol init on a folder with one file: exit 1: ERROR: target directory C:\Users\Diego\AppData\Local\Temp\vmt-limitations-m3l7wlxn\h1-existing-project is not empty: ingol init refuses to merge into or overwrite existing content
+H2         claim=not-reproducible seen=not-reproducible MATCH (0.0s)
+           needs a private repository on GitHub's free plan; the owner's account has Pro, where the protection exists. Source: GitHub's plans documentation, read 2026-09-25 (INGOL D-162)
+H3         claim=open             seen=open             MATCH (5.5s)
+           PR #6 in the local replica: exit 0; the same PR with tests.yml on main: exit 1, failed CI-TRUST, TP-05, TP-15: "workflow set must contain only ingol-bootstrap.yml" named
+H4         claim=open             seen=open             MATCH (1.8s)
+           ingol init writes none of ['.git', '.gitignore', '.gitattributes']; audit: unproven TP-09. ingol doctor on a clone with core.autocrlf=false: exit 0, blocked 0 of 29; with core.autocrlf=true (Windows' default): exit 1, blocked 27 of 29 ("not byte-identical to this installation's own copy")
+H5         claim=open             seen=open             MATCH (0.0s)
+           preconditions, read from this repository: pull_request_target trigger True, the read token of the private installation used True, target_visibility public True. Extracting the token was not attempted: that would be an attack, not a reproduction
+H6         claim=open             seen=open             MATCH (1.1s)
+           audit with generated/: proven; with /generated/: blocked (.gitignore does not isolate generated/); yet git still ignores generated/state.json: True
+WI01-P2-1  claim=fixed            seen=fixed            MATCH (0.0s)
+           guard misses none of ['a.mp3', 'a.mkv', 'a.webm', 'transcript.txt', 'report_acme.md', 'handoff_1.json', 'frames/f1.jpg'] (widened by a977049, WI02)
+WI01-P2-2  claim=fixed            seen=fixed            MATCH (0.2s)
+           code paths ignored by .gitignore: none (anchored by ba02528; generated/ is H6)
+WI01-P2-3  claim=open             seen=open             MATCH (0.1s)
+           WI05: the tested commit 165cfff and the integrated 3729407 differ in 3 files, all evidence or approval: True
+WI01-P3-1  claim=fixed            seen=fixed            MATCH (0.1s)
+           upper-case extensions not ignored on Linux matching: none (ba02528)
+WI01-P3-2  claim=open             seen=open             MATCH (0.6s)
+           a recording committed then removed: in history True, guard reports []; recording.mp4.zip flagged: False
+WI01-P3-3  claim=open             seen=open             MATCH (0.4s)
+           suite started from outside the repository root: exit 1, "No module named 'meetingtool'" shown
+WI02-P2-A  claim=open             seen=open             MATCH (0.0s)
+           test fixtures rejected by the guard: ['tests/fixtures/slide.png', 'tests/fixtures/sample.mp4', 'tests/fixtures/transcript_sample.txt']
+WI02-P2-B  claim=open             seen=open             MATCH (0.1s)
+           meetingtool/projects/acme/memory.json: guard flags it False, .gitignore ignores it False
+WI02-P3-A  claim=open             seen=open             MATCH (0.3s)
+           not ignored by .gitignore on Linux matching: ['report_acme.md', 'handoff_1.json', 'transcript.txt', 'Frames/x/f.json', 'MEETINGS/a/b.json']; all caught by the guard: True
+WI02-P3-B  claim=open             seen=open             MATCH (3.1s)
+           GitignoreTest exit 0 while Frames/x/file.json is ignored: False
+WI02-P3-C  claim=open             seen=open             MATCH (0.2s)
+           with git broken (check-ignore exit 128) the "not ignored" test exits 0
+WI02-P3-D  claim=open             seen=open             MATCH (0.0s)
+           not flagged by the guard: ['export.zip', 'attendees.csv', 'slides.ppt', 'budget.xls', 'notas-reunion.txt']
+WI02-P3-E  claim=open             seen=open             MATCH (0.0s)
+           transcription.md flagged as meeting data: True
+WI03-P2-1  claim=fixed            seen=fixed            MATCH (0.0s)
+           a path as project id is refused: '../repo/x' is not a project identifier (91231a1)
+WI03-P2-2  claim=fixed            seen=fixed            MATCH (0.8s)
+           redirected output with Łódź, ✓, →: test exit 0 (91231a1)
+WI03-P2-3  claim=fixed            seen=fixed            MATCH (0.5s)
+           subpackages declared in pyproject.toml: True; PackagingTest exit 0 (c38353c; building a wheel would need setuptools, not installed here)
+WI03-P3-1  claim=open             seen=open             MATCH (0.0s)
+           slugs {'Łódź': 'odz', 'Straße': 'strae', 'Søren': 'sren', '東京': 'project', 'Москва': 'project'}; a second non-Latin name collides: True
+WI03-P3-2  claim=open             seen=open             MATCH (0.0s)
+           a 300-character title raises a raw OSError, not ProjectError
+WI03-P3-3  claim=open             seen=open             MATCH (0.0s)
+           rebuild_knowledge's return equals knowledge_context's read: False
+WI03-P3-4  claim=open             seen=open             MATCH (0.0s)
+           a missing knowledge.md raises FileNotFoundError, not ProjectError
+WI03-P3-5  claim=open             seen=open             MATCH (0.0s)
+           MEETINGTOOL_DATA_DIR=~/vmt-data gives the folder ~\vmt-data
+WI03-P3-6  claim=open             seen=open             MATCH (0.0s)
+           added Zeta then Alpha in the same second, listed ['Alpha review', 'Zeta review']
+WI03-P3-7  claim=open             seen=open             MATCH (0.0s)
+           the WI03-AC05 evidence holds, besides titles: ['--context', '--summary', '--key-point'] (synthetic values)
+WI04-P2-1  claim=fixed            seen=fixed            MATCH (0.6s)
+           tie-break test exit 0 (5f20bf7)
+WI04-P3-1  claim=open             seen=open             MATCH (59.6s)
+           mutations surviving the frames tests: {'zone weight 0.4 -> 0.5': True, 'minimum score 0.15 -> 0.2': True, 'duration from the stream, not the container': True, 'coverage ignores earlier candidates': True}
+WI04-P3-2  claim=open             seen=open             MATCH (0.3s)
+           executed: no duration gives 0.0; the old frame still exists during the analysis True; discard log in English with UTC times True. Read from the code, not executed: SSIM on the decoded JPEG (extract.py, _content_gray_of_jpeg) and a shape mismatch skips the comparison
+WI04-P3-3  claim=fixed            seen=fixed            MATCH (0.6s)
+           URL refused before av.open: test exit 0 (5f20bf7)
+WI04-P3-4  claim=fixed            seen=fixed            MATCH (0.0s)
+           the 76-frame figure carries its source: True (67a6e4e)
+WI04-P3-5  claim=open             seen=open             MATCH (0.2s)
+           budget 2: JPEGs held at once during a replacement, at most 3
+WI04-P3-6  claim=open             seen=open             MATCH (0.3s)
+           24 samples, 23 of them a candidate or a logged discard: the first one appears nowhere
+WI04-P3-7  claim=open             seen=open             MATCH (0.0s)
+           declared floor av>=14; the only PyAV here, and in every recorded run, is 18.1.0
+WI05-P2-1  claim=open             seen=open             MATCH (0.3s)
+           slide A scores 0.3 then 0.9 on its repeat, budget 2: kept ([3.0, 4.0], ['B', 'C']) now, ([2.0, 3.0], ['A', 'B']) with the previous order
+WI05-P3-1  claim=open             seen=open             MATCH (38.0s)
+           mutations surviving the frames tests: {'compare with the previous candidate, not the previous distinct one': True, "<= becomes < at the window's +30 s edge": True, 'boosted counted for every candidate': True, 'last distinct set only when the candidate enters the pool': True}
+WI05-P3-2  claim=open             seen=open             MATCH (0.0s)
+           a UTF-8 file with a BOM and two timed lines reads 1 block(s); with one timed line it is refused as having none: True
+WI05-P3-3  claim=open             seen=open             MATCH (0.0s)
+           speaker and time split by one tab not a new block True; spoken "  10:30" read as a block at 630 s True; curly apostrophe not matched True; the filler "a ver" matched True
+WI05-P3-4  claim=open             seen=open             MATCH (1.3s)
+           the tie-break test without its patch of _is_near_duplicate: mutated suite exit 1 (FAILED (failures=1))
+WI05-P3-5  claim=open             seen=open             MATCH (9.7s)
+           transcript read moved after av.open, the recording closed if it fails: mutated suite exit 0 (OK)
+WI05-P3-6  claim=open             seen=open             MATCH (10.8s)
+           the shape-mismatch branch made to raise: mutated suite exit 0 (OK)
+WI05-P3-7  claim=open             seen=open             MATCH (0.0s)
+           the evidence says the 15- and 18-minute gaps were not measured again: True; another evidence file carrying the before numbers: none
+WI05-P3-8  claim=open             seen=open             MATCH (3.2s)
+           a 60 KB .docx is read whole: 60 MB of text, no limit
+
+{'MATCH': 46, 'MISMATCH': 0, 'SKIPPED': 0, 'ERROR': 0}
