@@ -1,0 +1,95 @@
+# mutations of meetingtool/reading/gemini.py against tests/test_reading.py (WI07; five added after the review)
+code_commit: 5769a776d4ea70c5a0253751717699c0e9e9dd4d
+method: each mutation applied alone in the working tree, python -m unittest tests.test_reading, file restored; diff of each below
+----
+## blocks not checked: exit 1 (killed) FAILED (failures=7)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -142 +142 @@
+-    if numbers != expected:
++    if False:
+
+## a cut answer accepted: exit 1 (killed) FAILED (failures=1)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -138 +138 @@
+-    if finish != "STOP":
++    if False:
+
+## key in the URL: exit 1 (killed) FAILED (failures=2)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -152,0 +153 @@
++    url = url + '?key=' + key
+
+## no pause between retries: exit 1 (killed) FAILED (failures=2)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -214 +214 @@
+-        sleep(delays.pop(0))
++        delays.pop(0)
+
+## written before every chunk succeeded: exit 1 (killed) FAILED (failures=1)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -239,0 +240 @@
++        (frames_dir / OUTPUT_NAME).write_text('partial', encoding='utf-8')
+
+## a frames folder inside a repository accepted: exit 1 (killed) FAILED (failures=1)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -225 +225 @@
+-    if work_tree is not None:
++    if False:
+
+## a 400 retried: exit 1 (killed) FAILED (failures=3)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -53 +53 @@
+-RETRYABLE_STATUS = frozenset({429, 500, 503})
++RETRYABLE_STATUS = frozenset({400, 429, 500, 503})
+
+## an incomplete answer not retried: exit 1 (killed) FAILED (failures=7, errors=1)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -204,2 +204 @@
+-                if incomplete_retried:
+-                    raise
++                raise
+
+## review P1: no budget check: exit 1 (killed) FAILED (failures=3)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -181 +181 @@
+-        if counters["spent"] + worst > max_cost_usd:
++        if False:
+
+## review P1: an attempt with no answer counted as free: exit 1 (killed) FAILED (failures=1)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -188 +188 @@
+-            counters["spent"] += worst  # no answer: it may have been billed in full
++            pass
+
+## review P3-5: the original's 4096 cap: exit 1 (killed) FAILED (failures=2)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -43 +43 @@
+-MAX_OUTPUT_TOKENS = 49152
++MAX_OUTPUT_TOKENS = 4096
+
+## review P2-2: bold labels refused again: exit 1 (killed) FAILED (errors=4)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -84 +84 @@
+-_BLOCK = re.compile(r"^[\s*_#>-]*\[FRAME (\d+)\]", re.MULTILINE | re.IGNORECASE)
++_BLOCK = re.compile(r"^\s*\[FRAME (\d+)\]", re.MULTILINE)
+
+## review P2-1: model version not recorded: exit 1 (killed) FAILED (failures=1)
+--- gemini.py
++++ gemini.py (mutated)
+@@ -200 +200 @@
+-                counters["models"].add(str(answer["modelVersion"]))
++                pass
+
+13 of 13 mutations killed
