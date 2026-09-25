@@ -1,0 +1,54 @@
+schema_version: "1"
+id: 01M3C5MCNJ0FQJW936SZYSNPS6
+objective: >
+  First governed work item of meetingtool-v4, the redesign of MeetingTool
+  carried as INGOL's F8 project (INGOL decisions D-162 and D-163, work 0 of
+  WI-028). The repository today holds only what `ingol init` installed and
+  the connection step; it has no product code at all.
+
+  This work item lays the smallest real skeleton the next two work items
+  (projects and meeting memory; image extraction) can build on in parallel
+  without touching each other's files: a Python package `meetingtool` that
+  needs no third-party library to import or to report its version, a test
+  suite runnable with the standard library alone, and a repository guard
+  that fails if a meeting recording, audio file, transcript export or Word
+  report is ever tracked. Client meeting data must never enter this
+  repository (D-162).
+
+  Because a governed project cannot run its own test workflow beside the
+  INGOL wrapper (finding H3, D-163), the suite is run on the owner's machine
+  before integration and its complete output is committed as this work
+  item's evidence.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3C5MCNJ0FQJW936SZYSNPS6/**
+  - docs/evidence/01M3C5MCNJ0FQJW936SZYSNPS6/**
+  - meetingtool/__init__.py
+  - meetingtool/__main__.py
+  - meetingtool/repository_guard.py
+  - tests/__init__.py
+  - tests/test_cli.py
+  - tests/test_repository_guard.py
+  - pyproject.toml
+  - README.md
+acceptance:
+  - id: WI01-AC01
+    description: >
+      `python -m meetingtool --version` prints the package version and exits
+      0, and importing `meetingtool` loads no module outside the Python
+      standard library. A test runs the command in a child process and
+      checks both.
+  - id: WI01-AC02
+    description: >
+      The repository guard rejects every tracked path with a meeting-data
+      extension (.mp4, .mov, .m4a, .wav, .docx, .vtt, in any letter case)
+      and accepts this repository's own tracked files. It is shown able to
+      fail: a test builds a throwaway git repository, tracks a file named
+      like a recording, and requires the guard to name it.
+  - id: WI01-AC03
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      on the owner's machine, run on the exact tree that is integrated, and
+      its complete output, with the commit it ran against, is committed under
+      docs/evidence/01M3C5MCNJ0FQJW936SZYSNPS6/ before the pull request is
+      opened (D-163).
