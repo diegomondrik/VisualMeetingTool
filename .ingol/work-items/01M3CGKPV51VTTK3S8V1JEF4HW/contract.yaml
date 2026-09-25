@@ -1,0 +1,79 @@
+schema_version: "1"
+id: 01M3CGKPV51VTTK3S8V1JEF4HW
+objective: >
+  Work 1 of INGOL WI-028 (decision D-162): projects and meeting memory. The
+  owner's first complaint about the original MeetingTool is that projects
+  do not work and nothing records the meetings already summarised, so a
+  project cannot build up knowledge meeting after meeting.
+
+  This work item adds a `meetingtool.projects` package, standard library
+  only: create and list projects (name, client, optional context); add
+  meetings to a project (title, date, optional meeting type, optional paths
+  to the recording and transcript, optional summary and key points) and list
+  them in date order; and a knowledge file per project, rebuilt after every
+  meeting from all of its meetings, that the next summary reads through one
+  function. A command line, `python -m meetingtool.projects`, exposes the
+  same operations. Nothing here reads or copies a recording or transcript:
+  only their paths are stored.
+
+  Meeting data is client data and this repository is public. The data
+  folder defaults to a location outside any git repository, and the package
+  refuses to write into a folder that is inside a git work tree (finding
+  P2-B of the guard's review). Tests create their data in temporary folders
+  and commit no sample media (finding P2-A).
+
+  This work item runs in parallel with work 2 (image extraction,
+  01M3CGKPVGGAAK06A1RD5C3XWZ) and touches none of its files: its surfaces
+  are its own package, its own tests and its own records (condition 7 of
+  INGOL's dogfooding gate, WI028-AC07).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3CGKPV51VTTK3S8V1JEF4HW/**
+  - docs/evidence/01M3CGKPV51VTTK3S8V1JEF4HW/**
+  - meetingtool/projects/**
+  - tests/test_projects.py
+acceptance:
+  - id: WI03-AC01
+    description: >
+      A project can be created with a name, a client and an optional
+      context, gets a file-system-safe identifier derived from its name,
+      and is listed afterwards; creating a second project with the same
+      identifier is rejected with an error that names it.
+  - id: WI03-AC02
+    description: >
+      Meetings can be added to a project and are listed in date order
+      whatever the order they were added in; each meeting gets its own
+      identifier, and two meetings with the same date and title both
+      survive. An invalid date (not YYYY-MM-DD) is rejected.
+  - id: WI03-AC03
+    description: >
+      After every added meeting the project's knowledge file is rebuilt from
+      all of its meetings, in date order, with the project's context, each
+      meeting's date, title, summary and key points; the function the next
+      summary uses returns exactly that text. A test adds two meetings and
+      checks the second knowledge file contains both, earlier first.
+  - id: WI03-AC04
+    description: >
+      The data folder defaults to a folder outside the repository, can be
+      set with an environment variable or a command-line option, and the
+      package refuses to create or write data in any folder that is inside a
+      git work tree, naming the folder. A test proves the refusal on a
+      throwaway git repository and proves the default is not inside this
+      repository.
+  - id: WI03-AC05
+    description: >
+      `python -m meetingtool.projects` creates a project, adds two meetings,
+      lists them and prints the knowledge text, driven by a test in child
+      processes against a temporary data folder; and the same commands run
+      once on the owner's machine in the default data folder with two
+      meetings of one project, recorded under
+      docs/evidence/01M3CGKPV51VTTK3S8V1JEF4HW/ as the commands and their
+      output, without any meeting content beyond the titles typed for the
+      run (WI028-AC03).
+  - id: WI03-AC06
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3CGKPV51VTTK3S8V1JEF4HW/ before the pull request
+      (INGOL D-163).
