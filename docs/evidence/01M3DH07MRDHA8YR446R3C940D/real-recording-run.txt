@@ -1,0 +1,23 @@
+# WI08-AC03: the same real meeting before and after (INGOL D-175), numbers only
+meeting: the real 117-minute meeting the owner chose as not confidential (INGOL D-167), 1920x1080 h264 at 16 fps; read in place, never copied into any repository
+machine: owner's Windows ARM64 machine, Python 3.12.10, PyAV 18.1.0; both runs with the transcript, default settings, output outside any repository
+before: fresh clone of main 1cf4699 (current code); the same code took 2189 s and 2226 s in two earlier runs today (WI07 evidence)
+  duration 7017.0s, 14035 samples, 798 candidates, 81 frames kept
+  discarded low_score: 9246
+  discarded minimum_gap: 3990
+  discarded near_duplicate: 717
+  candidates raised by the transcript: 506 (441 only because of it)
+  exit=0 seconds=1667
+after: fresh clone of this branch at eb792fd
+  duration 7017.0s, 14035 samples, 790 candidates, 75 frames kept
+  discarded low_score: 9294
+  discarded minimum_gap: 3950
+  discarded near_duplicate: 715
+  candidates raised by the transcript: 506 (441 only because of it)
+  exit=0 seconds=317
+cross-match (grey, 640 wide, content area below the camera strip; each frame against the other set's frames within 10 minutes):
+  before (current code): 81 frames; 60 have a near-identical frame (SSIM > 0.95) in the other set within 10 min; 21 do not: 0:06 (0.86), 0:09 (0.79), 0:13 (0.74), 0:16 (0.76), 0:19 (0.82), 0:29 (0.76), 0:32 (0.77), 0:44 (0.82), 0:47 (0.93), 0:50 (0.92), 0:53 (0.92), 1:00 (0.89), 1:12 (0.84), 1:18 (0.78), 1:23 (0.80), 7:22 (0.88), 63:09 (0.82), 63:12 (0.80), 63:37 (0.87), 63:40 (0.84), 64:35 (0.86)
+  after (WI08): 75 frames; 62 have a near-identical frame (SSIM > 0.95) in the other set within 10 min; 13 do not: 0:07 (0.86), 0:10 (0.79), 0:13 (0.74), 0:16 (0.75), 0:19 (0.82), 0:30 (0.77), 0:47 (0.93), 0:50 (0.92), 0:53 (0.92), 1:24 (0.80), 40:52 (0.80), 63:09 (0.88), 64:35 (0.85)
+reading: most frames kept by only one version are in the first 90 seconds, where both versions keep several frames about one second apart; the rest: before-only 0:44, 1:00, 1:12, 1:18, 7:22, 63:12, 63:37, 63:40; after-only 40:52 (see the lines above for the exact list)
+owner review: the frames kept by only one version were copied to a folder in the owner's data folder, outside any repository, for him to look at; the full frame sets were deleted
+deleted: both full frame sets; exist after deletion: False; review folder holds 34 frames
