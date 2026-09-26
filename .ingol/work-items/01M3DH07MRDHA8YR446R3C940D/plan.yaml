@@ -1,0 +1,37 @@
+schema_version: "1"
+work_item: 01M3DH07MRDHA8YR446R3C940D
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3DH07MRDHA8YR446R3C940D-faster-extraction
+steps:
+  - compare-a-small-grey-copy-scaled-by-the-decoder-wi08-ac01
+  - keep-the-existing-frame-tests-passing-wi08-ac02
+  - measure-before-and-after-on-the-real-meeting-numbers-only-wi08-ac03
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi08-ac04
+evaluations:
+  - criterion: WI08-AC01
+    method: adversarial
+    control: >-
+      tests/test_frames.py builds a 1920x1080 recording of four slides, spies
+      on the width the signals receive and requires 640 and the same slides
+      as the small recording; with the copy taken at full size the test
+      fails.
+  - criterion: WI08-AC02
+    method: deterministic
+    control: >-
+      python -m unittest tests.test_frames, every earlier test unchanged.
+  - criterion: WI08-AC03
+    method: external-evidence
+    control: >-
+      Run the current main and this branch on the same meeting with its
+      transcript, each from a fresh clone, time both, count the frames and
+      cross-match them by structural similarity; commit only the numbers and
+      delete the frames.
+  - criterion: WI08-AC04
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3DH07MRDHA8YR446R3C940D/.

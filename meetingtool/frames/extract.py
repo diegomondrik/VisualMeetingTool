@@ -10,7 +10,11 @@ dropped before it can take a budget place (the original dropped duplicates
 only after the budget, so they crowded distinct frames out). The check after
 the budget stays: removing a candidate can leave two duplicates side by side.
 An optional transcript raises the score of samples near a phrase that points
-at the screen (transcript.py). The opening slide needs no special case: the
+at the screen (transcript.py). The three signals are computed on a small grey
+copy of each sample, at most ANALYSIS_WIDTH wide, which the decoder itself
+scales (INGOL D-175): on a 1080p meeting, computing them at full size took
+most of the time. The frames kept, and the duplicate checks on them, still
+use the full sample. The opening slide needs no special case: the
 first sample has nothing to compare with, and the next one enters on time
 coverage alone.
 """
@@ -31,6 +35,7 @@ from meetingtool.frames.similarity import ssim
 from meetingtool.frames.transcript import TranscriptError, VisualReferences
 
 MAX_WIDTH = 1280
+ANALYSIS_WIDTH = 640
 MAX_HEIGHT = 720
 JPEG_QUALITY = 85
 DISCARD_LOG = "frames_discarded.log"
@@ -85,6 +90,16 @@ def _jpeg(rgb):
     buffer = io.BytesIO()
     _saved_size(rgb).save(buffer, "JPEG", quality=JPEG_QUALITY)
     return buffer.getvalue()
+
+
+def _analysis_gray(frame, roi_top):
+    """What the three signals compare: the content area of the sample in grey,
+    scaled by the decoder to at most ANALYSIS_WIDTH wide."""
+    width, height = frame.width, frame.height
+    if width > ANALYSIS_WIDTH:
+        width, height = ANALYSIS_WIDTH, max(1, round(height * ANALYSIS_WIDTH / width))
+    gray = frame.reformat(width=width, height=height, format="gray", interpolation="AREA").to_ndarray()
+    return gray[int(gray.shape[0] * roi_top):, :]
 
 
 def _content_gray_at_saved_size(rgb, roi_top):
@@ -164,8 +179,7 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
                 continue
             last_sampled = timestamp
             samples += 1
-            rgb = frame.to_ndarray(format="rgb24")
-            gray = to_gray(_content_area(rgb, roi_top))
+            gray = _analysis_gray(frame, roi_top)
             if prev_gray is None:
                 prev_gray = gray
                 continue
@@ -187,6 +201,7 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
             if score > base_score:
                 boosted += 1
                 boosted_in += base_score < min_score
+            rgb = frame.to_ndarray(format="rgb24")  # the full sample, only for candidates
             saved_gray = _content_gray_at_saved_size(rgb, roi_top)
             if _is_near_duplicate(last_distinct_gray, saved_gray, ssim_threshold):
                 discards["near_duplicate"] += 1

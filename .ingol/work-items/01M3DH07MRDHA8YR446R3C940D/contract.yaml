@@ -1,0 +1,57 @@
+schema_version: "1"
+id: 01M3DH07MRDHA8YR446R3C940D
+objective: >
+  Faster frame extraction (INGOL decision D-175). The owner found the
+  extraction too slow: about 37 minutes for his 117-minute meeting. Measured on
+  two minutes of that 1920x1080 recording, projected to the whole meeting:
+  decoding the whole video takes 1.5 minutes, while the change signals ported
+  from the original MeetingTool (zones, edges, time coverage; the same
+  algorithm, 98 against 99 ms per sample for the edge signal) take most of the
+  rest, because they run on every sample at full size: about 23 minutes for
+  edges and 7.6 for the grey conversion.
+
+  From now on the three signals compare a small grey copy of each sample, at
+  most 640 wide, which the decoder scales itself. The recording is never
+  changed. The full sample is converted only when it becomes a candidate, and
+  the kept frames and the duplicate checks on them still come from it, saved
+  at up to 1280x720 as before.
+
+  Scaling can change which samples score above the threshold, so the change
+  is measured on the same real meeting against the current code: the time
+  taken, the number of frames kept, and how many of the frames kept by each
+  version have a near-identical frame among the other's (numbers only).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3DH07MRDHA8YR446R3C940D/**
+  - docs/evidence/01M3DH07MRDHA8YR446R3C940D/**
+  - meetingtool/frames/extract.py
+  - tests/test_frames.py
+acceptance:
+  - id: WI08-AC01
+    description: >
+      On a recording wider than 640, the three signals receive the content
+      area of a grey copy exactly 640 wide, scaled by the decoder; the slides
+      kept on a synthetic 1920x1080 recording are the same as on the small
+      one, and a kept frame is still saved at 1280x720 from the full sample.
+      A test fails if the copy is taken at full size.
+  - id: WI08-AC02
+    description: >
+      The existing frame tests still pass unchanged (selection, minimum gap,
+      budget, tie-break, duplicates before the budget, transcript boost, no
+      network, no ffmpeg executable).
+  - id: WI08-AC03
+    description: >
+      One run on the owner's real 117-minute meeting (INGOL D-167) with the
+      transcript, on his machine, against a run of the current code on the
+      same meeting, recorded under docs/evidence/01M3DH07MRDHA8YR446R3C940D/
+      as numbers only: seconds taken by each, frames kept by each, and for
+      each version how many of its frames have a near-identical frame
+      (structural similarity above 0.95 on the content area) among the
+      other version's frames. The frames are deleted afterwards.
+  - id: WI08-AC04
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3DH07MRDHA8YR446R3C940D/ before the pull request
+      (INGOL D-163).

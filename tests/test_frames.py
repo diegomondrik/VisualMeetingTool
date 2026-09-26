@@ -145,6 +145,27 @@ class SelectionTest(Workspace):
         self.assertTrue(shapes)
         self.assertEqual({shape[0] for shape in shapes}, {HEIGHT - int(HEIGHT * 0.15)})
 
+    def test_a_full_hd_recording_is_compared_small_and_keeps_the_same_slides(self):
+        """INGOL D-175: the signals see a copy at most 640 wide; the kept frames are full samples."""
+        big = self.tmp / "full-hd.mp4"
+        segments = [(np.asarray(Image.fromarray(image).resize((1920, 1080))), seconds, move)
+                    for image, seconds, move in [(SLIDE_A, 6, False), (SLIDE_B, 6, False), (SLIDE_B, 6, True),
+                                                 (SLIDE_C, 6, False), (SLIDE_A, 6, False)]]
+        write_video(big, segments, size=(1920, 1080))
+        widths = []
+        real_score = extract_module.composite_score
+
+        def spy(prev_gray, curr_gray, *args):
+            widths.append(curr_gray.shape[1])
+            return real_score(prev_gray, curr_gray, *args)
+
+        with mock.patch.object(extract_module, "composite_score", spy):
+            result = extract_frames(big, self.out)
+        self.assertEqual(set(widths), {extract_module.ANALYSIS_WIDTH})
+        self.assertEqual([which_slide(self.out / name) for name in result.kept], ["A", "B", "C", "A"], result)
+        with Image.open(self.out / result.kept[0]) as image:
+            self.assertEqual(image.size, (1280, 720), "the kept frame comes from the full sample")
+
 
 class SignalsTest(unittest.TestCase):
     """WI04-AC02, the ported scores."""
