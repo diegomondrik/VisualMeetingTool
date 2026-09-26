@@ -148,7 +148,7 @@ def check_answer(answer, first, count):
     return text
 
 
-def _post(url, key, payload):
+def post_generate(url, key, payload):
     """One request: (status, parsed JSON or None, short reason)."""
     request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), method="POST",
                                      headers={"Content-Type": "application/json", "x-goog-api-key": key})
@@ -171,19 +171,24 @@ def _post(url, key, payload):
         return None, None, f"no answer ({type(error).__name__})"
 
 
-def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost_usd):
-    """The checked text for one chunk, after the allowed retries and within the budget."""
-    payload = _payload(frames, first)
+def new_counters():
+    return {"attempts": 0, "input": 0, "output": 0, "thinking": 0, "spent": 0.0, "models": set()}
+
+
+def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd):
+    """Send one request and return check(answer), within the budget and after
+    the allowed retries: an answer check refuses is retried once; a busy,
+    rate-limited or unanswered request twice, after the given pauses; any
+    other error ends at once. `worst` is the most one attempt can cost."""
     incomplete_retried = False
     delays = list(retry_delays)
-    worst = worst_attempt_cost(len(frames))
     while True:
         if counters["spent"] + worst > max_cost_usd:
-            raise ReadingError(f"stopped before sending frames {first}-{first + len(frames) - 1}: that request could "
-                               f"cost up to US${worst:.2f}, and with about US${counters['spent']:.2f} already spent it "
-                               f"could go over the budget of US${max_cost_usd:.2f}; nothing was written")
+            raise ReadingError(f"stopped before sending {what}: that request could cost up to US${worst:.2f}, and with "
+                               f"about US${counters['spent']:.2f} already spent it could go over the budget of "
+                               f"US${max_cost_usd:.2f}; nothing was written")
         counters["attempts"] += 1
-        status, answer, reason = _post(url, key, payload)
+        status, answer, reason = post_generate(url, key, payload)
         if status is None:
             counters["spent"] += worst  # no answer: it may have been billed in full
         if status == 200:
@@ -199,7 +204,7 @@ def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost
             if isinstance(answer, dict) and answer.get("modelVersion"):
                 counters["models"].add(str(answer["modelVersion"]))
             try:
-                return check_answer(answer, first, len(frames))
+                return check(answer)
             except ReadingError:
                 if incomplete_retried:
                     raise
@@ -208,30 +213,49 @@ def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost
         if status is not None and status not in RETRYABLE_STATUS:
             raise ReadingError(f"Gemini refused the request (HTTP {status}): {reason}")
         if not delays:
-            what = f"HTTP {status}" if status is not None else reason
-            raise ReadingError(f"Gemini did not answer frames {first}-{first + len(frames) - 1} after "
-                               f"{len(retry_delays)} retries ({what}: {reason}); nothing was written")
+            label = f"HTTP {status}" if status is not None else reason
+            raise ReadingError(f"Gemini did not answer {what} after {len(retry_delays)} retries "
+                               f"({label}: {reason}); nothing was written")
         sleep(delays.pop(0))
+
+
+def check_key(key):
+    if not key.isascii() or not key.isprintable():
+        raise ReadingError("the saved key has characters a Gemini key never has; save it again")
+
+
+def check_outside_repository(folder):
+    work_tree = enclosing_git_work_tree(folder)
+    if work_tree is not None:
+        raise ReadingError(f"folder {Path(folder).resolve()} is inside the git work tree {work_tree}; "
+                           "frames and what they show must live outside any repository")
+
+
+def model_url(endpoint, model):
+    return f"{endpoint.rstrip('/')}/{model}:generateContent"
+
+
+def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost_usd):
+    """The checked text for one chunk, after the allowed retries and within the budget."""
+    return call_checked(url, key, _payload(frames, first), lambda answer: check_answer(answer, first, len(frames)),
+                        worst_attempt_cost(len(frames)), f"frames {first}-{first + len(frames) - 1}",
+                        retry_delays, sleep, counters, max_cost_usd)
 
 
 def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUNK_SIZE,
                 retry_delays=RETRY_DELAYS, sleep=time.sleep, max_cost_usd=MAX_COST_USD):
     """Read every frame of frames_dir with Gemini and write OUTPUT_NAME next to
     them, only once every request succeeded and without going over the budget."""
-    if not key.isascii() or not key.isprintable():
-        raise ReadingError("the saved key has characters a Gemini key never has; save it again")
+    check_key(key)
     frames_dir = Path(frames_dir)
-    work_tree = enclosing_git_work_tree(frames_dir)
-    if work_tree is not None:
-        raise ReadingError(f"frames folder {frames_dir.resolve()} is inside the git work tree {work_tree}; "
-                           "frames and what they show must live outside any repository")
+    check_outside_repository(frames_dir)
     frames = frame_files(frames_dir)
     if not frames:
         raise ReadingError(f"no frame_*.jpg in {frames_dir.resolve()}")
     if chunk_size < 1:
         raise ReadingError("the chunk size must be at least 1")
-    url = f"{endpoint.rstrip('/')}/{model}:generateContent"
-    counters = {"attempts": 0, "input": 0, "output": 0, "thinking": 0, "spent": 0.0, "models": set()}
+    url = model_url(endpoint, model)
+    counters = new_counters()
     started = time.monotonic()
     answers = []
     for start in range(0, len(frames), chunk_size):

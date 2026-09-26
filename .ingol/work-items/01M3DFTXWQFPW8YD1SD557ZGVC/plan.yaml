@@ -1,0 +1,50 @@
+schema_version: "1"
+work_item: 01M3DFTXWQFPW8YD1SD557ZGVC
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3DFTXWQFPW8YD1SD557ZGVC-summary
+steps:
+  - share-retries-key-and-budget-between-reading-and-summary
+  - read-transcript-turns-with-speakers
+  - write-the-summary-and-check-its-sections-wi09-ac01-ac02-ac04
+  - add-the-meeting-to-its-project-wi09-ac03
+  - run-once-end-to-end-on-the-real-meeting-wi09-ac05
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi09-ac06
+evaluations:
+  - criterion: WI09-AC01
+    method: deterministic
+    control: >-
+      tests/test_summary.py runs a fake Gemini on localhost and checks what
+      the one request carries and the file written; unread frames and a
+      folder inside a git work tree are refused with no request.
+  - criterion: WI09-AC02
+    method: adversarial
+    control: >-
+      The fake answers with a missing section, a repeated one, sections out
+      of order, no key point and a MAX_TOKENS finish; each is refused with
+      nothing written and no meeting added.
+  - criterion: WI09-AC03
+    method: deterministic
+    control: >-
+      Two summaries for one invented project: after the first, the meeting
+      is listed and knowledge.md holds its key points; the second request
+      carries them. A bad project id or date sends nothing.
+  - criterion: WI09-AC04
+    method: adversarial
+    control: >-
+      Spanish and English transcripts give Spanish and English headings; a
+      meeting type adds its sections; the key is searched for in every
+      output and error; a tiny budget sends nothing.
+  - criterion: WI09-AC05
+    method: external-evidence
+    control: >-
+      Extract, read and summarise the D-167 meeting from a clean clone,
+      within US$0.50 in total; commit only the numbers.
+  - criterion: WI09-AC06
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3DFTXWQFPW8YD1SD557ZGVC/.

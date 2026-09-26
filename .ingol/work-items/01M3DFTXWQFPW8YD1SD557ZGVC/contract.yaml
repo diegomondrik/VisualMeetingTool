@@ -1,0 +1,81 @@
+schema_version: "1"
+id: 01M3DFTXWQFPW8YD1SD557ZGVC
+objective: >
+  Write the meeting summary with Gemini's paid tier, on trial by the owner
+  (INGOL decision D-174). From the transcript, what Gemini read in each
+  frame (frames_read.md) and, when the meeting belongs to a project, what
+  the project already knows from earlier meetings, one request writes
+  summary.md next to the frames, outside any repository, with the sections
+  the original MeetingTool's report had: executive summary, participants,
+  decisions, action items, what was on screen, pending deliverables, key
+  topics, beyond the agenda; plus the original's extra sections for a
+  meeting type when one is given, and a closing list of key points. When a
+  project is given, the meeting is added to it with the executive summary
+  and the key points, so the project's knowledge file grows and the next
+  summary reads it.
+
+  The original had Claude write this; here Gemini writes it with the user's
+  one key (D-174). It writes in the language of the transcript (Spanish or
+  English, detected, or given). A summary counts as complete only if it
+  finished normally and holds every required section once and in order,
+  with at least one key point; otherwise it is retried once and then
+  refused, and nothing is written or added. The request goes through the
+  same retries, key handling and spend budget as the frame reading, now
+  shared in meetingtool/reading/gemini.py; the budget counts the worst case
+  of the request before sending it. The transcript text is sent to Gemini's
+  paid tier for the first time (D-174).
+
+  Tests use a fake Gemini on localhost and invented meetings; this public
+  repository commits no transcript, frame or summary.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3DFTXWQFPW8YD1SD557ZGVC/**
+  - docs/evidence/01M3DFTXWQFPW8YD1SD557ZGVC/**
+  - meetingtool/summary/**
+  - meetingtool/reading/gemini.py
+  - meetingtool/frames/transcript.py
+  - tests/test_summary.py
+  - tests/test_reading.py
+  - README.md
+acceptance:
+  - id: WI09-AC01
+    description: >
+      With a transcript, a frames folder already read and, if given, a
+      project, one request is sent carrying the instructions, the
+      transcript with its speakers and times, the frames reading and the
+      project's knowledge; summary.md is written next to the frames, which
+      must be outside any git work tree; a frames folder not yet read is
+      refused before any request.
+  - id: WI09-AC02
+    description: >
+      A summary that did not finish normally, or lacks, repeats or
+      reorders a required section, or has no key point, is retried once
+      and otherwise refused: nothing is written and no meeting is added.
+  - id: WI09-AC03
+    description: >
+      With a project, the meeting is added with the executive summary and
+      the key points, the project's knowledge file holds them, and the
+      next summary's request carries them; a project, title or date that
+      is not valid is refused before any request.
+  - id: WI09-AC04
+    description: >
+      The language is detected from the transcript (Spanish or English)
+      unless given, and the required headings are in that language; a
+      meeting type adds its sections; the key never appears in any output,
+      file or error; a request whose worst case could go over the budget
+      is not sent.
+  - id: WI09-AC05
+    description: >
+      One real end-to-end run on the owner's machine on the
+      non-confidential meeting of INGOL D-167 (extract, read the frames,
+      summarise), with his paid key and at most US$0.50 in total, recorded
+      under docs/evidence/01M3DFTXWQFPW8YD1SD557ZGVC/ as numbers only; the
+      summary stays in the owner's data folder, outside any repository, for
+      him to read and judge, and is deleted when he says so.
+  - id: WI09-AC06
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3DFTXWQFPW8YD1SD557ZGVC/ before the pull request
+      (INGOL D-163).
