@@ -1,0 +1,45 @@
+# mutations of meetingtool/summary/writer.py undoing each review fix, against tests/test_summary.py
+code_commit: 523646d16a59bcfb8a2301f729fa5806b0ac3b83
+----
+## P1-1 undone: the store's date rule not checked before sending: exit 1 (killed)
+--- writer.py
++++ writer.py (mutated)
+@@ -242 +242 @@
+-        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
++        if False:
+
+## P1-1 undone: a failed add_meeting is not caught: exit 1 (killed)
+--- writer.py
++++ writer.py (mutated)
+@@ -275 +275 @@
+-        except (store.ProjectError, OSError) as error:
++        except ZeroDivisionError as error:
+
+## P2-4: the git work tree check removed: exit 1 (killed)
+--- writer.py
++++ writer.py (mutated)
+@@ -225 +224,0 @@
+-    gemini.check_outside_repository(frames_dir)
+
+## P2-1 undone: any line starting with - or * is a key point: exit 1 (killed)
+--- writer.py
++++ writer.py (mutated)
+@@ -191 +191 @@
+-        match = re.match(r"^\s*[-*]\s+(.*\w.*)$", line)
++        match = re.match(r"^\s*[-*](.*)$", line)
+
+## P2-2 undone: bold headings refused: exit 1 (killed)
+--- writer.py
++++ writer.py (mutated)
+@@ -171 +171 @@
+-    pattern = re.compile(r"^#{1,4}\s*[*_]*\s*(?:\d+[.)]\s*)?" + re.escape(heading) + r"\s*:?\s*[*_]*\s*:?\s*$",
++    pattern = re.compile(r"^#{1,4}\s*(?:\d+[.)]\s*)?" + re.escape(heading) + r"\s*:?\s*[*_]*\s*:?\s*$",
+
+## the input left out of the worst case: exit 1 (killed)
+--- writer.py
++++ writer.py (mutated)
+@@ -258 +258 @@
+-    worst = gemini.token_cost(len(prompt) / CHARS_PER_TOKEN, MAX_OUTPUT_TOKENS)
++    worst = gemini.token_cost(0, MAX_OUTPUT_TOKENS)
+
+6 of 6 mutations killed

@@ -1,11 +1,11 @@
 # local suite run for 01M3DFTXWQFPW8YD1SD557ZGVC (INGOL D-163)
-date_utc: 2026-09-26T01:23:38Z
+date_utc: 2026-09-26T02:47:08Z
 machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1
 method: fresh git clone of the work-item branch, checked out at the tested commit, suite run from the clone root
-tested_commit: 3d8f4a7cb06da9fa4d6926a2d8f4ffb284e2c63c
-tested_tree: 9267a6b6e36d2942a27aba13e149f26b11965aee
+tested_commit: 523646d16a59bcfb8a2301f729fa5806b0ac3b83
+tested_tree: 3b9e86fbfbf272d321157c1d290dba31fc7d51e4
 untracked_or_ignored_files_in_clone_before_run: 0
-rerun_reason: first run (WI09-AC06)
+rerun_reason: the review's correction pass (523646d) changed code
 command: python -m unittest discover -s tests -v
 exit_code: 0
 ---- output
@@ -108,12 +108,18 @@ test_the_module_runs_as_a_command (test_summary.LanguageTypeKeyBudgetTest.test_t
 test_with_no_key_saved_nothing_is_sent (test_summary.LanguageTypeKeyBudgetTest.test_with_no_key_saved_nothing_is_sent) ... ok
 test_a_bad_project_title_or_date_sends_nothing (test_summary.ProjectTest.test_a_bad_project_title_or_date_sends_nothing) ... ok
 test_the_meeting_is_added_and_the_next_summary_reads_what_the_project_knows (test_summary.ProjectTest.test_the_meeting_is_added_and_the_next_summary_reads_what_the_project_knows) ... ok
+test_a_date_the_project_would_refuse_is_refused_before_any_request (test_summary.ReviewCorrectionsTest.test_a_date_the_project_would_refuse_is_refused_before_any_request) ... ok
+test_a_meeting_that_cannot_be_added_after_the_summary_is_written_is_a_clear_error (test_summary.ReviewCorrectionsTest.test_a_meeting_that_cannot_be_added_after_the_summary_is_written_is_a_clear_error) ... ok
+test_a_read_frames_folder_inside_a_git_work_tree_is_refused_before_any_request (test_summary.ReviewCorrectionsTest.test_a_read_frames_folder_inside_a_git_work_tree_is_refused_before_any_request) ... ok
+test_a_rule_or_an_italic_note_is_not_a_key_point (test_summary.ReviewCorrectionsTest.test_a_rule_or_an_italic_note_is_not_a_key_point) ... ok
+test_headings_in_bold_with_a_colon_numbered_or_at_level_four_are_accepted (test_summary.ReviewCorrectionsTest.test_headings_in_bold_with_a_colon_numbered_or_at_level_four_are_accepted) ... ok
+test_the_budget_counts_the_input_as_well_as_the_output_cap (test_summary.ReviewCorrectionsTest.test_the_budget_counts_the_input_as_well_as_the_output_cap) ... ok
 test_turns_keep_the_speaker_and_the_time (test_summary.TurnsTest.test_turns_keep_the_speaker_and_the_time) ... ok
 test_a_frames_folder_inside_a_git_work_tree_is_refused_before_any_request (test_summary.WritingTest.test_a_frames_folder_inside_a_git_work_tree_is_refused_before_any_request) ... ok
 test_frames_not_yet_read_are_refused_before_any_request (test_summary.WritingTest.test_frames_not_yet_read_are_refused_before_any_request) ... ok
 test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames (test_summary.WritingTest.test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames) ... ok
 
 ----------------------------------------------------------------------
-Ran 102 tests in 49.431s
+Ran 108 tests in 50.646s
 
 OK
