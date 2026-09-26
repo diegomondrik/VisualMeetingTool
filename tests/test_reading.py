@@ -61,7 +61,7 @@ class FakeGemini:
                 body = json.loads(self.rfile.read(int(self.headers["Content-Length"])))
                 labels = [p["text"] for p in body["contents"][0]["parts"] if p.get("text", "").startswith("[FRAME ")]
                 images = [p for p in body["contents"][0]["parts"] if "inline_data" in p]
-                first = int(labels[0].split()[1].rstrip("]"))
+                first = int(labels[0].split()[1].rstrip("]")) if labels else 0  # a summary sends no frame
                 fake.requests.append({"path": self.path, "headers": {k.lower(): v for k, v in self.headers.items()},
                                       "body": body,
                                       "labels": labels, "images": images})

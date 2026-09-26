@@ -101,6 +101,33 @@ def read_blocks(path):
     return sorted(((start, "\n".join(text)) for start, text in blocks), key=lambda block: block[0])
 
 
+def read_turns(path):
+    """[(start seconds, speaker, text)] in time order: what read_blocks reads,
+    with the speaker the Teams line names ("" for [HH:MM:SS] lines). The
+    summary needs who said what; the boost only needs when."""
+    path = Path(path)
+    if not path.is_file():
+        raise TranscriptError(f"transcript {path} is not a file")
+    lines = _docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path)
+    turns = []
+    for raw in lines:
+        line = raw.strip()
+        if not line:
+            continue
+        teams = _SPEAKER_TIME.match(line)
+        bracket = _BRACKET_TIME.match(line)
+        if teams:
+            turns.append([_seconds(teams.group(2)), teams.group(1).strip(), []])
+        elif bracket:
+            hours, minutes, seconds, rest = bracket.groups()
+            turns.append([int(hours) * 3600 + int(minutes) * 60 + int(seconds), "", [rest] if rest else []])
+        elif turns:
+            turns[-1][2].append(line)
+    if not turns:
+        raise TranscriptError(f"transcript {path} has no timed line (Teams 'Speaker   M:SS' or '[HH:MM:SS]')")
+    return sorted(((start, speaker, "\n".join(text)) for start, speaker, text in turns), key=lambda turn: turn[0])
+
+
 def has_visual_reference(text):
     return _PHRASE.search(text) is not None
 
