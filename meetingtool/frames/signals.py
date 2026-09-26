@@ -59,6 +59,28 @@ def temporal_score(timestamp, duration, budget, candidate_timestamps):
     return {0: 1.0, 1: 0.6, 2: 0.3}.get(same, 0.1)
 
 
+CAMERA_SHARP_DENSITY = 0.028
+CAMERA_SHARP_SHARE = 0.25
+
+
+def is_camera_view(gray, step=40, visible=8):
+    """Whether the content area shows a person on camera rather than a screen
+    (INGOL D-176): few sharp steps between neighbouring pixels, and most visible
+    steps soft. Text, tables and slides have sharp edges; a face or a room does
+    not. Measured on one real meeting (WI10 evidence, thresholds-measured.txt):
+    camera views at most 0.022 and 0.142; every screen past at least one
+    threshold, but neither alone separates them, and a photograph on screen
+    passed on density by 0.004. A gallery of participants is not caught: its
+    tiles have sharp borders, like a slide with little text."""
+    g = gray.astype(np.int16)
+    gx = np.abs(np.diff(g, axis=1))[:-1]
+    gy = np.abs(np.diff(g, axis=0))[:, :-1]
+    density = ((gx > step).mean() + (gy > step).mean()) / 2
+    strongest = np.maximum(gx, gy)
+    share = (strongest > step).sum() / max(1, (strongest > visible).sum())
+    return bool(density < CAMERA_SHARP_DENSITY and share < CAMERA_SHARP_SHARE)
+
+
 def composite_score(prev_gray, curr_gray, timestamp, duration, budget, candidate_timestamps):
     return (
         W_ZONE * zone_score(prev_gray, curr_gray)

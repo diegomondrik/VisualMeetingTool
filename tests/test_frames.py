@@ -394,6 +394,67 @@ class TranscriptTest(Workspace):
         self.assertIn("raised by the transcript", result.stdout)
 
 
+def camera(position):
+    """A person on camera, as the edges see it: a soft bright blob on a smooth
+    background, somewhere else at each position; no sharp step anywhere."""
+    yy, xx = np.mgrid[0:HEIGHT, 0:WIDTH].astype(np.float32)
+    cx, cy = 60 + (position * 97) % 200, 110 + (position * 53) % 90
+    face = 150 * np.exp(-((xx - cx) ** 2 + (yy - cy) ** 2) / (2 * 30 ** 2))
+    gray = np.clip(60 + 0.2 * xx + face, 0, 255)
+    return np.dstack([gray, gray * 0.9, gray * 0.8]).astype(np.uint8)
+
+
+class MeetingRealityTest(Workspace):
+    """WI10-AC01 and WI10-AC02 (INGOL D-176)."""
+
+    def test_a_person_on_camera_never_becomes_a_candidate_and_the_slides_around_it_are_kept(self):
+        video = self.tmp / "camera.mp4"
+        write_video(video, [(SLIDE_A, 6, False)] + [(camera(k), 1, False) for k in range(14)] + [(SLIDE_B, 6, False)])
+        result = extract_frames(video, self.out)
+        self.assertEqual([which_slide(self.out / name) for name in result.kept], ["A", "B"], result)
+        self.assertFalse([t for t in result.candidate_times if 6.5 <= t < 20], result.candidate_times)
+        self.assertGreater(result.discards["camera"], 0)
+        log = (self.out / "frames_discarded.log").read_text(encoding="utf-8")
+        self.assertIn("| camera (", log)
+
+    def test_the_camera_check_tells_a_camera_from_a_slide(self):
+        self.assertTrue(signals.is_camera_view(signals.to_gray(camera(0)[STRIP:])))
+        for name, image in SLIDES.items():
+            with self.subTest(slide=name):
+                self.assertFalse(signals.is_camera_view(signals.to_gray(image[STRIP:])))
+        # Full of detail whose steps are mostly soft, like a photograph or a map on screen:
+        # soft by the share of sharp steps, but far too detailed for a camera view.
+        grain = np.clip(np.random.default_rng(7).normal(128, 14, (HEIGHT - STRIP, WIDTH)), 0, 255).astype(np.uint8)
+        self.assertFalse(signals.is_camera_view(grain))
+
+    def test_with_a_transcript_reading_stops_soon_after_its_last_line(self):
+        ended = self.tmp / "ended.txt"
+        ended.write_text("[00:00:01] Ana:\nhola\n[00:00:04] Luis:\nchau", encoding="utf-8")
+        with mock.patch.object(extract_module, "TRANSCRIPT_TAIL", 5.0):
+            result = extract_frames(self.video, self.out, transcript=ended)
+        self.assertEqual(result.read_until, 9.0)
+        self.assertEqual([which_slide(self.out / name) for name in result.kept], ["A", "B"], result)
+        self.assertTrue(result.candidate_times and max(result.candidate_times) <= 9.0, result.candidate_times)
+        self.assertLessEqual(result.samples, 19)
+        whole = extract_frames(self.video, self.out)
+        self.assertIsNone(whole.read_until)
+        self.assertGreater(whole.samples, 50)
+
+    def test_the_command_line_says_where_reading_stopped(self):
+        ended = self.tmp / "ended.txt"
+        ended.write_text("[00:00:01] Ana:\nhola", encoding="utf-8")
+        result = subprocess.run(
+            [sys.executable, "-c",
+             "import sys; from meetingtool.frames import extract, __main__ as cli; extract.TRANSCRIPT_TAIL = 5.0; "
+             "cli.TRANSCRIPT_TAIL = 5.0; sys.exit(cli.main(sys.argv[1:]))",
+             "--video", str(self.video), "--out", str(self.out), "--transcript", str(ended)],
+            cwd=REPOSITORY, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+            capture_output=True, text=True, encoding="utf-8",
+        )
+        self.assertEqual(result.returncode, 0, result.stderr)
+        self.assertIn("read until 6s of 30s: the transcript's last line starts 1s in", result.stdout)
+
+
 class PackagingTest(unittest.TestCase):
     """WI04-AC06."""
 

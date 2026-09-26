@@ -1,0 +1,45 @@
+schema_version: "1"
+work_item: 01M3EW0GR9W9JK190HHN6QQPR6
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3EW0GR9W9JK190HHN6QQPR6-camera-and-end
+steps:
+  - a-person-on-camera-never-becomes-a-candidate-wi10-ac01
+  - stop-reading-soon-after-the-transcript-ends-wi10-ac02
+  - keep-the-existing-frame-tests-passing-wi10-ac03
+  - measure-main-and-this-branch-on-the-real-meeting-numbers-only-wi10-ac04
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi10-ac05
+evaluations:
+  - criterion: WI10-AC01
+    method: adversarial
+    control: >-
+      tests/test_frames.py MeetingRealityTest synthesises slide, camera blob,
+      slide; requires the two slides kept, no candidate in the blob and a
+      "camera" discard; four mutations of the check (removed, always true,
+      either measure alone as "or") each fail it, recorded in mutations.txt.
+  - criterion: WI10-AC02
+    method: adversarial
+    control: >-
+      tests/test_frames.py requires read_until 9 s, no later candidate, the
+      command line line, and a whole read without a transcript; with the stop
+      removed the test fails, recorded in mutations.txt.
+  - criterion: WI10-AC03
+    method: deterministic
+    control: >-
+      python -m unittest tests.test_frames, every earlier test unchanged.
+  - criterion: WI10-AC04
+    method: external-evidence
+    control: >-
+      Run the current main and this branch on the same meeting with its
+      transcript, each from a fresh clone, time both, count samples and
+      frames, cross-match by structural similarity and classify the unmatched
+      frames of main by frames_read.md of D-174's run; commit only the numbers
+      and delete the frames.
+  - criterion: WI10-AC05
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3EW0GR9W9JK190HHN6QQPR6/.

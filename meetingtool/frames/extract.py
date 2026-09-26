@@ -16,7 +16,11 @@ scales (INGOL D-175): on a 1080p meeting, computing them at full size took
 most of the time. The frames kept, and the duplicate checks on them, still
 use the full sample. The opening slide needs no special case: the
 first sample has nothing to compare with, and the next one enters on time
-coverage alone.
+coverage alone. Two uses of what a meeting is (INGOL D-176): a sample that
+shows a person on camera never becomes a candidate (signals.is_camera_view),
+and with a transcript the recording is read only until TRANSCRIPT_TAIL
+seconds after its last line starts, since a recording often runs on after
+everyone has stopped talking.
 """
 
 import collections
@@ -30,7 +34,7 @@ import av
 import numpy as np
 from PIL import Image
 
-from meetingtool.frames.signals import composite_score, to_gray
+from meetingtool.frames.signals import composite_score, is_camera_view, to_gray
 from meetingtool.frames.similarity import ssim
 from meetingtool.frames.transcript import TranscriptError, VisualReferences
 
@@ -39,6 +43,7 @@ ANALYSIS_WIDTH = 640
 MAX_HEIGHT = 720
 JPEG_QUALITY = 85
 DISCARD_LOG = "frames_discarded.log"
+TRANSCRIPT_TAIL = 120.0
 
 
 class FramesError(Exception):
@@ -57,6 +62,7 @@ class ExtractionResult:
     discards: collections.Counter
     boosted: int = 0      # candidates whose score the transcript raised
     boosted_in: int = 0   # of those, the ones that were below the minimum score without it
+    read_until: float = None  # where reading stopped because the transcript had ended; None if it did not
 
 
 def enclosing_git_work_tree(path):
@@ -163,6 +169,8 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     candidate_times = []
     samples = candidates = max_pool = boosted = boosted_in = 0
     last_distinct_gray = None
+    stop_at = references.last + TRANSCRIPT_TAIL if references is not None else None
+    read_until = None
     try:
         stream = container.streams.video[0]
         stream.thread_type = "AUTO"  # decode on every core; frames and their order do not change
@@ -175,6 +183,9 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
             if frame.pts is None:
                 continue
             timestamp = float(frame.pts * stream.time_base)
+            if stop_at is not None and timestamp > stop_at:
+                read_until = stop_at
+                break
             if timestamp - last_sampled < interval:
                 continue
             last_sampled = timestamp
@@ -194,6 +205,10 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
             if score < min_score:
                 discards["low_score"] += 1
                 log_lines.append((timestamp, f"low_score (score={score:.3f})"))
+                continue
+            if is_camera_view(gray):
+                discards["camera"] += 1
+                log_lines.append((timestamp, "camera (a person on camera, no screen content)"))
                 continue
             candidates += 1
             candidate_times.append(timestamp)
@@ -249,4 +264,4 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     lines = [f"{run} | {timestamp_label(t)} | {reason}" for t, reason in sorted(log_lines, key=lambda x: x[0])]
     (output_dir / DISCARD_LOG).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
     return ExtractionResult(duration, samples, candidates, max_pool, kept, kept_times, candidate_times, discards,
-                            boosted, boosted_in)
+                            boosted, boosted_in, read_until)

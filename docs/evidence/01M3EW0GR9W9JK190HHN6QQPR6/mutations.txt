@@ -1,0 +1,11 @@
+WI10 mutations: each breaks the change on purpose in a copy of the working tree; python -m unittest tests.test_frames.MeetingRealityTest must fail.
+tree: branch work-item/01M3EW0GR9W9JK190HHN6QQPR6-camera-and-end, working tree before the first commit; 2026-09-26T14:00:21Z
+A first round found M4 (sharp share alone) undetected: every test image was either sharp and sparse or soft and sparse. A grain image (normal noise, sd 14: density 0.040 share 0.084) was added to test_the_camera_check_tells_a_camera_from_a_slide, detailed but soft, and the round re-run:
+
+M1 camera check removed -> FAILED (failures=1)
+M2 camera check always true -> FAILED (failures=6)
+M3 sharp density alone -> FAILED (failures=5)
+M4 sharp share alone -> FAILED (failures=1)
+M5 either measure (or) -> FAILED (failures=6)
+M6 transcript stop removed -> FAILED (failures=1)
+control, no mutation (must pass) -> OK
