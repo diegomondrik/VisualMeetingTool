@@ -3,7 +3,7 @@
 import argparse
 import sys
 
-from meetingtool.frames.extract import FramesError, extract_frames
+from meetingtool.frames.extract import TRANSCRIPT_TAIL, FramesError, extract_frames
 
 
 def main(argv=None):
@@ -30,6 +30,9 @@ def main(argv=None):
         print(f"discarded {reason}: {count}")
     if args.transcript:
         print(f"candidates raised by the transcript: {result.boosted} ({result.boosted_in} only because of it)")
+    if result.read_until is not None:
+        print(f"read until {result.read_until:.0f}s of {result.duration:.0f}s: the transcript's last line starts "
+              f"{result.read_until - TRANSCRIPT_TAIL:.0f}s in")
     return 0
 
 

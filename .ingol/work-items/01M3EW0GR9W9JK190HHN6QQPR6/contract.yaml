@@ -1,0 +1,66 @@
+schema_version: "1"
+id: 01M3EW0GR9W9JK190HHN6QQPR6
+objective: >
+  Fewer useless frames, from what a meeting is (INGOL decision D-176). On the
+  owner's meeting of D-167 the extractor kept 75 frames; by what Gemini read
+  in each, 25 showed only people: 16 a person on camera close up, 9 the
+  gallery of participants. The recording also ran 36 minutes after the last
+  line of the transcript.
+
+  Two changes. A sample whose content area shows a person on camera (few
+  sharp steps between neighbouring pixels, and most visible steps soft)
+  never becomes a candidate, and the discard log says so. Measured on the kept
+  frames of that meeting: camera views at most 0.021 and 0.14 on the two
+  measures, screens at least 0.031 and 0.35, against thresholds of 0.028 and
+  0.25; both must hold. With a transcript, the recording is read only until
+  120 seconds after its last line starts, and the command line says where it
+  stopped.
+
+  Not done, by D-176: the gallery of participants is not filtered (on one
+  measure it sits at 0.65 against 0.71 for a slide with little text), no
+  still-screen minimum (it lost 38 of the 49 frames with content), no stricter
+  duplicate check, and the transcript does not decide which frame enters.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3EW0GR9W9JK190HHN6QQPR6/**
+  - docs/evidence/01M3EW0GR9W9JK190HHN6QQPR6/**
+  - meetingtool/frames/__main__.py
+  - meetingtool/frames/extract.py
+  - meetingtool/frames/signals.py
+  - meetingtool/frames/transcript.py
+  - tests/test_frames.py
+acceptance:
+  - id: WI10-AC01
+    description: >
+      On a synthetic recording of a slide, fourteen seconds of a soft blob
+      moving on a smooth background, and another slide, the two slides are
+      kept, no sample of the blob becomes a candidate, and the discard log
+      names the reason "camera". The check says camera for the blob and not
+      for any of the three test slides. A test fails without the check, with
+      the check always true, and with either measure alone.
+  - id: WI10-AC02
+    description: >
+      With a transcript whose last line starts at 4 s and a tail of 5 s,
+      reading stops at 9 s, the result says so, no candidate is later, and the
+      command line prints where it stopped; without a transcript the whole
+      recording is read. A test fails if reading does not stop.
+  - id: WI10-AC03
+    description: >
+      The existing frame tests pass unchanged.
+  - id: WI10-AC04
+    description: >
+      One run of the current main and one of this branch on the owner's real
+      meeting (INGOL D-167) with its transcript, each from a fresh clone, on
+      his machine, recorded under docs/evidence/01M3EW0GR9W9JK190HHN6QQPR6/ as
+      numbers only: seconds taken, samples read, frames kept, and, matching by
+      structural similarity above 0.95 on the content area, how many frames of
+      each version have a near-identical frame in the other, with the
+      unmatched ones of main counted by what Gemini read in them (camera,
+      gallery, screen). The frames are deleted afterwards.
+  - id: WI10-AC05
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3EW0GR9W9JK190HHN6QQPR6/ before the pull request
+      (INGOL D-163).
