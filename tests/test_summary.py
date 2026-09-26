@@ -10,6 +10,7 @@ import sys
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from meetingtool.frames.transcript import read_turns
 from meetingtool.projects import store
@@ -256,6 +257,64 @@ class LanguageTypeKeyBudgetTest(Workspace):
                                 capture_output=True, text=True)
         self.assertEqual(result.returncode, 0)
         self.assertIn("--project", result.stdout)
+
+
+class ReviewCorrectionsTest(Workspace):
+    """The review's P1-1, P2-1, P2-2 and P2-4, and the input side of the budget."""
+
+    def setUp(self):
+        super().setUp()
+        store.create_project(self.data, "Acme", "Acme SA")
+
+    def test_a_date_the_project_would_refuse_is_refused_before_any_request(self):
+        with FakeGemini() as fake:
+            for date in ("20260922", "2026-W39-2", "2026-02-30"):
+                with self.subTest(date=date):
+                    with self.assertRaises(writer.SummaryError):
+                        self.summarise(fake, project="acme", title="T", date=date)
+        self.assertEqual(fake.requests, [])
+
+    def test_a_meeting_that_cannot_be_added_after_the_summary_is_written_is_a_clear_error(self):
+        def refuse(*args, **kwargs):
+            raise OSError("disk full")
+        with FakeGemini([returning(summary_text())]) as fake, mock.patch.object(store, "add_meeting", refuse):
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake, project="acme", title="T", date="2026-09-22")
+        self.assertIn("was written, but the meeting could not be added", str(caught.exception))
+        self.assertTrue(self.output().exists(), "the paid summary is kept")
+
+    def test_headings_in_bold_with_a_colon_numbered_or_at_level_four_are_accepted(self):
+        text = summary_text()
+        variants = [text.replace("## Temas", "## **Temas**"), text.replace("## Temas", "#### Temas:"),
+                    text.replace("## Temas", "## 7. Temas"), text.replace("## Temas", "## _Temas_")]
+        for variant in variants:
+            with self.subTest(variant=variant[text.find("Temas") - 8:text.find("Temas") + 12]):
+                self.assertEqual(writer.check_summary(answer(variant), writer.required_headings("es"), "es"), variant)
+
+    def test_a_rule_or_an_italic_note_is_not_a_key_point(self):
+        text = summary_text(points=False) + "\n---\n*No hubo puntos clave.*"
+        with self.assertRaises(writer.SummaryError):
+            writer.check_summary(answer(text), writer.required_headings("es"), "es")
+        self.assertEqual(writer.key_points("## Puntos clave\n- uno\n* dos\n---\n", "es"), ["uno", "dos"])
+
+    def test_a_read_frames_folder_inside_a_git_work_tree_is_refused_before_any_request(self):
+        repository = self.tmp / "some-repository"
+        inside = repository / "frames"
+        inside.mkdir(parents=True)
+        subprocess.run(["git", "init", "-q", str(repository)], check=True)
+        (inside / gemini.OUTPUT_NAME).write_text("[FRAME 1]\n", encoding="utf-8")
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError) as caught:
+                writer.write_summary(inside, self.transcript, KEY, endpoint=fake.endpoint)
+        self.assertIn("inside the git work tree", str(caught.exception))
+        self.assertEqual(fake.requests, [])
+
+    def test_the_budget_counts_the_input_as_well_as_the_output_cap(self):
+        just_the_output = gemini.token_cost(0, writer.MAX_OUTPUT_TOKENS)
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError):
+                self.summarise(fake, max_cost_usd=just_the_output + 0.0001)
+        self.assertEqual(fake.requests, [])
 
 
 if __name__ == "__main__":

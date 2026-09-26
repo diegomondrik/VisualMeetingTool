@@ -41,6 +41,27 @@ repository. A run that cannot be completed writes nothing and says why;
 there is no lower-quality fallback. `key status` shows only whether a key
 is saved and its length, and `key delete` removes it.
 
+## Writing the meeting summary
+
+Once the frames are read, Gemini writes the summary from the transcript and
+what it read in each frame, with the same key:
+
+```
+python -m meetingtool.summary --frames <frames folder> --transcript <transcript.docx>
+python -m meetingtool.summary --frames <frames folder> --transcript <transcript.docx> \
+    --project <project id> --title "<meeting title>" --date YYYY-MM-DD [--type status]
+```
+
+The summary is written to `summary.md` in the frames folder, in the
+language of the transcript. It has the sections of the original
+MeetingTool's report: executive summary, participants, decisions, action
+items, what was on screen, pending deliverables, key topics, beyond the
+agenda, and key points. With `--project`, the summary also reads what the
+project knows from earlier meetings, and the meeting is added to the project
+with its key points, so the next summary knows them. The transcript is sent
+to Gemini's paid tier. A summary that is cut short or missing a section is
+retried once and never delivered incomplete.
+
 ## Running the tests
 
 Python 3.11 or newer, no other library needed:

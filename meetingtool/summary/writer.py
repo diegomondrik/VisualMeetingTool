@@ -2,8 +2,10 @@
 
 The original MeetingTool had Claude write the report from the transcript and
 what Gemini read in the frames; here Gemini writes it with the user's one key.
-The sections and the analysis stance are the original's
-(tools/prompt_generator.py). What is new: the project's knowledge from
+The sections and the analysis stance are adapted from the original's
+(tools/prompt_generator.py): its eight standard sections, its meeting types
+(the training type without its "Technical Decisions" section) and its
+instruction to treat distinct topics of one meeting separately. What is new: the project's knowledge from
 earlier meetings goes into the request, and the meeting is added to the
 project afterwards, so that knowledge grows; the summary is written in the
 language of the transcript; and it counts as complete only if every required
@@ -99,6 +101,9 @@ assumptions did the participants share without saying them? What was not said bu
 the gap between what the team THINKS was decided and what was ACTUALLY committed to? Would a senior consultant
 reading this get the insight needed to act, or just a log? If just a log, go deeper.
 
+If the meeting has several distinct topics, workstreams or presenters, treat each as its own unit and
+label it in every section where it applies; do not merge their decisions or action items.
+
 Tone: executive and direct, no filler. First person plural for the consultant's commitments, third person for
 the client."""
 
@@ -163,7 +168,8 @@ def build_prompt(turns, frames_reading, language, meeting_type=None, knowledge="
 
 
 def _heading_positions(text, heading):
-    pattern = re.compile(r"^#{1,3}\s*(?:\d+[.)]\s*)?" + re.escape(heading) + r"\s*:?\s*$", re.MULTILINE | re.IGNORECASE)
+    pattern = re.compile(r"^#{1,4}\s*[*_]*\s*(?:\d+[.)]\s*)?" + re.escape(heading) + r"\s*:?\s*[*_]*\s*:?\s*$",
+                         re.MULTILINE | re.IGNORECASE)
     return [match.start() for match in pattern.finditer(text)]
 
 
@@ -173,13 +179,19 @@ def section_text(text, heading):
     if not positions:
         return ""
     body = text[positions[0]:].split("\n", 1)[1] if "\n" in text[positions[0]:] else ""
-    following = re.search(r"^#{1,3}\s", body, re.MULTILINE)
+    following = re.search(r"^#{1,4}\s", body, re.MULTILINE)
     return (body[:following.start()] if following else body).strip()
 
 
 def key_points(text, language):
-    lines = section_text(text, KEY_POINTS[language]).splitlines()
-    return [line.strip()[1:].strip() for line in lines if line.strip()[:1] in ("-", "*") and line.strip()[1:].strip()]
+    """The bullets ('- ' or '* ') of the key points section that hold words;
+    a rule such as '---' or an italic line such as '*none*' is not a key point."""
+    points = []
+    for line in section_text(text, KEY_POINTS[language]).splitlines():
+        match = re.match(r"^\s*[-*]\s+(.*\w.*)$", line)
+        if match:
+            points.append(match.group(1).strip())
+    return points
 
 
 def check_summary(answer, headings, language):
@@ -227,6 +239,8 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
     if project:
         if not title or not title.strip() or not date:
             raise SummaryError("a meeting added to a project needs --title and --date")
+        if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
+            raise SummaryError(f"meeting date {date!r} is not a valid YYYY-MM-DD date")
         try:
             datetime.date.fromisoformat(date)
         except ValueError:
@@ -254,9 +268,13 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
     meeting_id = ""
     if project:
         executive = section_text(text, SECTIONS[language][0])
-        record = store.add_meeting(data_dir, project, title, date, meeting_type=meeting_type or "",
-                                   recording=recording or "", transcript=str(transcript), summary=executive,
-                                   key_points=key_points(text, language))
+        try:
+            record = store.add_meeting(data_dir, project, title, date, meeting_type=meeting_type or "",
+                                       recording=recording or "", transcript=str(transcript), summary=executive,
+                                       key_points=key_points(text, language))
+        except (store.ProjectError, OSError) as error:
+            raise SummaryError(f"{output} was written, but the meeting could not be added to project {project}: "
+                               f"{error}") from error
         meeting_id = record["id"]
     return SummaryResult(output, language, counters["attempts"], time.monotonic() - started, counters["input"],
                          counters["output"], counters["thinking"], counters["spent"],
