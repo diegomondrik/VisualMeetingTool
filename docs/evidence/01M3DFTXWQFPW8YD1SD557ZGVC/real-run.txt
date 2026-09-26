@@ -1,0 +1,19 @@
+# WI09-AC05: one real end-to-end run on the D-167 meeting with the owner's paid key (INGOL D-174), numbers only
+date_utc: 2026-09-26, the run shortly before 01:16Z, when this record was written from its captured output
+meeting: the real 117-minute meeting the owner chose as not confidential (INGOL D-167); read in place, never copied into any repository; no name, number or text of it is recorded here
+code: fresh clone of work-item/01M3DFTXWQFPW8YD1SD557ZGVC-summary at 895db469e8728f960c2cb944eba2fa11984ddf5d
+budget: US$0.50 in total, split as --max-cost 0.33 for the reading and 0.17 for the summary; each command refuses a request whose worst case could go over its own budget
+extraction (fresh clone of main 71098a7, with the transcript):
+  duration 7017.0s, 14035 samples, 790 candidates, 75 frames kept
+  discarded low_score: 9294
+  discarded minimum_gap: 3950
+  discarded near_duplicate: 715
+  candidates raised by the transcript: 506 (441 only because of it)
+  exit=0 seconds=320
+reading: exit 0; 75 frames read in 2 request(s) (2 attempt(s)), 62.4s; tokens: input 84804, output 14653, thinking 1661; estimated cost US$0.125 (budget US$0.33); model gemini-3.8-flash
+project: created prueba-resumen-gemini in the owner's data folder (outside any repository)
+summary: exit 0; summary written in 19.8s (1 attempt(s), language es); tokens: input 43505, output 3103, thinking 0; estimated cost US$0.044 (budget US$0.17); model gemini-3.8-flash; added to project prueba-resumen-gemini as meeting 2026-09-22-reunion-de-prueba-d-167
+summary shape (counted, text not recorded): 11388 characters, 9 headings, 12 frame references in [frame_NNN_tHH-MM-SS.jpg] form
+estimated_total_cost_usd: 0.169 (reading 0.125 + summary 0.044, list prices used for D-169; the exact charge is in the owner's Google billing, not read here)
+note: the executor's recording script failed after both paid calls, on a regular expression of its own; nothing paid was repeated, and this record was written from the captured output
+kept for the owner, outside any repository: the frames, frames_read.md and summary.md in his data folder, and the meeting in the project prueba-resumen-gemini; deleted when he says so
