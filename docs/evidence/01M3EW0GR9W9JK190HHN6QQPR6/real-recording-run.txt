@@ -1,0 +1,28 @@
+# WI10-AC04: the same real meeting on main and on this branch (INGOL D-176), numbers only
+meeting: the real 117-minute meeting the owner chose as not confidential (INGOL D-167), 1920x1080 h264 at 16 fps, with its Teams transcript; read in place, never copied into any repository
+machine: owner's Windows ARM64 machine, Python 3.12.10, PyAV 18.1.0; both runs with the transcript, default settings, output outside any repository, each from a fresh clone (--no-hardlinks), run one after the other
+main: fresh clone at 69944af
+  duration 7017.0s, 14035 samples, 790 candidates, 75 frames kept
+  discarded low_score: 9294
+  discarded minimum_gap: 3950
+  discarded near_duplicate: 715
+  candidates raised by the transcript: 506 (441 only because of it)
+  exit 0 seconds 325
+branch: fresh clone at efbca74
+  duration 7017.0s, 9987 samples, 690 candidates, 58 frames kept
+  discarded camera: 151
+  discarded low_score: 5695
+  discarded minimum_gap: 3450
+  discarded near_duplicate: 632
+  candidates raised by the transcript: 506 (441 only because of it)
+  read until 4993s of 7017s: the transcript's last line starts 4873s in
+  exit 0 seconds 263
+cross-match (same method as WI08-AC03: grey, 640 wide, content area below the camera strip; each frame against the other set's frames within 10 minutes):
+  main: 75 frames; 59 have a near-identical frame (SSIM > 0.95) in the branch; 16 do not: 0:07 (0.40), 0:10 (0.42), 0:13 (0.41), 0:16 (0.40), 0:19 (0.42), 0:23 (0.42), 0:26 (0.39), 0:30 (0.41), 0:35 (0.39), 0:38 (0.42), 0:41 (0.42), 0:47 (0.40), 0:50 (0.42), 0:53 (0.42), 1:04 (0.41), 1:24 (0.40)
+  branch: 58 frames; 58 have a near-identical frame in main; 0 do not
+by what Gemini read in main's frames (frames_read.md of the D-174 run; main's kept frames are the same files by name): camera close-up 16, gallery of participants 9, screen 50 (the opening title card counted as screen)
+  main's unmatched frames: camera 16 of 16, gallery 0 of 9, screen 0 of 50
+  59 matched main frames against 58 branch frames: main's gallery at 1:34 pairs with the branch's gallery at 0:03 (SSIM 0.96), as does main's own 0:03 (1.00). With the camera frames gone the two galleries are consecutive candidates, and the branch drops the second as a near-duplicate before the budget (its discard log: near_duplicate at 1:34)
+reading: every frame main kept that showed a screen or the gallery has a near-identical frame in the branch; the frames dropped are the 16 camera close-ups and one repeated gallery. Samples read fell by 29% (the recording ran 35 minutes past the transcript's last line); the run took 19% less time
+deleted: both frame sets and both clones; exist after deletion: see the last line
+exists after deletion: False
