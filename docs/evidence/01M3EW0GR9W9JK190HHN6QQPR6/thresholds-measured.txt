@@ -1,0 +1,87 @@
+# WI10: the camera thresholds measured on the 75 frames main kept on the D-167 meeting (review P2-1)
+source: the saved JPEGs of the D-174 run (1280x720, quality 85), read in place in the owner's data folder, never copied
+method: RGB resized to 640x360 with a box filter (the nearest to the decoder's AREA scaling of the 1080p source, which the code sees), the repo's signals.to_gray, content area below 15%; density = sharp steps (>40) per pixel, averaged over rows and columns; share = sharp steps among visible steps (>8); kind = what Gemini read in the frame (frames_read.md)
+thresholds: camera when density < 0.028 AND share < 0.25
+frame | time | kind | density | share | camera by the code
+01 | 00:00:00 | screen | 0.0199 | 0.744 | False
+02 | 00:00:03 | gallery | 0.0212 | 0.595 | False
+03 | 00:00:07 | camera | 0.0210 | 0.139 | True
+04 | 00:00:10 | camera | 0.0192 | 0.141 | True
+05 | 00:00:13 | camera | 0.0180 | 0.138 | True
+06 | 00:00:16 | camera | 0.0187 | 0.132 | True
+07 | 00:00:19 | camera | 0.0179 | 0.139 | True
+08 | 00:00:23 | camera | 0.0181 | 0.138 | True
+09 | 00:00:26 | camera | 0.0202 | 0.135 | True
+10 | 00:00:30 | camera | 0.0190 | 0.139 | True
+11 | 00:00:35 | camera | 0.0199 | 0.139 | True
+12 | 00:00:38 | camera | 0.0205 | 0.129 | True
+13 | 00:00:41 | camera | 0.0200 | 0.142 | True
+14 | 00:00:47 | camera | 0.0219 | 0.139 | True
+15 | 00:00:50 | camera | 0.0201 | 0.138 | True
+16 | 00:00:53 | camera | 0.0213 | 0.140 | True
+17 | 00:01:04 | camera | 0.0207 | 0.140 | True
+18 | 00:01:24 | camera | 0.0198 | 0.139 | True
+19 | 00:01:34 | gallery | 0.0212 | 0.597 | False
+20 | 00:05:27 | screen | 0.0764 | 0.445 | False
+21 | 00:05:30 | screen | 0.0457 | 0.450 | False
+22 | 00:05:34 | screen | 0.0691 | 0.457 | False
+23 | 00:05:44 | screen | 0.0652 | 0.402 | False
+24 | 00:05:56 | screen | 0.0604 | 0.407 | False
+25 | 00:05:59 | screen | 0.0619 | 0.407 | False
+26 | 00:06:23 | screen | 0.0655 | 0.413 | False
+27 | 00:06:26 | screen | 0.0643 | 0.400 | False
+28 | 00:06:35 | screen | 0.0643 | 0.406 | False
+29 | 00:07:30 | screen | 0.0665 | 0.422 | False
+30 | 00:07:35 | screen | 0.0696 | 0.423 | False
+31 | 00:10:49 | screen | 0.0324 | 0.153 | False
+32 | 00:10:55 | screen | 0.0680 | 0.425 | False
+33 | 00:26:09 | screen | 0.0535 | 0.426 | False
+34 | 00:26:31 | screen | 0.0681 | 0.422 | False
+35 | 00:27:55 | gallery | 0.0211 | 0.598 | False
+36 | 00:30:24 | gallery | 0.0239 | 0.618 | False
+37 | 00:31:41 | screen | 0.0348 | 0.301 | False
+38 | 00:31:47 | screen | 0.0384 | 0.321 | False
+39 | 00:39:16 | gallery | 0.0240 | 0.615 | False
+40 | 00:40:44 | screen | 0.0959 | 0.588 | False
+41 | 00:40:52 | screen | 0.0987 | 0.577 | False
+42 | 00:40:55 | screen | 0.0984 | 0.590 | False
+43 | 00:41:04 | screen | 0.1017 | 0.591 | False
+44 | 00:41:07 | screen | 0.1077 | 0.575 | False
+45 | 00:41:13 | screen | 0.0911 | 0.509 | False
+46 | 00:41:16 | screen | 0.0831 | 0.494 | False
+47 | 00:42:56 | gallery | 0.0238 | 0.615 | False
+48 | 01:01:34 | screen | 0.0528 | 0.395 | False
+49 | 01:01:37 | screen | 0.0545 | 0.378 | False
+50 | 01:01:40 | screen | 0.0619 | 0.407 | False
+51 | 01:01:44 | screen | 0.0633 | 0.467 | False
+52 | 01:01:48 | screen | 0.0775 | 0.504 | False
+53 | 01:01:53 | screen | 0.0702 | 0.514 | False
+54 | 01:01:56 | screen | 0.0580 | 0.448 | False
+55 | 01:02:00 | screen | 0.0627 | 0.423 | False
+56 | 01:02:05 | screen | 0.0635 | 0.450 | False
+57 | 01:02:22 | screen | 0.0659 | 0.461 | False
+58 | 01:02:47 | screen | 0.0660 | 0.459 | False
+59 | 01:03:09 | screen | 0.0528 | 0.435 | False
+60 | 01:03:12 | screen | 0.0535 | 0.428 | False
+61 | 01:03:32 | screen | 0.0556 | 0.433 | False
+62 | 01:03:37 | screen | 0.0542 | 0.428 | False
+63 | 01:03:43 | screen | 0.0556 | 0.494 | False
+64 | 01:03:49 | screen | 0.0555 | 0.500 | False
+65 | 01:04:13 | screen | 0.0490 | 0.441 | False
+66 | 01:04:18 | screen | 0.0631 | 0.513 | False
+67 | 01:04:32 | screen | 0.0540 | 0.418 | False
+68 | 01:04:35 | screen | 0.0635 | 0.458 | False
+69 | 01:04:39 | screen | 0.0702 | 0.474 | False
+70 | 01:04:43 | screen | 0.0655 | 0.438 | False
+71 | 01:04:46 | screen | 0.0645 | 0.450 | False
+72 | 01:05:30 | screen | 0.0670 | 0.449 | False
+73 | 01:15:12 | gallery | 0.0242 | 0.620 | False
+74 | 01:19:46 | gallery | 0.0184 | 0.705 | False
+75 | 01:19:50 | gallery | 0.0027 | 0.732 | False
+camera: 16 frames, density 0.0179-0.0219, share 0.129-0.142, called camera: 16
+gallery: 9 frames, density 0.0027-0.0242, share 0.595-0.732, called camera: 0
+screen: 50 frames, density 0.0199-0.1077, share 0.153-0.744, called camera: 0
+camera: 16 frames, density 0.0179-0.0219, share 0.129-0.142, called camera: 16
+gallery: 9 frames, density 0.0027-0.0242, share 0.595-0.732, called camera: 0
+screen: 50 frames, density 0.0199-0.1077, share 0.153-0.744, called camera: 0
+reading: every screen frame is past at least one threshold, but neither measure alone separates them. Closest to the camera side: 31 (00:10:49, a desktop wallpaper photograph, density 0.0324 against 0.028, share 0.153 on the camera side), 37 and 38 (dark-theme Excel, share 0.301 and 0.321 against 0.25). The title card (01) has density 0.0199 on the camera side and share 0.744. The margin on this meeting is thin for photographs and dark screens, and it depends on the scaling (review P2-1, P2-2)

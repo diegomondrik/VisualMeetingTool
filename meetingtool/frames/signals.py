@@ -67,9 +67,11 @@ def is_camera_view(gray, step=40, visible=8):
     """Whether the content area shows a person on camera rather than a screen
     (INGOL D-176): few sharp steps between neighbouring pixels, and most visible
     steps soft. Text, tables and slides have sharp edges; a face or a room does
-    not. Measured on a real meeting: camera views at most 0.021 and 0.14,
-    screens at least 0.031 and 0.35. A gallery of participants is not caught:
-    its tiles have sharp borders, like a slide with little text."""
+    not. Measured on one real meeting (WI10 evidence, thresholds-measured.txt):
+    camera views at most 0.022 and 0.142; every screen past at least one
+    threshold, but neither alone separates them, and a photograph on screen
+    passed on density by 0.004. A gallery of participants is not caught: its
+    tiles have sharp borders, like a slide with little text."""
     g = gray.astype(np.int16)
     gx = np.abs(np.diff(g, axis=1))[:-1]
     gy = np.abs(np.diff(g, axis=0))[:, :-1]

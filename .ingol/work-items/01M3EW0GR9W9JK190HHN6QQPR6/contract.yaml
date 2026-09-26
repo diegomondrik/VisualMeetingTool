@@ -4,22 +4,34 @@ objective: >
   Fewer useless frames, from what a meeting is (INGOL decision D-176). On the
   owner's meeting of D-167 the extractor kept 75 frames; by what Gemini read
   in each, 25 showed only people: 16 a person on camera close up, 9 the
-  gallery of participants. The recording also ran 36 minutes after the last
+  gallery of participants. The recording also ran 35 minutes after the last
   line of the transcript.
 
   Two changes. A sample whose content area shows a person on camera (few
   sharp steps between neighbouring pixels, and most visible steps soft)
   never becomes a candidate, and the discard log says so. Measured on the kept
-  frames of that meeting: camera views at most 0.021 and 0.14 on the two
-  measures, screens at least 0.031 and 0.35, against thresholds of 0.028 and
-  0.25; both must hold. With a transcript, the recording is read only until
-  120 seconds after its last line starts, and the command line says where it
-  stopped.
+  frames of that meeting (evidence thresholds-measured.txt, corrected after
+  review P2-1): camera views at most 0.022 and 0.142 on the two measures,
+  against thresholds of 0.028 and 0.25; every screen is past at least one
+  threshold, but neither measure alone separates them, so both must hold.
+  With a transcript, the recording is read only until 120 seconds after its
+  last line starts, and the command line says where it stopped.
 
   Not done, by D-176: the gallery of participants is not filtered (on one
   measure it sits at 0.65 against 0.71 for a slide with little text), no
   still-screen minimum (it lost 38 of the 49 frames with content), no stricter
   duplicate check, and the transcript does not decide which frame enters.
+
+  Known limitations (review P2-2, P3-1 to P3-3): measured on one meeting and
+  one speaker; a full-screen photograph, a shared video or a dark screen with
+  little text sits near the camera side (a desktop photograph passed on
+  density by 0.004, dark-theme Excel on share by 0.05) and could be dropped;
+  the thresholds were measured on saved frames, not on the decoder's copy the
+  code checks, and depend on the scaling; the share threshold is not pinned by
+  a test. With a transcript that ends early by mistake, or whose times do not
+  start with the recording, everything after its last line plus 120 seconds
+  is never read; the only sign is the command line's "read until" line. The
+  owner's test on a second meeting is pending (D-176).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3EW0GR9W9JK190HHN6QQPR6/**
