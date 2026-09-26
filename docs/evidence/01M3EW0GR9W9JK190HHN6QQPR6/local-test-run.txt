@@ -1,8 +1,10 @@
-# local suite run for 01M3EW0GR9W9JK190HHN6QQPR6 (INGOL D-163)
-date_utc: 2026-09-26T14:28:20Z
+# local suite run for 01M3EW0GR9W9JK190HHN6QQPR6 (INGOL D-163), re-run after the review correction
+date_utc: 2026-09-26T14:52:12Z
 machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1
 method: fresh git clone of the work-item branch, checked out at the tested commit, suite run from the clone root
-tested_commit: efbca74cd5bd33121bab8cb4bba6c732f68daefc
+tested_commit: e1e4acb2953098468669611753b07f961b526160
+tested_tree: 9c77f23d6956d993c46326c520178aaf2643d49c
+earlier run: efbca74, 112 tests OK; the correction changed only the is_camera_view docstring in code (git diff efbca74 e1e4acb2953098468669611753b07f961b526160 -- meetingtool tests), so the real-meeting run of efbca74 stands
 command: python -m unittest discover -s tests -v
 test_import_needs_only_the_standard_library (test_cli.VersionTest.test_import_needs_only_the_standard_library) ... ok
 test_version_flag_prints_the_package_version (test_cli.VersionTest.test_version_flag_prints_the_package_version) ... ok
@@ -119,7 +121,7 @@ test_frames_not_yet_read_are_refused_before_any_request (test_summary.WritingTes
 test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames (test_summary.WritingTest.test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames) ... ok
 
 ----------------------------------------------------------------------
-Ran 112 tests in 52.537s
+Ran 112 tests in 52.071s
 
 OK
 exit_code: 0
