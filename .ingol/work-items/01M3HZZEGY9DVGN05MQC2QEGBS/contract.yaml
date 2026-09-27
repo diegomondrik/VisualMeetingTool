@@ -1,0 +1,103 @@
+schema_version: "1"
+id: 01M3HZZEGY9DVGN05MQC2QEGBS
+objective: >
+  The report for the client, in Word (INGOL decision D-177). A command builds
+  summary.docx next to summary.md from the summary and its frames, with no
+  network and no key, so it costs nothing and can be built again after the
+  summary is edited by hand. As in the original MeetingTool's exporter
+  (tools/exporter.py, python-docx), only the frames the summary names are
+  embedded, each after the block that first names it, with a caption giving
+  the minute of the meeting; headings, tables, lists, bold and italics carry
+  over. On the owner's meeting of D-167 the summary names 12 of the 75 frames.
+
+  New against the original: a named frame that is missing, or a mention that
+  names no frame file, stops the build and every case is named; the document
+  is opened again before delivery and counted (every summary heading in
+  order; exactly the cover's images plus one of each named frame), and if
+  anything is missing or extra it is not delivered (the original left a note
+  where an image failed and delivered anyway); the labels the report adds are
+  in the summary's language (Spanish or English).
+
+  The company that runs the analysis gives the design (the owner plans to
+  sell the tool): a .docx or .dotx template, one per installation, kept in
+  the data folder by a command that checks it first. Its header, footer,
+  logo, styles and fonts are kept, and what is written on its page becomes
+  the cover. A template that can carry macros (.docm, .dotm, a macro-enabled
+  content type or a vbaProject part) or cannot be opened is refused when it
+  is set. Without one, the design is neutral. A template saved by Word
+  (measured on Word in Spanish) defines heading and title styles but no list
+  or table style and no numbering, so lists and tables use direct formatting.
+
+  python-docx becomes a dependency; it is already installed on the owner's
+  machine. Not done, by D-177: a design per project or per end client, cover
+  fields that change per meeting, PDF, sending by mail, carrying edits made in
+  Word back to the summary, the installer and a graphical interface.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3HZZEGY9DVGN05MQC2QEGBS/**
+  - docs/evidence/01M3HZZEGY9DVGN05MQC2QEGBS/**
+  - meetingtool/report/**
+  - tests/test_report.py
+  - pyproject.toml
+  - README.md
+acceptance:
+  - id: WI11-AC01
+    description: >
+      From a summary and its frames, summary.docx is written next to the
+      summary with every section as a heading, tables as tables, lists, bold
+      and italics, the title and the date and project line; it can be built
+      again after the summary changes; a frames folder inside a git work tree,
+      or one with no summary, is refused before anything is written.
+  - id: WI11-AC02
+    description: >
+      Each named frame is embedded once, right after the block that first
+      names it, with a caption giving its minute; the mention in the text
+      becomes a label with the minute; a frame the summary does not name is
+      left out; a frame named in a table follows the table; an English summary
+      gets English labels.
+  - id: WI11-AC03
+    description: >
+      A named frame that is missing, or a mention that names no frame file
+      (the original's "[frame_017, t00:13:03]" and "[frames_019-024, ...]"
+      forms, another extension, parentheses), stops the build, names every
+      case at once and writes nothing; an earlier report stays as it was.
+  - id: WI11-AC04
+    description: >
+      The completeness check can fail: a build that drops an image, drops a
+      section or adds an image is not delivered, and sections out of order are
+      refused. Mutations of the code that remove a check each make a test
+      fail.
+  - id: WI11-AC05
+    description: >
+      Building opens no network connection, with or without a template, and
+      the report command never loads the key store.
+  - id: WI11-AC06
+    description: >
+      With a company's .docx or .dotx template the report keeps its header,
+      footer, logo, heading colour and body font, and its page becomes the
+      cover followed by a page break; a template without list or table styles
+      works; an empty page gives no cover; images on the cover are counted
+      apart from the frames; with no template, or with --neutral, the design
+      is neutral.
+  - id: WI11-AC07
+    description: >
+      A template that can carry macros, that is not a Word document or
+      template, or that cannot be opened is refused when it is set, says why,
+      and leaves any template already kept as it was; a data folder inside a
+      git work tree is refused.
+  - id: WI11-AC08
+    description: >
+      One real run on the summary of the owner's meeting of D-167 (INGOL
+      D-177), on his machine, with the neutral design and with an invented
+      company's template, each opened by Word itself; recorded under
+      docs/evidence/01M3HZZEGY9DVGN05MQC2QEGBS/ as numbers only (sections,
+      images, pages, size, seconds). The owner opens both documents and judges
+      them; they stay in his data folder, outside any repository, until he
+      says to delete them.
+  - id: WI11-AC09
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3HZZEGY9DVGN05MQC2QEGBS/ before the pull request
+      (INGOL D-163).

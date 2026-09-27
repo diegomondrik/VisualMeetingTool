@@ -1,0 +1,13 @@
+mutation run for 01M3HZZEGY9DVGN05MQC2QEGBS: each mutation is applied alone to a copy of the
+working tree, `python -m unittest tests.test_report` is run, and the mutation must make it fail
+- missing-frame check removed (AC03): exit 1, FAILED (failures=1, errors=3) -> DETECTED
+- malformed-mention check removed (AC03): exit 1, FAILED (failures=5) -> DETECTED
+- check_report always passes (AC04): exit 1, FAILED (failures=4) -> DETECTED
+- section comparison removed (AC04): exit 1, FAILED (failures=2) -> DETECTED
+- image comparison removed (AC04): exit 1, FAILED (failures=2) -> DETECTED
+- .dotx content-type fix removed (AC06): exit 1, FAILED (failures=1, errors=1) -> DETECTED
+- cover dropped: body always cleared (AC06): exit 1, FAILED (failures=4) -> DETECTED
+- macro check removed (AC07): exit 1, FAILED (failures=1) -> DETECTED
+- macro extensions accepted (AC07): exit 1, FAILED (failures=3) -> DETECTED
+- unmutated: exit 0, OK
+all mutations detected

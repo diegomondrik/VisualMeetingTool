@@ -1,0 +1,68 @@
+schema_version: "1"
+work_item: 01M3HZZEGY9DVGN05MQC2QEGBS
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3HZZEGY9DVGN05MQC2QEGBS-word-report
+steps:
+  - build-the-word-report-from-the-summary-wi11-ac01
+  - embed-only-the-named-frames-where-first-named-wi11-ac02
+  - refuse-a-missing-or-malformed-frame-mention-wi11-ac03
+  - reopen-and-count-before-delivering-wi11-ac04
+  - no-network-and-no-key-wi11-ac05
+  - keep-the-company-template-design-and-cover-wi11-ac06
+  - refuse-a-template-with-macros-or-unreadable-wi11-ac07
+  - real-run-on-the-owners-summary-opened-by-word-wi11-ac08
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi11-ac09
+evaluations:
+  - criterion: WI11-AC01
+    method: deterministic
+    control: >-
+      tests/test_report.py BuildTest on an invented summary and frames.
+  - criterion: WI11-AC02
+    method: deterministic
+    control: >-
+      tests/test_report.py ImagesTest compares the sha256 of every image in
+      the body with the named frames and checks where each one sits.
+  - criterion: WI11-AC03
+    method: adversarial
+    control: >-
+      tests/test_report.py RefusalTest; with the missing-frame check or the
+      malformed-mention check removed, a test fails, recorded in
+      mutations.txt.
+  - criterion: WI11-AC04
+    method: adversarial
+    control: >-
+      tests/test_report.py CompletenessTest drops an image, drops a section
+      and adds an image during the build; with check_report made to pass
+      always, or its section or image comparison removed, a test fails,
+      recorded in mutations.txt.
+  - criterion: WI11-AC05
+    method: deterministic
+    control: >-
+      tests/test_report.py NoNetworkNoKeyTest patches socket to refuse and
+      probes the modules the command loads.
+  - criterion: WI11-AC06
+    method: adversarial
+    control: >-
+      tests/test_report.py TemplateTest with an invented company's template
+      built at test time; with the .dotx content-type fix removed, or the
+      cover kept out, a test fails, recorded in mutations.txt.
+  - criterion: WI11-AC07
+    method: adversarial
+    control: >-
+      tests/test_report.py TemplateRefusalTest; with the macro check removed a
+      test fails, recorded in mutations.txt.
+  - criterion: WI11-AC08
+    method: external-evidence
+    control: >-
+      Build the report on the owner's summary of D-167 with the neutral design
+      and with an invented company's template, open each with Word through
+      COM, export nothing to the repository, and commit only the numbers.
+  - criterion: WI11-AC09
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3HZZEGY9DVGN05MQC2QEGBS/.

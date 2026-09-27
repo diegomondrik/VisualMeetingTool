@@ -62,9 +62,38 @@ with its key points, so the next summary knows them. The transcript is sent
 to Gemini's paid tier. A summary that is cut short or missing a section is
 retried once and never delivered incomplete.
 
+## The report in Word
+
+Once the summary is written, the report for the client is built from it,
+with no network and no key, so it costs nothing and can be built again after
+the summary is edited by hand:
+
+```
+python -m meetingtool.report build --frames <frames folder> [--title "<meeting title>"]     [--date YYYY-MM-DD] [--project <project id>]
+```
+
+It is written to `summary.docx` next to `summary.md`. Only the frames the
+summary names are embedded, each after the paragraph that first names it,
+with the minute of the meeting it shows. A named frame that is missing, or a
+mention that names no frame file, stops the build and is named. The document
+is opened again before it is delivered: if a section or an image is missing,
+it is not delivered.
+
+The company that runs the analysis can give the report its own design: a
+Word document or template (`.docx` or `.dotx`, never one with macros) with
+its logo, header, footer, colours and fonts. What is written on its page
+becomes the cover of every report. It is kept once per installation, in the
+data folder; without one, reports use a neutral design:
+
+```
+python -m meetingtool.report template set <company template.dotx>
+python -m meetingtool.report template show
+python -m meetingtool.report template remove
+```
+
 ## Running the tests
 
-Python 3.11 or newer, no other library needed:
+Python 3.11 or newer, with the libraries in `pyproject.toml` installed:
 
 ```
 python -m unittest discover -s tests -v
