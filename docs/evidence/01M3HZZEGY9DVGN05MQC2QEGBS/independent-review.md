@@ -145,3 +145,90 @@ The extra mutations I tried:
 - The report was not checked against Word versions other than the owner's.
 
 Probe files are left under `C:/Users/Diego/AppData/Local/Temp/rev-wi11-a7k3` and `C:/Users/Diego/AppData/Local/Temp/rv11*`, synthetic only. The probe scripts are in the session scratchpad (`mut.py`, `probe1.py`–`probe6.py`, `word.ps1`).
+
+**Corrected in `bf4cc4a` (P1-1, P2-1, P2-2, P3-1, P3-3, P3-4, P3-8, P3-9); re-run evidence in `7b0733b`. Verified below.**
+
+## Re-review
+
+**Reviewer:** revisor-independiente (Claude Opus 5.5), read-only. **Date:** 2026-09-27.
+**Commits:** `bf4cc4a` (correction) and `7b0733b` (re-run evidence), on `fc999f3`.
+
+### Verdict
+
+**LISTO CON LIMITACIONES.** P1-1 is closed for the case that made it blocking:
+- a template that attaches another template (`attachedTemplate`) is now refused, with the relationships parsed as XML, both at `template set` and again at every build;
+- embedded objects and linked pictures are refused too.
+
+P2-1, P2-2, P3-1, P3-3, P3-4, P3-8 and P3-9 are fixed and pinned by tests. One new P2 and three P3s remain. None of them reopens the cycle.
+
+### Full suite or a bounded subset
+
+A bounded subset would have been enough under the review policy. `git diff fc999f3 bf4cc4a` touches only `meetingtool/report/document.py` and `tests/test_report.py` among code and tests. No other module changed, so `tests.test_report` covers the changed surface.
+
+I ran the full suite anyway because it takes 57 s. That also checks the committed "153 OK" claim directly.
+
+### What I ran
+
+Everything ran in a fresh clone at `C:/Users/Diego/AppData/Local/Temp/rev-wi11-b9m2`, checked out at `7b0733b`. All probe files were synthetic, in `C:/Users/Diego/AppData/Local/Temp/rv11r-*` and `rv11word`.
+
+| Check | Result |
+|---|---|
+| `git diff --stat fc999f3 7b0733b`, `git diff --check` | 10 files, all inside `affected_surfaces`. Whitespace is clean. `bf4cc4a..7b0733b` changes only `local-test-run.txt` and `real-summary-run.txt`. |
+| `git rev-parse bf4cc4a bf4cc4a^{tree}` | `bf4cc4ae7d8f…` / `0a277914c8e6…`. Both equal `tested_commit` and `tested_tree` in `local-test-run.txt`. |
+| `python -m unittest discover -s tests` | 153 tests, OK. |
+| `python docs/evidence/…/mutations.py <clone> <new folder>` | All 20 mutations detected, with failure counts identical to `mutations.txt`. Unmutated: OK. |
+| My original P1-1 probe (`attachedTemplate` → local `.dotx`, which Word had loaded from the report) | Refused at `template set`. The message names the relationship. |
+| The same with `TargetMode="external"` in lower case | Refused, because it is in the relationship-type list. |
+| Templates saved by Word 16 via COM (`.docx` and `.dotx` with header, footer PAGE field and a hyperlink) | `active_content` returns `[]` and `template_bytes` accepts both. No false positive on normal Word output. |
+| Markdown probes from the first pass, re-run on `7b0733b` | Every case behaved as intended, listed below. |
+| Field-check evasion probes: INCLUDETEXT written in three ways Word never writes itself | All three accepted by `template set`. Word via COM reads each built report as having 1 field of type 68 (INCLUDETEXT), with the full code. See P2-A. |
+| sha256 of `.ingol/work-items/01M3HZZEGY9DVGN05MQC2QEGBS/contract.yaml` | `d100579ab59e844ba6c35745af24c918d60f5be154d0c4dd708943d07f5bd7b5`. Taken from the committed blob at `7b0733b`; the checked-out file has the same hash (`eol=lf`). `bf4cc4a..7b0733b` does not touch `.ingol/`. |
+
+What the Markdown probes showed:
+- A frame named in a `###` heading: built, and the image follows the heading.
+- A summary with a BOM and CRLF line endings: 9 sections.
+- `##Decisiones` (no space): rendered as Heading 1.
+- `dataframe_` or `keyframe_` in the text: builds.
+- A corrupt JPG: ReportError that names the frame.
+- A report held open while rebuilding: ReportError, and the earlier report stays intact.
+
+### Status of the first-pass findings
+
+- **P1-1: closed.** A relationship check that parses the package and refuses any external target except hyperlinks, plus a list of refused relationship types. It runs at set time and at every build, and five tests and five mutations pin it.
+- **P2-1: closed.**
+- **P2-2: closed.** The summary is read as `utf-8-sig`, `HEADING` now accepts no space after the hashes like the writer, and any `#` line the report cannot read as a heading stops the build.
+- **P3-1, P3-3, P3-4, P3-8, P3-9: closed.**
+- **P3-2, P3-5, P3-6, P3-7:** written as known limitations in `contract.yaml`, as asked.
+- **AC08:** the owner's own judgement of the two Word files is still pending. It is his to give.
+
+### New findings
+
+**P2-A: the field check reads raw bytes with regular expressions, so a template crafted by hand can hide a DDE, INCLUDE or LINK field from it, and the field reaches the report.**
+- Three encodings that Word itself never writes each pass `template set`:
+  - an `instrText` element with a namespace prefix other than `w:`;
+  - `w:fldSimple w:instr='…'` with single quotes;
+  - a character reference inside the code (`&#73;NCLUDETEXT`).
+- For each, Word opens the built report and lists the INCLUDETEXT field.
+- Why it does not block:
+  - it needs a deliberately crafted template, while the realistic, accidental path (the attached template) is closed;
+  - Word asks before it updates linked fields or DDE.
+- Consequence: the contract's AC07 wording ("a DDE, INCLUDE, IMPORT or LINK field even when split across runs") claims more than the check guarantees.
+- Simpler and stronger fix: parse each `word/*.xml` part with ElementTree, as `active_content` already does for relationships. Then read the text of `{w-namespace}instrText` and the value of the `{w-namespace}instr` attribute, and match only the first word of each field code. Prefixes, quoting and entities stop mattering, and P3-A goes away too.
+
+**P3 (known limitations, do not reopen the cycle)**
+- **P3-A: false refusal from the field regex.** It matches anywhere in a field's code, not only its keyword. A cover or footer with a `HYPERLINK "https://empresa.example/link/"` field is refused as "a LINK field" (verified), and the same would happen with `/import`. It fails closed, but the message is misleading. Word's own Insert → Link writes a hyperlink element, not a field, and that passes.
+- **P3-B: body lines that start with `#` become headings.** With the space after the hashes now optional, a line such as `#1 prioridad: …` or `#ventas pidió…` becomes a Heading 1 without its `#` (verified). Before the correction it was plain text. It is rare in Gemini's output and possible in a hand edit.
+- **P3-C: `mutations.py` docstring.** It asks for an "empty folder outside it", but `shutil.copytree` needs a folder that does not exist yet, and an existing empty one gives `FileExistsError`.
+- **P3-D: most refused relationship types have no test.** Only `attachedTemplate`, `oleObject` and external `image` are exercised. Removing `package`, `control`, `activeX*`, `aFChunk`, `subDocument` or `frame` from `ACTIVE_RELATIONSHIPS` would go undetected. The code is right as read.
+
+### Residual limitations
+
+- It is still unexecuted whether an attached `.dotm` would run its macros on the recipient's machine. That path is now refused, so this matters less.
+- VML attributes that carry a URL directly (for example `v:imagedata` `src` or `o:href`, with no relationship) were not probed. I am not sure whether Word fetches them from a `.docx`.
+- Word was exercised only as Office 16 in Spanish.
+
+**Contract sha256 at `7b0733b`:** `d100579ab59e844ba6c35745af24c918d60f5be154d0c4dd708943d07f5bd7b5`
+
+## Executor's note after the re-review
+
+P2-A, P3-A to P3-D and the residual limitations are not corrected: by the review policy a P2 or P3 does not reopen the cycle. The contract approved at the digest above is left as it is, so its AC07 wording on fields claims more than the check guarantees against a template crafted by hand (P2-A); this review is where that is said. They go to the project's limitations register (`docs/limitations/REGISTER.md`) with the next work item that touches it, with the P2/P3 of WI06 to WI10.
