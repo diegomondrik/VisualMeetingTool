@@ -1,0 +1,35 @@
+# real run for 01M3HZZEGY9DVGN05MQC2QEGBS (WI11-AC08, INGOL D-177): numbers only
+date_utc: 2026-09-27T18:06Z
+machine: owner's Windows machine; Python 3.12.10; python-docx 1.2.0; Microsoft Word (Office 16, Spanish)
+code: fresh git clone of the work-item branch at 3385859, commands run from the clone root
+input: the summary.md of the owner's meeting of D-167 (written by WI09's real run) and its 75 frames,
+       read in place in the owner's data folder; nothing of their content is recorded here
+network: none (building uses no network and no key; the suite's socket test covers it)
+cost: US$0 (no Gemini request)
+
+summary.md: 9 section headings; 12 distinct frames named, 12 mentions, all 12 present; 0 malformed mentions
+
+run 1, neutral design:
+  command: python -m meetingtool.report --data-dir <temporary data folder> build --frames <frames> --title <title>
+  printed: report built in 0.2s: 9 section(s), 12 image(s), 1.7 MB, language es, neutral design
+  file: 1,706,716 bytes (kept by the owner as summary-neutral.docx)
+
+run 2, an invented company's template:
+  the template was made with Word through COM, as a company would: a logo and the company's name in
+  the header, a footer line, heading 1 and 2 and title colours and fonts changed, and a two-line
+  cover page; saved by Word as .dotx
+  kept in a temporary data folder, not the owner's installation, so his reports stay neutral
+  command: template set <template.dotx>  ->  template kept
+  printed: report built in 0.2s: 9 section(s), 12 image(s), 1.7 MB, language es, template ... with its cover
+  file: 1,690,457 bytes (kept by the owner as summary-empresa-inventada.docx)
+
+opened by Word itself (COM, read-only, no repair prompt), exported to PDF outside any repository to
+look at the layout, then the PDFs were deleted:
+  summary-neutral: opened by Word, pages=13, inline images in body=12, header images=0
+  summary-empresa-inventada: opened by Word, pages=12, inline images in body=12, header images=1
+  looked at: the cover, the header logo and footer on every page, the company's heading colours,
+  tables with borders, numbered and bulleted lists with hanging indents, each frame at page width
+  followed by its caption with the minute
+
+both documents stay in the owner's data folder, outside any repository, until he says to delete them;
+the temporary data folder with the invented template is outside any repository too
