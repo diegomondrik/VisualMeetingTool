@@ -1,7 +1,10 @@
 # real run for 01M3HZZEGY9DVGN05MQC2QEGBS (WI11-AC08, INGOL D-177): numbers only
 date_utc: 2026-09-27T18:06Z
 machine: owner's Windows machine; Python 3.12.10; python-docx 1.2.0; Microsoft Word (Office 16, Spanish)
-code: fresh git clone of the work-item branch at 3385859, commands run from the clone root
+code: fresh git clone of the work-item branch at 3385859, commands run from the clone root;
+      repeated at 18:27Z from a fresh clone of bf4cc4a (the review correction) with the same commands:
+      same printed lines, same file sizes (1,706,716 and 1,690,457 bytes), and Word opened both again
+      with the same pages and images; the invented template passed the new outside-content check
 input: the summary.md of the owner's meeting of D-167 (written by WI09's real run) and its 75 frames,
        read in place in the owner's data folder; nothing of their content is recorded here
 network: none (building uses no network and no key; the suite's socket test covers it)

@@ -1,9 +1,10 @@
-# local suite run for 01M3HZZEGY9DVGN05MQC2QEGBS (INGOL D-163)
-date_utc: 2026-09-27T18:07:51Z
+# local suite run for 01M3HZZEGY9DVGN05MQC2QEGBS (INGOL D-163), re-run after the review correction
+date_utc: 2026-09-27T18:28:13Z
 machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1
 method: fresh git clone of the work-item branch, checked out at the tested commit, suite run from the clone root
-tested_commit: 3385859ba403222f41982fa8b6c43acf0709b8bc
-tested_tree: 0ed928464c6790640e70ba073a24cf4a2ad02c9c
+tested_commit: bf4cc4ae7d8f3b6ddaaff462c4efd130d36a5b6c
+tested_tree: 0a277914c8e6069e2fd7541e024eca4319c45f88
+earlier run: 3385859, 143 tests OK
 python-docx: 1.2.0
 command: python -m unittest discover -s tests -v
 test_import_needs_only_the_standard_library (test_cli.VersionTest.test_import_needs_only_the_standard_library) ... ok
@@ -106,6 +107,16 @@ test_a_failed_build_leaves_the_earlier_report_as_it_was (test_report.RefusalTest
 test_a_mention_that_names_no_frame_file_stops_the_build (test_report.RefusalTest.test_a_mention_that_names_no_frame_file_stops_the_build) ... ok
 test_a_missing_frame_stops_the_build_and_is_named (test_report.RefusalTest.test_a_missing_frame_stops_the_build_and_is_named) ... ok
 test_every_problem_is_named_at_once (test_report.RefusalTest.test_every_problem_is_named_at_once) ... ok
+test_p1_1_a_hyperlink_and_a_template_saved_normally_are_accepted (test_report.ReviewCorrectionsTest.test_p1_1_a_hyperlink_and_a_template_saved_normally_are_accepted) ... ok
+test_p1_1_a_template_placed_by_hand_is_checked_again_when_a_report_is_built (test_report.ReviewCorrectionsTest.test_p1_1_a_template_placed_by_hand_is_checked_again_when_a_report_is_built) ... ok
+test_p1_1_a_template_that_loads_or_runs_outside_content_is_refused (test_report.ReviewCorrectionsTest.test_p1_1_a_template_that_loads_or_runs_outside_content_is_refused) ... ok
+test_p1_1_dde_fields_are_found_even_when_split (test_report.ReviewCorrectionsTest.test_p1_1_dde_fields_are_found_even_when_split) ... ok
+test_p2_1_a_frame_named_in_a_heading_follows_the_heading (test_report.ReviewCorrectionsTest.test_p2_1_a_frame_named_in_a_heading_follows_the_heading) ... ok
+test_p2_2_a_byte_order_mark_and_a_heading_without_a_space_are_still_sections (test_report.ReviewCorrectionsTest.test_p2_2_a_byte_order_mark_and_a_heading_without_a_space_are_still_sections) ... ok
+test_p2_2_a_line_that_starts_with_a_hash_but_is_not_read_as_a_heading_stops_the_build (test_report.ReviewCorrectionsTest.test_p2_2_a_line_that_starts_with_a_hash_but_is_not_read_as_a_heading_stops_the_build) ... ok
+test_p3_1_a_word_that_ends_in_frame_is_not_a_frame_mention (test_report.ReviewCorrectionsTest.test_p3_1_a_word_that_ends_in_frame_is_not_a_frame_mention) ... ok
+test_p3_3_a_frame_that_is_not_an_image_is_named (test_report.ReviewCorrectionsTest.test_p3_3_a_frame_that_is_not_an_image_is_named) ... ok
+test_p3_4_a_report_open_in_word_is_named_and_the_earlier_one_stays (test_report.ReviewCorrectionsTest.test_p3_4_a_report_open_in_word_is_named_and_the_earlier_one_stays) ... ok
 test_a_data_folder_inside_a_git_work_tree_is_refused (test_report.TemplateRefusalTest.test_a_data_folder_inside_a_git_work_tree_is_refused) ... ok
 test_a_file_that_is_not_a_word_template_is_refused_when_set (test_report.TemplateRefusalTest.test_a_file_that_is_not_a_word_template_is_refused_when_set) ... ok
 test_a_refused_template_leaves_the_kept_one_in_place (test_report.TemplateRefusalTest.test_a_refused_template_leaves_the_kept_one_in_place) ... ok
@@ -152,7 +163,7 @@ test_frames_not_yet_read_are_refused_before_any_request (test_summary.WritingTes
 test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames (test_summary.WritingTest.test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames) ... ok
 
 ----------------------------------------------------------------------
-Ran 143 tests in 55.999s
+Ran 153 tests in 56.853s
 
 OK
 exit_code: 0
