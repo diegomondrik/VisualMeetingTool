@@ -1,6 +1,6 @@
 mutation run for 01M3HZZEGY9DVGN05MQC2QEGBS: each mutation is applied alone to a copy of the
 working tree, `python -m unittest tests.test_report` is run, and the mutation must make it fail
-- missing-frame check removed (AC03): exit 1, FAILED (failures=1, errors=3) -> DETECTED
+- missing-frame check removed (AC03): exit 1, FAILED (failures=3) -> DETECTED
 - malformed-mention check removed (AC03): exit 1, FAILED (failures=5) -> DETECTED
 - check_report always passes (AC04): exit 1, FAILED (failures=4) -> DETECTED
 - section comparison removed (AC04): exit 1, FAILED (failures=2) -> DETECTED
@@ -9,5 +9,16 @@ working tree, `python -m unittest tests.test_report` is run, and the mutation mu
 - cover dropped: body always cleared (AC06): exit 1, FAILED (failures=4) -> DETECTED
 - macro check removed (AC07): exit 1, FAILED (failures=1) -> DETECTED
 - macro extensions accepted (AC07): exit 1, FAILED (failures=3) -> DETECTED
+- review P1-1: outside-content check removed (AC07): exit 1, FAILED (failures=5) -> DETECTED
+- review P1-1: external relationships allowed (AC07): exit 1, FAILED (failures=2) -> DETECTED
+- review P1-1: field check removed (AC07): exit 1, FAILED (failures=2) -> DETECTED
+- review P1-1: fields not joined across runs (AC07): exit 1, FAILED (failures=2) -> DETECTED
+- review P3-4: stored template not checked again at build (AC07): exit 1, FAILED (failures=1) -> DETECTED
+- review P2-1: mention in a heading not embedded (AC02): exit 1, FAILED (errors=1) -> DETECTED
+- review P2-2: byte-order mark not removed (AC04): exit 1, FAILED (failures=1) -> DETECTED
+- review P2-2: unread # lines not refused (AC04): exit 1, FAILED (failures=1) -> DETECTED
+- review P3-1: no word boundary before frame_ (AC03): exit 1, FAILED (errors=1) -> DETECTED
+- review P3-3: unreadable frame not named (AC03): exit 1, FAILED (errors=1) -> DETECTED
+- review P3-4: report open in Word not named (AC01): exit 1, FAILED (failures=1) -> DETECTED
 - unmutated: exit 0, OK
 all mutations detected

@@ -69,7 +69,8 @@ with no network and no key, so it costs nothing and can be built again after
 the summary is edited by hand:
 
 ```
-python -m meetingtool.report build --frames <frames folder> [--title "<meeting title>"]     [--date YYYY-MM-DD] [--project <project id>]
+python -m meetingtool.report build --frames <frames folder> [--title "<meeting title>"] \
+    [--date YYYY-MM-DD] [--project <project id>]
 ```
 
 It is written to `summary.docx` next to `summary.md`. Only the frames the

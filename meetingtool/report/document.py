@@ -26,9 +26,11 @@ import re
 import time
 import zipfile
 from pathlib import Path
+from xml.etree import ElementTree
 
 import docx
 from docx.enum.text import WD_BREAK
+from docx.image.exceptions import UnrecognizedImageError
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
@@ -44,9 +46,20 @@ MACRO_EXTENSIONS = {".docm", ".dotm"}
 DOCUMENT_TYPE = b"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
 TEMPLATE_TYPE = b"application/vnd.openxmlformats-officedocument.wordprocessingml.template.main+xml"
 
+# Relationship types that bring an embedded object, a control or a macro
+# project into the document, or another template or document into it.
+ACTIVE_RELATIONSHIPS = frozenset({"attachedTemplate", "oleObject", "package", "control", "activeXControl",
+                                  "activeXControlBinary", "vbaProject", "wordVbaData", "aFChunk", "subDocument",
+                                  "frame"})
+ACTIVE_FIELDS = re.compile(r"\b(DDEAUTO|DDE|INCLUDETEXT|INCLUDEPICTURE|INCLUDE|IMPORT|LINK)\b", re.IGNORECASE)
+FIELD_TEXT = re.compile(rb"<w:instrText[^>]*>([^<]*)</w:instrText>")
+FIELD_ATTRIBUTE = re.compile(rb'w:instr="([^"]*)"')
+
 FRAME_REF = re.compile(r"\[(frame_\d+_t(\d{2})-(\d{2})-(\d{2})\.jpg)\]")
-FRAME_LIKE = re.compile(r"frames?_", re.IGNORECASE)
-HEADING = re.compile(r"^(#{1,6})\s+(.*?)\s*#*\s*$")
+FRAME_LIKE = re.compile(r"\bframes?_", re.IGNORECASE)
+# As the summary's own check reads a heading (meetingtool.summary.writer):
+# up to the text, the space after the hashes is optional.
+HEADING = re.compile(r"^(#{1,6})\s*(\S.*?)\s*#*\s*$")
 BULLET = re.compile(r"^(\s*)[-*+]\s+(.*)$")
 NUMBERED = re.compile(r"^(\s*)(\d+)[.)]\s+(.*)$")
 RULE = re.compile(r"^\s*([-*_])(\s*\1){2,}\s*$")
@@ -80,6 +93,36 @@ class ReportResult:
 
 # ── The company's template ───────────────────────────────────────────────────
 
+def active_content(parts):
+    """What in a Word package would be loaded or run from outside it when the
+    document opens, one line each: an external relationship other than a
+    hyperlink (an attached template, which may be a .dotm with macros; a
+    linked picture), a relationship to an embedded object, control or macro
+    project, and a field that pulls or runs outside content (DDE, INCLUDE...).
+    The fields of a part are joined before matching, so a field code split
+    across runs is still found."""
+    found = []
+    for name, data in sorted(parts.items()):
+        if name.endswith(".rels"):
+            try:
+                relationships = ElementTree.fromstring(data)
+            except ElementTree.ParseError as error:
+                found.append(f"{name}: unreadable relationships ({error})")
+                continue
+            for relationship in relationships:
+                kind = relationship.get("Type", "").rsplit("/", 1)[-1]
+                target = relationship.get("Target", "")
+                if relationship.get("TargetMode") == "External" and kind != "hyperlink":
+                    found.append(f"{name}: an external {kind} ({target})")
+                elif kind in ACTIVE_RELATIONSHIPS:
+                    found.append(f"{name}: a {kind} ({target})")
+        elif name.startswith("word/") and name.endswith(".xml"):
+            codes = b" ".join(FIELD_ATTRIBUTE.findall(data)) + b" " + b"".join(FIELD_TEXT.findall(data))
+            for field in sorted({match.upper() for match in ACTIVE_FIELDS.findall(codes.decode("utf-8", "replace"))}):
+                found.append(f"{name}: a {field} field")
+    return found
+
+
 def template_bytes(path):
     """The template at path as a Word document's bytes, or ReportError saying
     why it cannot be used. A .dotx is given the document content type, which
@@ -99,6 +142,13 @@ def template_bytes(path):
         raise ReportError(f"the template {path.name} cannot be opened: {error}") from None
     if b"macroEnabled" in types or any(Path(name).name.lower().startswith("vbaproject") for name in names):
         raise ReportError(f"the template {path.name} carries macros; save it in Word as .docx or .dotx")
+    active = active_content(parts)
+    if active:
+        raise ReportError(f"the template {path.name} has content that Word would load or run from outside it when "
+                          "a report is opened, and every report would carry it to the client:\n  "
+                          + "\n  ".join(active) + "\nRemove it in Word and save the template again (attach the "
+                          "Normal template, embed pictures instead of linking them, delete linked fields and "
+                          "embedded objects).")
     if TEMPLATE_TYPE in types:
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -363,10 +413,17 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     if not summary.is_file():
         raise ReportError(f"there is no {SUMMARY_NAME} in {frames_dir.resolve()}: write the summary first "
                           "with python -m meetingtool.summary")
-    text = summary.read_text(encoding="utf-8")
+    # utf-8-sig: an editor may add a byte-order mark when the summary is
+    # edited by hand, and it would hide the first heading.
+    text = summary.read_text(encoding="utf-8-sig")
     headings = summary_headings(text)
     if not headings:
         raise ReportError(f"{summary.resolve()} has no section heading; it does not look like a summary")
+    unread = [number for number, line in enumerate(text.splitlines(), start=1)
+              if line.lstrip().startswith("#") and not HEADING.match(line)]
+    if unread:
+        raise ReportError(f"line(s) {unread} of {summary.resolve()} start with # but are not headings the report "
+                          "can read (a heading starts the line with 1 to 6 # and has text); the report was not built")
     frames = cited_frames(text, frames_dir)
     language = summary_language(text)
     labels = LABELS[language]
@@ -416,7 +473,7 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     for kind, payload in _blocks(text):
         pending = []
         if kind == "heading":
-            _heading(document, payload[1], payload[0])
+            _heading(document, mention(payload[1]), payload[0])
         elif kind == "table":
             _table(document, payload, mention)
         elif kind == "bullet":
@@ -427,21 +484,31 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
             _add_text(document.add_paragraph(), mention(payload))
         for name in pending:
             match = FRAME_REF.match(f"[{name}]")
-            _picture(document, frames[name], labels["caption"].format(clock=clock(*match.groups()[1:])), width)
+            try:
+                _picture(document, frames[name], labels["caption"].format(clock=clock(*match.groups()[1:])), width)
+            except (UnrecognizedImageError, OSError) as error:
+                raise ReportError(f"the frame {name} cannot be embedded ({type(error).__name__}: {error}); "
+                                  "the report was not built") from None
             embedded.add(name)
 
     output = frames_dir / OUTPUT_NAME
     partial = frames_dir / (OUTPUT_NAME + ".partial")
+    expected = [FRAME_REF.sub(lambda m: labels["mention"].format(clock=clock(*m.groups()[1:])), heading)
+                for heading in headings]
     try:
         document.save(str(partial))
-        check_report(partial, headings, cover_images, frames.values())
-        os.replace(partial, output)
-    except PermissionError:
+        check_report(partial, expected, cover_images, frames.values())
+    except OSError as error:
         partial.unlink(missing_ok=True)
-        raise ReportError(f"{output.resolve()} could not be replaced; if it is open in Word, close it and "
-                          "try again") from None
+        raise ReportError(f"the report could not be written in {frames_dir.resolve()}: {error}") from None
     except BaseException:
         partial.unlink(missing_ok=True)
         raise
+    try:
+        os.replace(partial, output)
+    except OSError as error:
+        partial.unlink(missing_ok=True)
+        hint = "; if it is open in Word, close it and try again" if isinstance(error, PermissionError) else ""
+        raise ReportError(f"{output.resolve()} could not be replaced ({error.strerror}){hint}") from None
     return ReportResult(output, language, len(frames), len(headings), output.stat().st_size,
                         time.monotonic() - started, template, cover)

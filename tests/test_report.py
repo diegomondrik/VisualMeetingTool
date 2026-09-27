@@ -472,5 +472,133 @@ class CommandLineTest(Workspace):
         self.assertNothingWritten()
 
 
+RELATIONSHIPS = b'<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">%s</Relationships>'
+REL = "http://schemas.openxmlformats.org/officeDocument/2006/relationships/"
+
+
+def edit_package(source, target, *, add=None, insert=None):
+    """Copy a Word package, adding parts (add: name -> bytes) and inserting
+    bytes before a marker in a part (insert: name -> (marker, bytes))."""
+    with zipfile.ZipFile(source) as archive:
+        parts = {name: archive.read(name) for name in archive.namelist()}
+    for name, (marker, data) in (insert or {}).items():
+        parts[name] = parts[name].replace(marker, data + marker, 1)
+    parts.update(add or {})
+    with zipfile.ZipFile(target, "w", zipfile.ZIP_DEFLATED) as archive:
+        for name, data in parts.items():
+            archive.writestr(name, data)
+    return target
+
+
+def relationship(kind, target, external=True):
+    mode = ' TargetMode="External"' if external else ""
+    return f'<Relationship Id="rId900" Type="{REL}{kind}" Target="{target}"{mode}/>'.encode()
+
+
+def package_parts(path):
+    with zipfile.ZipFile(path) as archive:
+        return {name: archive.read(name) for name in archive.namelist()}
+
+
+class ReviewCorrectionsTest(Workspace):
+    """The independent review's findings on 3385859: P1-1 (content loaded
+    from outside the template), P2-1, P2-2, P3-1, P3-3 and P3-4."""
+
+    def setUp(self):
+        super().setUp()
+        self.clean = company_template(self.tmp / "clean.docx")
+
+    def variant(self, name, **changes):
+        return edit_package(self.clean, self.tmp / name, **changes)
+
+    def test_p1_1_a_template_that_loads_or_runs_outside_content_is_refused(self):
+        end = b"</Relationships>"
+        variants = {
+            "attached template": self.variant("attached.docx", add={
+                "word/_rels/settings.xml.rels": RELATIONSHIPS % relationship(
+                    "attachedTemplate", "file:///C:/elsewhere/Company.dotm")}),
+            "embedded object": self.variant("ole.docx", add={"word/embeddings/oleObject1.bin": b"\x00" * 32},
+                                            insert={"word/_rels/document.xml.rels": (end, relationship(
+                                                "oleObject", "embeddings/oleObject1.bin", external=False))}),
+            "linked picture": self.variant("linked.docx", insert={"word/_rels/document.xml.rels": (end, relationship(
+                "image", "http://example.invalid/pixel.png"))}),
+            "field split across runs": self.variant("field.docx", insert={"word/document.xml": (
+                b"<w:sectPr", b'<w:p><w:r><w:instrText xml:space="preserve"> INCLUDEPIC</w:instrText></w:r>'
+                b'<w:r><w:instrText>TURE "http://example.invalid/x.png"</w:instrText></w:r></w:p>')}),
+        }
+        for label, path in variants.items():
+            with self.subTest(variant=label):
+                with self.assertRaisesRegex(document.ReportError, "load or run from outside"):
+                    document.set_template(path, self.data)
+                self.assertIsNone(document.stored_template(self.data))
+
+    def test_p1_1_dde_fields_are_found_even_when_split(self):
+        # Checked in memory: a file with a DDE field may be locked by the antivirus.
+        split = (b'<w:r><w:instrText xml:space="preserve"> DD</w:instrText></w:r>'
+                 b'<w:r><w:instrText>EAUTO x y</w:instrText></w:r>')
+        self.assertEqual(document.active_content({"word/document.xml": split}), ["word/document.xml: a DDEAUTO field"])
+        simple = b'<w:fldSimple w:instr=" DDE x y"/>'
+        self.assertEqual(document.active_content({"word/header1.xml": simple}), ["word/header1.xml: a DDE field"])
+        harmless = b'<w:instrText> PAGE </w:instrText><w:fldSimple w:instr=" HYPERLINK &quot;x&quot;"/>'
+        self.assertEqual(document.active_content({"word/footer1.xml": harmless}), [])
+
+    def test_p1_1_a_hyperlink_and_a_template_saved_normally_are_accepted(self):
+        linked = self.variant("hyperlink.docx", insert={"word/_rels/document.xml.rels": (
+            b"</Relationships>", relationship("hyperlink", "https://www.inventada.example"))})
+        document.set_template(linked, self.data)
+        self.assertEqual(document.active_content(package_parts(self.clean)), [])
+
+    def test_p1_1_a_template_placed_by_hand_is_checked_again_when_a_report_is_built(self):
+        self.data.mkdir()
+        self.variant("by-hand.docx", add={"word/_rels/settings.xml.rels": RELATIONSHIPS % relationship(
+            "attachedTemplate", "file:///C:/elsewhere/Company.dotm")})
+        (self.tmp / "by-hand.docx").replace(self.data / document.TEMPLATE_NAME)
+        with self.assertRaisesRegex(document.ReportError, "load or run from outside"):
+            self.build()
+        self.assertNothingWritten()
+
+    def test_p2_1_a_frame_named_in_a_heading_follows_the_heading(self):
+        self.write_summary(summary_text(screen="### [frame_003_t01-02-03.jpg] Tablero de costos\nEl total."))
+        result = self.build()
+        self.assertEqual(result.images, 1)
+        body = list(docx.Document(str(self.output())).element.body.iterchildren())
+        heading = next(i for i, child in enumerate(body)
+                       if document.node_text(child) == "imagen 1:02:03 Tablero de costos")
+        self.assertTrue(body[heading + 1].findall(".//" + qn("w:drawing")))
+
+    def test_p2_2_a_byte_order_mark_and_a_heading_without_a_space_are_still_sections(self):
+        text = "\ufeff" + summary_text().replace("## Decisiones", "##Decisiones")
+        (self.frames / document.SUMMARY_NAME).write_text(text, encoding="utf-8")
+        result = self.build()
+        self.assertEqual(result.sections, len(writer.required_headings("es")))
+        headings = [p.text for p in docx.Document(str(self.output())).paragraphs if p.style.name == "Heading 1"]
+        self.assertEqual(headings, writer.required_headings("es"))
+
+    def test_p2_2_a_line_that_starts_with_a_hash_but_is_not_read_as_a_heading_stops_the_build(self):
+        self.write_summary(summary_text().replace("## Decisiones", "   ## Decisiones"))
+        with self.assertRaisesRegex(document.ReportError, "start with # but are not headings"):
+            self.build()
+        self.assertNothingWritten()
+
+    def test_p3_1_a_word_that_ends_in_frame_is_not_a_frame_mention(self):
+        self.write_summary(summary_text().replace("con *énfasis*", "con sales_dataframe_v2 y keyframe_interval"))
+        self.assertEqual(self.build().images, 2)
+
+    def test_p3_3_a_frame_that_is_not_an_image_is_named(self):
+        (self.frames / "frame_002_t00-13-03.jpg").write_text("not an image", encoding="utf-8")
+        with self.assertRaisesRegex(document.ReportError, "frame_002_t00-13-03.jpg cannot be embedded"):
+            self.build()
+        self.assertNothingWritten()
+
+    def test_p3_4_a_report_open_in_word_is_named_and_the_earlier_one_stays(self):
+        self.build()
+        before = digest(self.output())
+        with mock.patch.object(document.os, "replace", side_effect=PermissionError(13, "Permission denied")), \
+                self.assertRaisesRegex(document.ReportError, "close it and try again"):
+            self.build()
+        self.assertEqual(digest(self.output()), before)
+        self.assertEqual(list(self.frames.glob("*.partial")), [])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -28,10 +28,29 @@ objective: >
   (measured on Word in Spanish) defines heading and title styles but no list
   or table style and no numbering, so lists and tables use direct formatting.
 
+  Corrected after the independent review of 3385859 (P1-1): a template is
+  also refused when it has content Word would load or run from outside it on
+  opening, which every report would carry to the client: an external
+  relationship other than a hyperlink (an attached template, possibly a
+  .dotm with macros; a linked picture), an embedded object, control or macro
+  project, or a DDE, INCLUDE, IMPORT or LINK field, found even when its code
+  is split across runs. A template saved normally by Word has none.
+
   python-docx becomes a dependency; it is already installed on the owner's
   machine. Not done, by D-177: a design per project or per end client, cover
   fields that change per meeting, PDF, sending by mail, carrying edits made in
   Word back to the summary, the installer and a graphical interface.
+
+  Known limitations (review P3-2, P3-5 to P3-7): Markdown the summary is not
+  asked to write stays literal (a table without outer pipes, ***x***, _x_,
+  links, quotes) and a "# Title" line counts as a section; the template is
+  read whole into memory, so a zip bomb or an encrypted entry fails with a
+  Python error instead of a message; the repository guard lists .docx but
+  not .dotx, .docm or .dotm (outside this work item's surfaces); the
+  completeness check proves each section's text is there in order, not that
+  it has a heading style. Whether an attached .dotm would run depends on the
+  recipient's Office settings; that was not executed. The report was opened
+  only in the owner's Word (Office 16, Spanish).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3HZZEGY9DVGN05MQC2QEGBS/**
@@ -81,10 +100,14 @@ acceptance:
       is neutral.
   - id: WI11-AC07
     description: >
-      A template that can carry macros, that is not a Word document or
-      template, or that cannot be opened is refused when it is set, says why,
-      and leaves any template already kept as it was; a data folder inside a
-      git work tree is refused.
+      A template that can carry macros, that has content Word would load or
+      run from outside it (an external relationship other than a hyperlink,
+      an attached template, an embedded object or control, a DDE, INCLUDE,
+      IMPORT or LINK field even when split across runs), that is not a Word
+      document or template, or that cannot be opened is refused when it is
+      set, says why, and leaves any template already kept as it was; a
+      template placed in the data folder by hand is checked again when a
+      report is built; a data folder inside a git work tree is refused.
   - id: WI11-AC08
     description: >
       One real run on the summary of the owner's meeting of D-167 (INGOL

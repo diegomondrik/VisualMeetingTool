@@ -52,8 +52,11 @@ evaluations:
   - criterion: WI11-AC07
     method: adversarial
     control: >-
-      tests/test_report.py TemplateRefusalTest; with the macro check removed a
-      test fails, recorded in mutations.txt.
+      tests/test_report.py TemplateRefusalTest and ReviewCorrectionsTest; with
+      the macro check, the outside-content check, the external-relationship
+      rule, the field check, the joining of split fields or the build-time
+      re-check removed, a test fails; mutations.py reproduces the run recorded
+      in mutations.txt.
   - criterion: WI11-AC08
     method: external-evidence
     control: >-
