@@ -1,4 +1,4 @@
-# WI13-AC05: python -m unittest discover -s tests -v, fresh clone (--no-hardlinks) of 6a07a67, owner's machine, Python 3.12.10, 2026-09-28T23:19Z
+# WI13-AC05: python -m unittest discover -s tests -v, fresh clone (--no-hardlinks) of 0aaa90c (after the review's correction), owner's machine, Python 3.12.10, 2026-09-28T23:33Z
 test_import_needs_only_the_standard_library (test_cli.VersionTest.test_import_needs_only_the_standard_library) ... ok
 test_version_flag_prints_the_package_version (test_cli.VersionTest.test_version_flag_prints_the_package_version) ... ok
 test_repeats_are_dropped_before_the_budget_so_every_slide_is_kept (test_frames.DuplicatesBeforeTheBudgetTest.test_repeats_are_dropped_before_the_budget_so_every_slide_is_kept) ... ok
@@ -192,7 +192,7 @@ test_frames_not_yet_read_are_refused_before_any_request (test_summary.WritingTes
 test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames (test_summary.WritingTest.test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames) ... ok
 
 ----------------------------------------------------------------------
-Ran 189 tests in 73.619s
+Ran 189 tests in 73.521s
 
 OK
 exit 0
