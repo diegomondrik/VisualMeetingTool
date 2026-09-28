@@ -3,6 +3,9 @@
     python -m meetingtool.summary --frames DIR --transcript FILE
         [--project ID --title TITLE --date YYYY-MM-DD] [--type TYPE] [--language es|en]
 
+TYPE is one of presale, negotiation, requirements, kickoff, status, technical
+or training (INGOL D-178).
+
 The frames must have been read first (python -m meetingtool.reading read).
 """
 
@@ -26,8 +29,11 @@ def main(argv=None, *, read_key=None, endpoint=gemini.ENDPOINT, sleep=time.sleep
     parser.add_argument("--title", help="the meeting's title (needed with --project)")
     parser.add_argument("--date", help="the meeting's date, YYYY-MM-DD (needed with --project)")
     parser.add_argument("--type", dest="meeting_type", choices=sorted(writer.MEETING_TYPES),
-                        help="add the sections for this kind of meeting")
-    parser.add_argument("--language", choices=sorted(writer.SECTIONS), help="default: the transcript's language")
+                        help="the kind of meeting: presale, negotiation and requirements (the discovery of a "
+                             "project to be built) change how the whole summary reads it; kickoff, status, "
+                             "technical and training add their sections")
+    parser.add_argument("--language", choices=sorted(writer.SECTIONS),
+                        help="the summary's language, whatever the meeting's (default: the transcript's language)")
     parser.add_argument("--video", help="the recording, stored with the meeting in the project")
     parser.add_argument("--data-dir", help="the projects' data folder (default: as for meetingtool.projects)")
     parser.add_argument("--max-cost", type=float, default=writer.MAX_COST_USD,

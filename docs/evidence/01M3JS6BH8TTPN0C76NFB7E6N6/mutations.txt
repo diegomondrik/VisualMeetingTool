@@ -1,0 +1,16 @@
+mutation run for 01M3JS6BH8TTPN0C76NFB7E6N6: each mutation is applied alone to a copy of the
+working tree, `python -m unittest tests.test_summary` is run, and the mutation must make it fail
+- a type's own sections left out (AC01): exit 1, FAILED (failures=29) -> DETECTED
+- the unchanged types moved after the participants (AC01): exit 1, FAILED (failures=4) -> DETECTED
+- stance removed (AC02): exit 1, FAILED (failures=5) -> DETECTED
+- section overrides removed (AC02): exit 1, FAILED (failures=2) -> DETECTED
+- retired type accepted as unknown (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- note on the retired type removed (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- language check removed (AC04): exit 1, FAILED (failures=4) -> DETECTED
+- whole-summary language check removed (AC04): exit 1, FAILED (failures=3) -> DETECTED
+- section language check removed (AC04): exit 1, FAILED (failures=1) -> DETECTED
+- section language check judges a few words (AC04): exit 1, FAILED (errors=1) -> DETECTED
+- quotes counted as text (AC04): exit 1, FAILED (errors=1) -> DETECTED
+- language rule left out of the request (AC04): exit 1, FAILED (failures=1) -> DETECTED
+- unmutated: exit 0, OK
+all mutations detected
