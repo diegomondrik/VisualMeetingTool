@@ -1,0 +1,63 @@
+# real run for 01M3JS6BH8TTPN0C76NFB7E6N6 (WI12-AC06 and AC08, INGOL D-178): numbers only
+date_utc: 2026-09-28T01:36Z to 01:39Z (summaries); reports and offline checks shortly after
+machine: owner's Windows machine; Python 3.12.10; python-docx 1.2.0; Microsoft Word (Office 16, Spanish)
+code: fresh git clone of the work-item branch at 861a534, commands run from the clone root
+meeting: the real 117-minute meeting the owner chose as not confidential (INGOL D-167); read in place, never
+         copied into any repository; no name, number or text of it is recorded here
+frames: the 75 frames and frames_read.md written by WI09's real run, copied into four folders in the owner's
+        data folder (outside any repository); they were not read again, so the reading was not paid again
+key: the owner's paid Gemini key from the Windows credential store; it appears nowhere in this record
+budget: US$0.50 in total for the four summaries; each run's --max-cost was what was left of it after the
+        runs before (0.50, 0.449, 0.394, 0.340), so the four together could not go over it
+project: none (--project not given), so the four runs read the same material and nothing was added to any project
+title: not given
+
+run 1: --type requirements --language es --max-cost 0.50
+  printed: summary written in 24.2s (1 attempt(s), language es); tokens: input 43898, output 4737, thinking 0;
+           estimated cost US$0.051 (budget US$0.50); model gemini-3.8-flash
+run 2: --type presale --language es --max-cost 0.449
+  printed: summary written in 30.4s (1 attempt(s), language es); tokens: input 43811, output 3353, thinking 2483;
+           estimated cost US$0.055 (budget US$0.45); model gemini-3.8-flash
+run 3: --type negotiation --language es --max-cost 0.394
+  printed: summary written in 27.8s (1 attempt(s), language es); tokens: input 43769, output 4524, thinking 1226;
+           estimated cost US$0.054 (budget US$0.39); model gemini-3.8-flash
+run 4: --type requirements --language en --max-cost 0.340
+  printed: summary written in 29.0s (1 attempt(s), language en); tokens: input 43885, output 5210, thinking 543;
+           estimated cost US$0.054 (budget US$0.34); model gemini-3.8-flash
+estimated_total_cost_usd: 0.214 (list prices used for D-169; the exact charge is in the owner's Google
+                          billing, not read here)
+
+summary shape (counted by the code at 861a534, text not recorded):
+  folder          type          lang  chars  headings  frames named  quoted spans  common words asked/other  key points
+  requirements    requirements  es    17704  14 of 14  11            50            566 / 2                   5
+  presale         presale       es    12941  12 of 12   7            25            421 / 0                   6
+  negotiation     negotiation   es    16268  13 of 13  17            54            532 / 2                   6
+  requirements-en requirements  en    20709  14 of 14  19            76            261 / 0                   6
+  WI09 (no type)  none          es    11388   9 of  9  12            21            374 / 0                   8
+  every run has its type's own sections right after the participants, as asked
+
+Word report (WI11's command, no network, no key, cost US$0), neutral design (no company template kept):
+  requirements (es), built at the owner's request as he reads the meeting as a project's discovery:
+    printed: report built in 0.2s: 14 section(s), 11 image(s), 1.5 MB, language es, neutral design
+    file: 1,546,282 bytes; opened by Word itself (COM, read-only): pages=16, inline images=11
+  presale (es):
+    printed: report built in 0.2s: 12 section(s), 7 image(s), 1.1 MB, language es, neutral design
+    opened by Word itself (COM, read-only): pages=10, inline images=7
+  requirements (en): REFUSED by the report: the summary names a frame that is not in the folder (the number
+    of one frame with the minute of the frame before it); nothing written
+  negotiation (es): REFUSED by the report: one line mentions two frames without their file names; nothing written
+
+finding (WI12-AC08): 2 of the 4 summaries could not become a report. Corrected in 775ad9f: the summary is
+checked with the report's rule before it is delivered. Re-checked without any new request (no cost), the
+corrected check_summary, with each folder's frames, on the four real summaries:
+  requirements (es): accepted
+  presale (es): accepted
+  negotiation (es): refused, "mentions a frame without its file name in square brackets"
+  requirements (en): refused, "names frame(s) that are not in the frames folder" (one frame)
+so it refuses exactly the two the report refused. The two were written before the correction; with it, each
+would have been retried once. Whether the retry comes back right was not measured: that needs new paid
+requests beyond the four approved.
+
+kept for the owner, outside any repository, in his data folder: the four folders d178-relevamiento,
+d178-preventa, d178-venta and d178-relevamiento-en, each with its summary.md; summary.docx in the first two;
+deleted when he says so
