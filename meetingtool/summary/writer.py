@@ -238,27 +238,35 @@ def detect_language(text):
 
 
 _QUOTED = re.compile(r'"[^"\n]*"|“[^”\n]*”|«[^»\n]*»|`[^`\n]*`')
+_FENCED = re.compile(r"^```.*?^```[^\n]*$", re.MULTILINE | re.DOTALL)
+_TABLE_ROW = re.compile(r"^\s*\|.*$", re.MULTILINE)
 
 
-def _word_counts(text, language):
+def _word_counts(text, language, tables=True):
     """(common words of `language`, common words of the other one) in text,
-    leaving out what is quoted: a verbatim quote keeps its own language."""
+    leaving out what is quoted and code (a verbatim quote, a query seen on
+    screen keeps its own language), and, if not `tables`, table rows."""
+    text = _FENCED.sub(" ", text)
+    if not tables:
+        text = _TABLE_ROW.sub(" ", text)
     text = _QUOTED.sub(" ", text)
     spanish, english = len(_SPANISH.findall(text)), len(_ENGLISH.findall(text))
     return (spanish, english) if language == "es" else (english, spanish)
 
 
 def check_language(text, headings, language):
-    """SummaryError unless the summary, and each of its sections, is in `language`."""
+    """SummaryError unless the summary, and each of its sections, is in
+    `language`. A section is judged on its prose: a table of labels read on
+    screen keeps their language, and only the whole summary counts tables."""
     wanted, other = _word_counts(text, language)
     if other >= wanted:
         raise SummaryError(f"the summary is not in {LANGUAGE_NAMES[language]} ({wanted} common words of it, "
-                           f"{other} of the other language, quotes left out)")
+                           f"{other} of the other language, quotes and code left out)")
     for heading in headings:
-        wanted, other = _word_counts(section_text(text, heading), language)
+        wanted, other = _word_counts(section_text(text, heading), language, tables=False)
         if other >= FOREIGN_SECTION_WORDS and other > 2 * wanted:
             raise SummaryError(f"the section '{heading}' is not in {LANGUAGE_NAMES[language]} ({wanted} common "
-                               f"words of it, {other} of the other language, quotes left out)")
+                               f"words of it, {other} of the other language, quotes, code and tables left out)")
 
 
 def _sections(language, meeting_type):

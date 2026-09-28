@@ -28,7 +28,9 @@ def main(argv=None, *, read_key=None, endpoint=gemini.ENDPOINT, sleep=time.sleep
     parser.add_argument("--project", help="add the meeting to this project (its id) and use what it knows")
     parser.add_argument("--title", help="the meeting's title (needed with --project)")
     parser.add_argument("--date", help="the meeting's date, YYYY-MM-DD (needed with --project)")
-    parser.add_argument("--type", dest="meeting_type", choices=sorted(writer.MEETING_TYPES),
+    # No argparse choices: the writer refuses an unknown or retired type and
+    # says what replaces a retired one, before any request.
+    parser.add_argument("--type", dest="meeting_type", metavar="TYPE",
                         help="the kind of meeting: presale, negotiation and requirements (the discovery of a "
                              "project to be built) change how the whole summary reads it; kickoff, status, "
                              "technical and training add their sections")

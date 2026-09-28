@@ -390,12 +390,15 @@ class NewTypesTest(Workspace):
                                 capture_output=True, text=True)
         for meeting_type in NEW_TYPES:
             self.assertIn(meeting_type, result.stdout)
-        stderr = io.StringIO()
-        with FakeGemini() as fake, contextlib.redirect_stderr(stderr):
-            with self.assertRaises(SystemExit):
-                main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type", "discovery"],
-                     read_key=lambda: KEY, endpoint=fake.endpoint)
-        self.assertEqual(fake.requests, [])
+        for meeting_type, words in (("discovery", "use 'presale' or 'requirements'"),
+                                    ("sales", "unknown meeting type 'sales'; one of presale, negotiation")):
+            stderr = io.StringIO()
+            with FakeGemini() as fake, contextlib.redirect_stderr(stderr):
+                code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type",
+                             meeting_type], read_key=lambda: KEY, endpoint=fake.endpoint)
+            self.assertEqual(code, 2)
+            self.assertIn(words, stderr.getvalue())
+            self.assertEqual(fake.requests, [])
 
 
 class StanceTest(Workspace):
@@ -525,6 +528,28 @@ class LanguageControlTest(Workspace):
                                              'columna es lo que pide el directorio y no está» (the total is missing).')
         self.assertEqual(writer.check_summary(answer(english), writer.required_headings("en"), "en"), english)
 
+    def test_code_and_tables_of_labels_seen_on_screen_keep_their_language(self):
+        """The review's F1: a query seen on screen, or a table of the labels
+        of a Spanish spreadsheet, made a section look foreign."""
+        query = ("```sql\nSELECT total FROM cost WHERE plant IS NOT NULL AND line = 'fillet' AND total IS NOT NULL\n"
+                 "AND year = 2026 AND month IS NOT NULL AND this = that AND it = the\n```")
+        text = summary_text("es", "technical").replace("Texto de Análisis visual técnico.",
+                                                       f"Texto de Análisis visual técnico:\n\n{query}")
+        self.assertEqual(writer.check_summary(answer(text), writer.required_headings("es", "technical"), "es"), text)
+        table = ("| Frame | Label on screen | Value |\n| --- | --- | --- |\n"
+                 "| 1 | Costo de la planta de proceso y de la línea | 1.250 |\n"
+                 "| 2 | Total de la columna de gastos y de los fletes para la planta | 3.400 |")
+        english = summary_text("en").replace("The text of What was on screen.", f"The text of What was on screen:\n\n{table}")
+        self.assertEqual(writer.check_summary(answer(english), writer.required_headings("en"), "en"), english)
+
+    def test_a_section_whose_prose_is_in_the_other_language_is_still_refused_next_to_a_table(self):
+        table = "| Frame | Value |\n| --- | --- |\n| 1 | 1.250 |"
+        text = summary_text("es").replace(
+            "Texto de Temas.", f"{table}\n\nThe team said that it is the cost of the plant and that this is the topic.")
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(text), writer.required_headings("es"), "es")
+        self.assertIn("the section 'Temas' is not in Spanish", str(caught.exception))
+
     def test_a_few_words_of_the_other_language_in_a_section_are_not_judged(self):
         # Six common Spanish words, none English: below the threshold of eight.
         text = summary_text("en").replace("The text of Key topics.", "Costo de la planta y de la línea de proceso.")
@@ -569,10 +594,10 @@ class KeyAndBudgetWithTypesTest(Workspace):
 
 
 class NamedFramesTest(Workspace):
-    """WI12-AC08, found by the real run: the English summary named
-    [frame_063_t01-03-37.jpg], the number of one frame with the minute of
-    the one before, and the report refused it. A summary is now delivered
-    only if the report could embed every frame it names."""
+    """WI12-AC08, found by the real run: the English summary named a frame
+    that does not exist, the number of one frame with the minute of the one
+    before, and the report refused it. A summary is now delivered only if the
+    report could embed every frame it names."""
 
     def setUp(self):
         super().setUp()

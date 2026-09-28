@@ -52,12 +52,33 @@ objective: >
   each company. The Word report of D-177 is not changed; it reads the new
   headings as it reads any heading.
 
+  Corrected after the independent review of 9ede6a9 (F1, F2): fenced code
+  blocks are left out of the language count like quotes, and a section is
+  judged on its prose, not its table rows (a query or a table of labels seen
+  on screen keeps its language; the whole summary still counts tables); and
+  the command no longer refuses --type discovery with argparse's generic
+  message, so the writer's refusal, naming what replaces it, is what the user
+  sees.
+
   Known limitations: the language check counts about fifteen common words of
   each language, so it tells Spanish from English and nothing else; a short
   section, or a section of names and figures, is never judged; a quote not
-  in quotation marks counts as text. Whether each type's stance really
-  changes what Gemini writes is judged by the owner on the real run, not by
-  a test.
+  in quotation marks counts as text, and a summary written wholly inside
+  quotes would pass (review F5); a section whose prose is all in a table is
+  judged only as part of the whole summary. Whether each type's stance
+  really changes what Gemini writes is judged by the owner on the real run,
+  not by a test. status keeps its guides as before, as the proposal's table
+  and criterion 1 say, although the proposal's example reads its decisions
+  against what was agreed before (review F4); its own "Delta since last
+  meeting" section already does. A summary with a wrong frame mention is now
+  refused although its Markdown could be read, and whether the retry comes
+  back right was not measured (review F3). The frame rule is copied from the
+  report: the parity test has five fixed cases, a folder entry that is a
+  directory named like a frame, or a name differing only in case on Windows,
+  makes the two disagree (review F6, F7); the report can still refuse a
+  summary for reasons this check does not cover (a "#" line that is not a
+  heading, a frame file that cannot be embedded). The note on the retired
+  type is also added for a meeting whose title ends in "(discovery)" (F8).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3JS6BH8TTPN0C76NFB7E6N6/**
