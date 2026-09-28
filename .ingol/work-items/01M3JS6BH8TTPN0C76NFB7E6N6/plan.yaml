@@ -12,6 +12,7 @@ steps:
   - check-the-language-of-the-text-not-only-the-headings-wi12-ac04
   - key-and-budget-with-a-type-and-a-language-wi12-ac05
   - real-run-four-summaries-and-the-discovery-report-wi12-ac06
+  - refuse-a-summary-naming-a-frame-the-report-cannot-embed-wi12-ac08
   - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi12-ac07
 evaluations:
   - criterion: WI12-AC01
@@ -52,6 +53,14 @@ evaluations:
       run's --max-cost set to what is left of US$0.50; the Word report built
       from the requirements summary and opened by Word; commit only the
       numbers.
+  - criterion: WI12-AC08
+    method: adversarial
+    control: >-
+      tests/test_summary.py NamedFramesTest, including the parity test
+      against meetingtool.report.document.cited_frames; with the missing
+      frame check, the other-mention check or the call from write_summary
+      removed, a test fails, recorded in mutations.txt; the four real
+      summaries re-checked offline, recorded in real-summary-run.txt.
   - criterion: WI12-AC07
     method: deterministic
     control: >-

@@ -568,5 +568,70 @@ class KeyAndBudgetWithTypesTest(Workspace):
         self.assertEqual(fake.requests, [])
 
 
+class NamedFramesTest(Workspace):
+    """WI12-AC08, found by the real run: the English summary named
+    [frame_063_t01-03-37.jpg], the number of one frame with the minute of
+    the one before, and the report refused it. A summary is now delivered
+    only if the report could embed every frame it names."""
+
+    def setUp(self):
+        super().setUp()
+        for name in ("frame_001_t00-01-22.jpg", "frame_002_t00-05-00.jpg"):
+            (self.frames / name).write_bytes(b"")
+
+    def with_frames(self, mention):
+        return summary_text().replace("Texto de Lo que se vio en pantalla.",
+                                      f"Texto de Lo que se vio en pantalla: {mention}, con el total de la columna.")
+
+    def test_a_summary_naming_frames_that_exist_is_delivered(self):
+        text = self.with_frames("[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]")
+        with FakeGemini([returning(text)]) as fake:
+            self.summarise(fake)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+
+    def test_a_frame_that_is_not_in_the_folder_is_retried_once_then_refused(self):
+        # The real case: frame 002's number with frame 001's minute.
+        text = self.with_frames("[frame_002_t00-01-22.jpg]")
+        with FakeGemini([returning(text)] * 2) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertIn("not in the frames folder: frame_002_t00-01-22.jpg", str(caught.exception))
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_a_frame_mentioned_without_its_file_name_is_refused(self):
+        for mention in ("(frame_001, t00:01:22)", "[frames_001-002]", "frame_001_t00-01-22.jpg"):
+            with self.subTest(mention=mention):
+                with self.assertRaises(writer.SummaryError) as caught:
+                    writer.check_summary(answer(self.with_frames(mention)), writer.required_headings("es"), "es",
+                                         {"frame_001_t00-01-22.jpg"})
+                self.assertIn("without its file name in square brackets", str(caught.exception))
+
+    def test_a_wrong_frame_then_a_right_one_is_delivered(self):
+        with FakeGemini([returning(self.with_frames("[frame_003_t00-09-00.jpg]")),
+                         returning(self.with_frames("[frame_001_t00-01-22.jpg]"))]) as fake:
+            self.assertEqual(self.summarise(fake).attempts, 2)
+
+    def test_the_summary_and_the_report_agree_on_every_case(self):
+        from meetingtool.report import document
+        cases = ["[frame_001_t00-01-22.jpg]", "[frame_002_t00-01-22.jpg]", "(frame_001, t00:01:22)",
+                 "[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]", "sin imágenes"]
+        names = {path.name for path in gemini.frame_files(self.frames)}
+        for mention in cases:
+            with self.subTest(mention=mention):
+                text = self.with_frames(mention)
+                try:
+                    writer.check_frames(text, names)
+                    summary_accepts = True
+                except writer.SummaryError:
+                    summary_accepts = False
+                try:
+                    document.cited_frames(text, self.frames)
+                    report_accepts = True
+                except document.ReportError:
+                    report_accepts = False
+                self.assertEqual(summary_accepts, report_accepts)
+
+
 if __name__ == "__main__":
     unittest.main()

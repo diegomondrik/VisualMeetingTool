@@ -188,6 +188,11 @@ LANGUAGE_RULE = ("Write every part of the summary in {name} (headings, text and 
 # language, and more than twice as many as of the language asked for, is in
 # the wrong language. Short sections, names and figures are never judged.
 FOREIGN_SECTION_WORDS = 8
+# How the report names a frame, and any other mention of one (as in
+# meetingtool.report.document, which imports this module): a summary is
+# delivered only if the report could embed every frame it names.
+FRAME_REF = re.compile(r"\[(frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg)\]")
+FRAME_LIKE = re.compile(r"\bframes?_", re.IGNORECASE)
 
 ROLE = """You are a senior business analyst and AI integration specialist assisting an independent analytics and
 technology consultant who works with corporate clients on data analytics, BI, AI, planning, supply chain and
@@ -328,8 +333,21 @@ def key_points(text, language):
     return points
 
 
-def check_summary(answer, headings, language):
-    """The summary's text if complete; otherwise SummaryError naming what is wrong."""
+def check_frames(text, frame_names):
+    """SummaryError unless every frame the summary names, as the report reads
+    a name, is one of frame_names, and no frame is mentioned any other way."""
+    missing = sorted({name for name in FRAME_REF.findall(text) if name not in frame_names})
+    if missing:
+        raise SummaryError(f"the summary names frame(s) that are not in the frames folder: {', '.join(missing)}")
+    for line in text.splitlines():
+        if FRAME_LIKE.search(FRAME_REF.sub("", line)):
+            raise SummaryError(f"the summary mentions a frame without its file name in square brackets: "
+                               f"{FRAME_REF.sub('', line).strip()[:80]}")
+
+
+def check_summary(answer, headings, language, frame_names=None):
+    """The summary's text if complete; otherwise SummaryError naming what is
+    wrong. With frame_names, the frames it names are checked too."""
     try:
         candidate = answer["candidates"][0]
         text = "".join(part.get("text", "") for part in candidate["content"]["parts"])
@@ -349,6 +367,8 @@ def check_summary(answer, headings, language):
     if not key_points(text, language):
         raise SummaryError(f"the summary's '{KEY_POINTS[language]}' section has no bullet point")
     check_language(text, headings, language)
+    if frame_names is not None:
+        check_frames(text, frame_names)
     return text
 
 
@@ -394,10 +414,12 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
     payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
                "generationConfig": {"temperature": 0.3, "maxOutputTokens": MAX_OUTPUT_TOKENS}}
     worst = gemini.token_cost(len(prompt) / CHARS_PER_TOKEN, MAX_OUTPUT_TOKENS)
+    frame_names = {path.name for path in gemini.frame_files(frames_dir)}
     counters = gemini.new_counters()
     started = time.monotonic()
     text = gemini.call_checked(gemini.model_url(endpoint, model), key, payload,
-                               lambda answer: check_summary(answer, headings, language), worst, "the summary",
+                               lambda answer: check_summary(answer, headings, language, frame_names), worst,
+                               "the summary",
                                retry_delays, sleep, counters, max_cost_usd)
     output = frames_dir / OUTPUT_NAME
     partial = frames_dir / (OUTPUT_NAME + ".partial")

@@ -12,5 +12,8 @@ working tree, `python -m unittest tests.test_summary` is run, and the mutation m
 - section language check judges a few words (AC04): exit 1, FAILED (errors=1) -> DETECTED
 - quotes counted as text (AC04): exit 1, FAILED (errors=1) -> DETECTED
 - language rule left out of the request (AC04): exit 1, FAILED (failures=1) -> DETECTED
+- missing-frame check removed (AC08): exit 1, FAILED (failures=3) -> DETECTED
+- other-mention check removed (AC08): exit 1, FAILED (failures=4) -> DETECTED
+- frames not checked when writing (AC08): exit 1, FAILED (failures=2) -> DETECTED
 - unmutated: exit 0, OK
 all mutations detected

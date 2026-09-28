@@ -37,6 +37,17 @@ objective: >
   and more than twice as many as of its own, is refused like a missing
   section: retried once, then an error, and nothing is written or added.
 
+  Found by the real run (WI12-AC08): the English summary named a frame that
+  does not exist (one frame's number with the minute of the one before), and
+  the negotiation summary mentioned two frames without their file names; the
+  Word report refused both, so 2 of the 4 summaries could not become a
+  report. The summary is now checked with the report's own rule before it is
+  delivered: every frame named in square brackets must be in the frames
+  folder, and no frame may be mentioned any other way; otherwise it is
+  retried once and refused. The rule is written again in the summary module,
+  because the report imports it and not the other way round; a test holds
+  the two to the same answer.
+
   Not done, by D-178: other languages, guessing the type, types defined by
   each company. The Word report of D-177 is not changed; it reads the new
   headings as it reads any heading.
@@ -101,6 +112,14 @@ acceptance:
       At the owner's request (session 114), the Word report is built from the
       requirements summary, since he reads the meeting as the discovery of a
       project.
+  - id: WI12-AC08
+    description: >
+      A summary that names a frame not in the frames folder, or mentions a
+      frame without its file name in square brackets, is retried once and
+      refused, naming the frame or the line, and nothing is written; on the
+      same cases the summary's check and the report's agree; the check,
+      applied without any new request to the four real summaries of
+      WI12-AC06, refuses exactly the two the report refused.
   - id: WI12-AC07
     description: >
       The whole suite passes with `python -m unittest discover -s tests -v`

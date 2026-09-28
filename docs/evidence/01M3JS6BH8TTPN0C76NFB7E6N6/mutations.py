@@ -39,6 +39,12 @@ MUTATIONS = [
      '    text = _QUOTED.sub(" ", text)\n', ""),
     ("language rule left out of the request (AC04)",
      "              LANGUAGE_RULE.format(name=LANGUAGE_NAMES[language]),\n", ""),
+    ("missing-frame check removed (AC08)",
+     "    if missing:\n", "    if False:\n"),
+    ("other-mention check removed (AC08)",
+     '        if FRAME_LIKE.search(FRAME_REF.sub("", line)):\n', "        if False:\n"),
+    ("frames not checked when writing (AC08)",
+     "check_summary(answer, headings, language, frame_names)", "check_summary(answer, headings, language)"),
 ]
 
 

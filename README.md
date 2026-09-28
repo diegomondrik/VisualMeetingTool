@@ -59,8 +59,9 @@ deliverables, key topics, beyond the agenda, and key points. With
 `--project`, the summary also reads what the project knows from earlier
 meetings, and the meeting is added to the project with its key points, so
 the next summary knows them. The transcript is sent to Gemini's paid tier. A
-summary that is cut short, missing a section or in the wrong language is
-retried once and never delivered.
+summary that is cut short, missing a section, in the wrong language, or
+naming a frame the report could not embed is retried once and never
+delivered.
 
 `--type` says what kind of meeting it was. `presale` (preventa),
 `negotiation` (venta o negociación) and `requirements` (relevamiento de un
