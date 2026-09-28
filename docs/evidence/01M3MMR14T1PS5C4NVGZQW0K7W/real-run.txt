@@ -1,0 +1,16 @@
+# real run for 01M3MMR14T1PS5C4NVGZQW0K7W (WI13-AC04, INGOL D-181): numbers and frame minutes only
+machine: owner's Windows machine; Python 3.12.10
+meeting: the real 117-minute meeting the owner chose as not confidential (INGOL D-167); read in place,
+         never copied into any repository; no name, number or text of it is recorded here
+frames: the 75 frames and frames_read.md of D-178's requirements run, copied into a new folder in the
+        owner's data folder (outside any repository); not read again, so the reading was not paid again
+key: the owner's paid Gemini key from the Windows credential store; it appears nowhere in this record
+
+attempt 1 (2026-09-28T20:52Z to 20:53Z), fresh clone of the branch at 95c3d4d:
+  --type requirements --language es --max-cost 0.15
+  printed: error: stopped before sending the summary: that request could cost up to US$0.12, and with
+           about US$0.05 already spent it could go over the budget of US$0.15; nothing was written
+  exit 2; nothing written
+  reading: Gemini's first answer was refused by a check and its retry did not fit the budget; the code at
+           95c3d4d did not say which check refused it, so that is not known. Spent: about US$0.05.
+  finding: a stop by the budget after a refused answer now says why it was refused (this work item).

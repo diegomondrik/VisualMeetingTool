@@ -706,6 +706,20 @@ class NamedFramesTest(Workspace):
             with self.subTest(mention=mention):
                 writer.check_frames(self.with_frames(mention), names)
 
+    def test_a_retry_stopped_by_the_budget_says_why_the_answer_before_was_refused(self):
+        # D-181's real run: the first answer was refused and the retry did not
+        # fit the budget, and the stop did not say what was refused.
+        prompt = writer.build_prompt(read_turns(self.transcript), (self.frames / gemini.OUTPUT_NAME).read_text(
+            encoding="utf-8"), "es")
+        worst = gemini.token_cost(len(prompt) / writer.CHARS_PER_TOKEN, writer.MAX_OUTPUT_TOKENS)
+        with FakeGemini([returning(self.with_frames(RANGES[0]))] * 2) as fake:
+            with self.assertRaises(gemini.ReadingError) as caught:
+                self.summarise(fake, max_cost_usd=worst + gemini.token_cost(30000, 5000) / 2)
+        self.assertEqual(len(fake.requests), 1)
+        self.assertIn("stopped before sending the summary", str(caught.exception))
+        self.assertIn("the answer before was refused: the summary names a range of frames", str(caught.exception))
+        self.assertFalse(self.output().exists())
+
     def test_a_range_then_each_frame_on_its_own_is_delivered(self):
         text = self.with_frames(NOT_RANGES[1])
         with FakeGemini([returning(self.with_frames(RANGES[0])), returning(text)]) as fake:

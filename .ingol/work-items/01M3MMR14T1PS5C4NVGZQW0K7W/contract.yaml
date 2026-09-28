@@ -34,6 +34,12 @@ objective: >
   keep agreeing. Two frames named one after the other ("[a] y [b]") are not
   a range.
 
+  Found by the first real run (WI13-AC04): Gemini's first answer was
+  refused, the retry did not fit the budget of US$0.15 (one attempt is
+  reserved at its worst, about US$0.12), and the stop did not say what
+  had been refused. A stop by the budget after a refused answer now says
+  why that answer was refused.
+
   Not done: the summary's text is not changed otherwise (the owner judged it
   good; its comments change only where it names better images); the frames
   kept by the extraction are not changed; no new request or model is added.
@@ -53,6 +59,7 @@ affected_surfaces:
   - docs/evidence/01M3MMR14T1PS5C4NVGZQW0K7W/**
   - meetingtool/summary/**
   - meetingtool/report/document.py
+  - meetingtool/reading/gemini.py
   - tests/test_summary.py
   - tests/test_report.py
   - README.md
@@ -79,7 +86,9 @@ acceptance:
   - id: WI13-AC04
     description: >
       One real run on the owner's meeting of D-167, requirements type, in
-      Spanish, with his paid key and a budget of US$0.15, reusing the frames
+      Spanish, with his paid key (budget: US$0.15 approved; the first
+      run spent about US$0.05 and stopped before its retry; the owner is
+      asked to raise the total to US$0.25), reusing the frames
       and their reading from D-178's run (copied into a new folder in his
       data folder, so they are not paid again and his earlier summaries stay
       as they are), and the Word report built from it. Passes only if none
