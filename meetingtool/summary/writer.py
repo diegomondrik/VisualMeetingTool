@@ -17,7 +17,7 @@ guide of some standard sections, not only adds its own. The summary is
 written in Spanish or English as asked, whatever language the meeting was
 held in (by default the transcript's), quotes in their own language with a
 translation, and a summary in the other language is refused like a missing
-section.
+section, as is one naming a frame the Word report could not embed.
 
 The request goes through meetingtool.reading.gemini: the same retries, the
 key only in a header, and a spend budget that counts the worst case of the
