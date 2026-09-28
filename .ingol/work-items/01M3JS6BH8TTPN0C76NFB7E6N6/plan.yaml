@@ -1,0 +1,69 @@
+schema_version: "1"
+work_item: 01M3JS6BH8TTPN0C76NFB7E6N6
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3JS6BH8TTPN0C76NFB7E6N6-meeting-types
+steps:
+  - add-presale-negotiation-and-requirements-and-keep-the-others-wi12-ac01
+  - change-the-whole-request-per-type-wi12-ac02
+  - read-meetings-stored-with-the-retired-type-wi12-ac03
+  - check-the-language-of-the-text-not-only-the-headings-wi12-ac04
+  - key-and-budget-with-a-type-and-a-language-wi12-ac05
+  - real-run-four-summaries-and-the-discovery-report-wi12-ac06
+  - refuse-a-summary-naming-a-frame-the-report-cannot-embed-wi12-ac08
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi12-ac07
+evaluations:
+  - criterion: WI12-AC01
+    method: adversarial
+    control: >-
+      tests/test_summary.py NewTypesTest with the fake Gemini on localhost;
+      the sections of the unchanged types are pinned as literals; with a
+      type's own sections left out of the required headings, a test fails,
+      recorded in mutations.txt.
+  - criterion: WI12-AC02
+    method: adversarial
+    control: >-
+      tests/test_summary.py StanceTest on the request built for Gemini; with
+      the stance or the section overrides removed, a test fails, recorded in
+      mutations.txt.
+  - criterion: WI12-AC03
+    method: adversarial
+    control: >-
+      tests/test_summary.py RetiredTypeTest on an invented project whose
+      first meeting is stored as the code before D-178 stored it; with the
+      retired-type refusal or the note removed, a test fails, recorded in
+      mutations.txt.
+  - criterion: WI12-AC04
+    method: adversarial
+    control: >-
+      tests/test_summary.py LanguageControlTest, including a fake Gemini that
+      answers in the wrong language; with the language check, the section
+      check or the leaving out of quotes removed, a test fails, recorded in
+      mutations.txt.
+  - criterion: WI12-AC05
+    method: deterministic
+    control: >-
+      tests/test_summary.py KeyAndBudgetWithTypesTest through the command.
+  - criterion: WI12-AC06
+    method: external-evidence
+    control: >-
+      Four summaries on the owner's meeting of D-167 with his paid key, each
+      run's --max-cost set to what is left of US$0.50; the Word report built
+      from the requirements summary and opened by Word; commit only the
+      numbers.
+  - criterion: WI12-AC08
+    method: adversarial
+    control: >-
+      tests/test_summary.py NamedFramesTest, including the parity test
+      against meetingtool.report.document.cited_frames; with the missing
+      frame check, the other-mention check or the call from write_summary
+      removed, a test fails, recorded in mutations.txt; the four real
+      summaries re-checked offline, recorded in real-summary-run.txt.
+  - criterion: WI12-AC07
+    method: deterministic
+    control: >-
+      Run `python -m unittest discover -s tests -v` in a fresh clone of the
+      tested commit and commit its full output, exit code and commit under
+      docs/evidence/01M3JS6BH8TTPN0C76NFB7E6N6/.

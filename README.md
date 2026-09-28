@@ -49,18 +49,35 @@ what it read in each frame, with the same key:
 ```
 python -m meetingtool.summary --frames <frames folder> --transcript <transcript.docx>
 python -m meetingtool.summary --frames <frames folder> --transcript <transcript.docx> \
-    --project <project id> --title "<meeting title>" --date YYYY-MM-DD [--type status]
+    --project <project id> --title "<meeting title>" --date YYYY-MM-DD [--type requirements] [--language en]
 ```
 
-The summary is written to `summary.md` in the frames folder, in the
-language of the transcript. It has the sections of the original
-MeetingTool's report: executive summary, participants, decisions, action
-items, what was on screen, pending deliverables, key topics, beyond the
-agenda, and key points. With `--project`, the summary also reads what the
-project knows from earlier meetings, and the meeting is added to the project
-with its key points, so the next summary knows them. The transcript is sent
-to Gemini's paid tier. A summary that is cut short or missing a section is
-retried once and never delivered incomplete.
+The summary is written to `summary.md` in the frames folder. It has the
+sections of the original MeetingTool's report: executive summary,
+participants, decisions, action items, what was on screen, pending
+deliverables, key topics, beyond the agenda, and key points. With
+`--project`, the summary also reads what the project knows from earlier
+meetings, and the meeting is added to the project with its key points, so
+the next summary knows them. The transcript is sent to Gemini's paid tier. A
+summary that is cut short, missing a section, in the wrong language, or
+naming a frame the report could not embed is retried once and never
+delivered.
+
+`--type` says what kind of meeting it was. `presale` (preventa),
+`negotiation` (venta o negociación) and `requirements` (relevamiento de un
+proyecto a desarrollar) change how the whole meeting is read, not only add
+their own sections: in a presale, interest is a signal and not a decision; in
+a negotiation, what was offered, accepted and still open are kept apart; in a
+requirements meeting, the pending items are mostly what is still to be found
+out and who can answer it. `kickoff`, `status`, `technical` and `training`
+add their sections at the end. Meetings stored in a project with the earlier
+`discovery` type are still read; a new summary uses `presale` or
+`requirements` instead.
+
+`--language es` or `--language en` chooses the summary's language whatever
+language the meeting was held in; without it, the summary is in the
+transcript's language. Verbatim quotes stay in the language they were said,
+with a translation.
 
 ## The report in Word
 

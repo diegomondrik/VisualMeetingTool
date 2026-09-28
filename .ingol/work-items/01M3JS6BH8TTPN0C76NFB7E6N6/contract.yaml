@@ -1,0 +1,153 @@
+schema_version: "1"
+id: 01M3JS6BH8TTPN0C76NFB7E6N6
+objective: >
+  The summary reads the meeting according to its kind, and is written in the
+  language asked for (INGOL decision D-178, approved on the proposal
+  meeting-types-contract-proposal.md in INGOL's repository). It changes the
+  summary of D-174; Gemini still writes it with the user's key.
+
+  Three types are added. presale: the client's problems, stated and implied;
+  who decides; urgency; objections; alternatives; fit with what is offered;
+  the next step. negotiation: the offered scope; price and terms; objections
+  still open; what is missing to sign and who has to give it. requirements
+  (the discovery of a project to be built): how the client works today; what
+  they need; data and systems; users; rules and constraints; and what is
+  still to be found out and whom to ask. Each of the three changes the
+  request for the whole summary, not only adds sections at its end: a stance
+  paragraph before the sections, new guides for some standard sections (in a
+  presale, interest is a signal and not a decision; in a negotiation, the
+  decisions are what was agreed on each side and how firmly; in a
+  requirements meeting, the pending items are mostly what is still to be
+  found out, and a need is a requirement, not a decision), and their own
+  sections right after the participants. kickoff, status, technical and
+  training stay exactly as they were, sections, place and guides.
+
+  The original's discovery type, which joined presales and requirements
+  gathering and in practice read as a presale, is retired: a new summary
+  cannot take it and is told to use presale or requirements; a meeting stored
+  in a project with it is still listed and read into the next summary, with a
+  note saying what the old type covered.
+
+  The language is Spanish or English, asked for apart from the meeting's (by
+  default the transcript's). Verbatim quotes stay in the language they were
+  said, in quotation marks, with a translation. Today only the headings are
+  checked; now the text is too: counting the common words of each language,
+  leaving quoted text out, a summary whose text is not mostly in the language
+  asked for, or a section with at least 8 common words of the other language
+  and more than twice as many as of its own, is refused like a missing
+  section: retried once, then an error, and nothing is written or added.
+
+  Found by the real run (WI12-AC08): the English summary named a frame that
+  does not exist (one frame's number with the minute of the one before), and
+  the negotiation summary mentioned two frames without their file names; the
+  Word report refused both, so 2 of the 4 summaries could not become a
+  report. The summary is now checked with the report's own rule before it is
+  delivered: every frame named in square brackets must be in the frames
+  folder, and no frame may be mentioned any other way; otherwise it is
+  retried once and refused. The rule is written again in the summary module,
+  because the report imports it and not the other way round; a test holds
+  the two to the same answer.
+
+  Not done, by D-178: other languages, guessing the type, types defined by
+  each company. The Word report of D-177 is not changed; it reads the new
+  headings as it reads any heading.
+
+  Corrected after the independent review of 9ede6a9 (F1, F2): fenced code
+  blocks are left out of the language count like quotes, and a section is
+  judged on its prose, not its table rows (a query or a table of labels seen
+  on screen keeps its language; the whole summary still counts tables); and
+  the command no longer refuses --type discovery with argparse's generic
+  message, so the writer's refusal, naming what replaces it, is what the user
+  sees.
+
+  Known limitations: the language check counts about fifteen common words of
+  each language, so it tells Spanish from English and nothing else; a short
+  section, or a section of names and figures, is never judged; a quote not
+  in quotation marks counts as text, and a summary written wholly inside
+  quotes or fenced code blocks would pass (review F5); an unclosed code
+  fence is counted as text; a section whose prose is all in a table is
+  judged only as part of the whole summary. Whether each type's stance
+  really changes what Gemini writes is judged by the owner on the real run,
+  not by a test. status keeps its guides as before, as the proposal's table
+  and criterion 1 say, although the proposal's example reads its decisions
+  against what was agreed before (review F4); its own "Delta since last
+  meeting" section already does. A summary with a wrong frame mention is now
+  refused although its Markdown could be read, and whether the retry comes
+  back right was not measured (review F3). The frame rule is copied from the
+  report: the parity test has five fixed cases, a folder entry that is a
+  directory named like a frame, or a name differing only in case on Windows,
+  makes the two disagree (review F6, F7); the report can still refuse a
+  summary for reasons this check does not cover (a "#" line that is not a
+  heading, a frame file that cannot be embedded). The note on the retired
+  type is also added for a meeting whose title ends in "(discovery)" (F8).
+  Without a saved key, or with frames not yet read, the command says so
+  before it says that a retired type was replaced; nothing is sent.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3JS6BH8TTPN0C76NFB7E6N6/**
+  - docs/evidence/01M3JS6BH8TTPN0C76NFB7E6N6/**
+  - meetingtool/summary/**
+  - tests/test_summary.py
+  - README.md
+acceptance:
+  - id: WI12-AC01
+    description: >
+      presale, negotiation and requirements ask for their own sections, in
+      Spanish and in English, placed after the participants, and a summary
+      missing any of them is retried once and refused, with nothing written;
+      no type, kickoff, status, technical and training keep their sections,
+      their place and their guides as before.
+  - id: WI12-AC02
+    description: >
+      Each of the three new types changes the request for the whole summary:
+      its stance comes before the sections, the guide of the decisions is
+      different for each of them and for no type, and in a requirements
+      meeting the executive summary and the pending items are about what is
+      still unknown.
+  - id: WI12-AC03
+    description: >
+      A meeting stored in a project with the retired discovery type is still
+      listed and read into the next summary, with a note saying what the old
+      type covered; a new summary cannot take the retired type, is told what
+      replaces it, and sends nothing.
+  - id: WI12-AC04
+    description: >
+      The language asked for wins over the meeting's; a summary in the other
+      language, even with the right headings, or with one section in the
+      other language, is retried once and refused, naming the language or
+      the section, and nothing is written or added; quotes in the other
+      language, and a few words of it in a section, are accepted; without a
+      language, the transcript's is used.
+  - id: WI12-AC05
+    description: >
+      With a type and a language, the key appears in no output, request body
+      or file, and the same spend budget applies: a request that could go
+      over it is not sent.
+  - id: WI12-AC06
+    description: >
+      One real run on the owner's meeting of D-167 (INGOL D-167), on his
+      machine, with his paid key: four summaries (presale, negotiation and
+      requirements in Spanish, and requirements in English), with a budget of
+      US$0.50 in total, each run given what is left of it. The frames read by
+      WI09's run are reused, so they are not paid again. Recorded under
+      docs/evidence/01M3JS6BH8TTPN0C76NFB7E6N6/ as numbers only. The owner
+      reads the four summaries in his data folder, outside any repository,
+      and judges whether the reading changes; they are deleted when he says.
+      At the owner's request (session 114), the Word report is built from the
+      requirements summary, since he reads the meeting as the discovery of a
+      project.
+  - id: WI12-AC08
+    description: >
+      A summary that names a frame not in the frames folder, or mentions a
+      frame without its file name in square brackets, is retried once and
+      refused, naming the frame or the line, and nothing is written; on the
+      same cases the summary's check and the report's agree; the check,
+      applied without any new request to the four real summaries of
+      WI12-AC06, refuses exactly the two the report refused.
+  - id: WI12-AC07
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3JS6BH8TTPN0C76NFB7E6N6/ before the pull request
+      (INGOL D-163).

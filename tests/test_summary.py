@@ -37,10 +37,12 @@ def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=
     for heading in headings:
         if heading == drop:
             continue
-        if heading == writer.KEY_POINTS[language]:
+        if heading == writer.KEY_POINTS[language] and language == "en":
+            body = "- John sends the detail on Friday\n- The total is above what was expected" if points else "(none)"
+        elif heading == writer.KEY_POINTS[language]:
             body = "- Juan manda el detalle el viernes\n- El total supera lo esperado" if points else "(ninguno)"
         else:
-            body = f"Texto de {heading}."
+            body = f"The text of {heading}." if language == "en" else f"Texto de {heading}."
         parts.append(f"## {heading}\n{body}")
         if heading == repeat:
             parts.append(f"## {heading}\nOtra vez.")
@@ -315,6 +317,345 @@ class ReviewCorrectionsTest(Workspace):
             with self.assertRaises(gemini.ReadingError):
                 self.summarise(fake, max_cost_usd=just_the_output + 0.0001)
         self.assertEqual(fake.requests, [])
+
+
+NEW_TYPES = ("presale", "negotiation", "requirements")
+# The sections of every type as they were before D-178: they must not change.
+UNCHANGED = {
+    None: ["Resumen ejecutivo", "Participantes", "Decisiones", "Tareas", "Lo que se vio en pantalla",
+           "Pendientes prometidos", "Temas", "Más allá de la agenda", "Puntos clave"],
+    "kickoff": ["Definición del proyecto", "Estructura del equipo"],
+    "status": ["Estado del proyecto", "Cambios desde la reunión anterior"],
+    "technical": ["Decisiones técnicas", "Análisis visual técnico", "Dependencias y riesgos técnicos"],
+    "training": ["Contexto de la capacitación", "Evaluación de comprensión", "Brechas y material de seguimiento",
+                 "Próximos pasos de adopción"],
+}
+
+
+def prompt_of(request):
+    return request["body"]["contents"][0]["parts"][0]["text"]
+
+
+def guide_in(prompt, heading):
+    """The guide the prompt gives under '## heading'."""
+    return prompt.split(f"\n## {heading}\n", 1)[1].split("\n## ", 1)[0].split("\n\n", 1)[0]
+
+
+class NewTypesTest(Workspace):
+    """WI12-AC01: the three new types ask for their sections and a summary
+    without them is not complete; the other types stay as they were."""
+
+    def test_each_new_type_is_accepted_with_its_sections_in_both_languages(self):
+        for meeting_type in NEW_TYPES:
+            for language in ("es", "en"):
+                with self.subTest(meeting_type=meeting_type, language=language):
+                    headings = writer.required_headings(language, meeting_type)
+                    own = writer.MEETING_TYPES[meeting_type].headings[language]
+                    self.assertEqual(headings[2:2 + len(own)], own, "its own sections come after the participants")
+                    text = summary_text(language, meeting_type)
+                    self.assertEqual(writer.check_summary(answer(text), headings, language), text)
+
+    def test_a_summary_missing_any_section_of_its_type_is_refused(self):
+        for meeting_type in NEW_TYPES:
+            for heading in writer.MEETING_TYPES[meeting_type].headings["es"]:
+                with self.subTest(meeting_type=meeting_type, heading=heading):
+                    with FakeGemini([returning(summary_text(meeting_type=meeting_type, drop=heading))] * 2) as fake:
+                        with self.assertRaises(writer.SummaryError) as caught:
+                            self.summarise(fake, meeting_type=meeting_type)
+                    self.assertIn(f"'{heading}' 0 times", str(caught.exception))
+                    self.assertEqual(len(fake.requests), 2)
+                    self.assertFalse(self.output().exists())
+
+    def test_a_summary_without_a_type_is_not_complete_for_a_new_type(self):
+        for meeting_type in NEW_TYPES:
+            with self.subTest(meeting_type=meeting_type):
+                with self.assertRaises(writer.SummaryError):
+                    writer.check_summary(answer(summary_text()), writer.required_headings("es", meeting_type), "es")
+
+    def test_the_other_types_keep_their_sections_their_place_and_their_guides(self):
+        self.assertEqual(writer.required_headings("es"), UNCHANGED[None])
+        for meeting_type, own in UNCHANGED.items():
+            if meeting_type is None:
+                continue
+            with self.subTest(meeting_type=meeting_type):
+                self.assertEqual(writer.required_headings("es", meeting_type),
+                                 UNCHANGED[None][:-1] + own + UNCHANGED[None][-1:])
+                prompt = writer.build_prompt([(4, "Ana", "Hola")], "[FRAME 1]", "es", meeting_type)
+                self.assertNotIn("MEETING TYPE:", prompt)
+                for heading, guide in zip(writer.SECTIONS["es"], writer.GUIDE):
+                    self.assertEqual(guide_in(prompt, heading), guide)
+
+    def test_the_command_offers_the_new_types_and_not_the_retired_one(self):
+        result = subprocess.run([sys.executable, "-m", "meetingtool.summary", "--help"], cwd=REPOSITORY,
+                                capture_output=True, text=True)
+        for meeting_type in NEW_TYPES:
+            self.assertIn(meeting_type, result.stdout)
+        for meeting_type, words in (("discovery", "use 'presale' or 'requirements'"),
+                                    ("sales", "unknown meeting type 'sales'; one of presale, negotiation")):
+            stderr = io.StringIO()
+            with FakeGemini() as fake, contextlib.redirect_stderr(stderr):
+                code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type",
+                             meeting_type], read_key=lambda: KEY, endpoint=fake.endpoint)
+            self.assertEqual(code, 2)
+            self.assertIn(words, stderr.getvalue())
+            self.assertEqual(fake.requests, [])
+
+
+class StanceTest(Workspace):
+    """WI12-AC02: each new type changes the request for the whole summary,
+    not only the sections at its end."""
+
+    def prompts(self):
+        return {meeting_type: writer.build_prompt(read_turns(self.transcript), "[FRAME 1]", "es", meeting_type)
+                for meeting_type in (None,) + NEW_TYPES}
+
+    def test_each_new_type_sets_a_stance_before_the_sections(self):
+        for meeting_type, prompt in self.prompts().items():
+            with self.subTest(meeting_type=meeting_type):
+                if meeting_type is None:
+                    self.assertNotIn("MEETING TYPE:", prompt)
+                    continue
+                stance = f"MEETING TYPE: {meeting_type}. {writer.MEETING_TYPES[meeting_type].stance}"
+                self.assertIn(stance, prompt)
+                self.assertLess(prompt.index(stance), prompt.index("## Resumen ejecutivo"))
+
+    def test_each_new_type_changes_the_guide_of_the_decisions_and_they_all_differ(self):
+        guides = {meeting_type: guide_in(prompt, "Decisiones") for meeting_type, prompt in self.prompts().items()}
+        self.assertEqual(guides[None], writer.GUIDE[2])
+        self.assertEqual(len(set(guides.values())), len(guides), "every type reads the decisions its own way")
+
+    def test_in_a_discovery_the_pending_items_are_what_is_still_to_be_found_out(self):
+        prompts = self.prompts()
+        self.assertIn("still to be found out", guide_in(prompts["requirements"], "Pendientes prometidos"))
+        self.assertEqual(guide_in(prompts[None], "Pendientes prometidos"), writer.GUIDE[5])
+        self.assertIn("biggest unknowns", guide_in(prompts["requirements"], "Resumen ejecutivo"))
+        self.assertIn("signal, not a decision", prompts["presale"])
+
+    def test_the_request_sent_carries_the_stance(self):
+        with FakeGemini([returning(summary_text(meeting_type="requirements"))]) as fake:
+            self.summarise(fake, meeting_type="requirements")
+        prompt = prompt_of(fake.requests[0])
+        self.assertIn("MEETING TYPE: requirements.", prompt)
+        self.assertIn("## Proceso actual\nHow the client works today", prompt)
+
+
+class RetiredTypeTest(Workspace):
+    """WI12-AC03: a meeting stored with the retired type is still read."""
+
+    def setUp(self):
+        super().setUp()
+        store.create_project(self.data, "Acme", "Acme SA")
+        # As the code before D-178 stored it.
+        store.add_meeting(self.data, "acme", "Primera charla", "2026-09-01", meeting_type="discovery",
+                          summary="Relevamos el costo de proceso.", key_points=["Falta el detalle por planta"])
+
+    def test_the_old_meeting_is_listed_and_read_into_the_next_summary(self):
+        with FakeGemini([returning(summary_text(meeting_type="requirements"))]) as fake:
+            result = self.summarise(fake, project="acme", title="Relevamiento", date="2026-09-22",
+                                    meeting_type="requirements")
+        self.assertEqual([m["meeting_type"] for m in store.list_meetings(self.data, "acme")],
+                         ["discovery", "requirements"])
+        prompt = prompt_of(fake.requests[0])
+        self.assertIn("### 2026-09-01: Primera charla (discovery)", prompt)
+        self.assertIn("- Falta el detalle por planta", prompt)
+        self.assertIn("A meeting marked (discovery) above used a meeting type that no longer exists", prompt)
+        self.assertTrue(result.meeting_id)
+
+    def test_the_note_is_only_there_when_an_old_meeting_is(self):
+        prompt = writer.build_prompt([(4, "Ana", "Hola")], "[FRAME 1]", "es", knowledge="### 2026-09-01: X (status)\n")
+        self.assertNotIn("no longer exists", prompt)
+
+    def test_a_new_summary_cannot_take_the_retired_type_and_is_told_what_replaces_it(self):
+        with FakeGemini() as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake, meeting_type="discovery")
+        self.assertIn("'presale' or 'requirements'", str(caught.exception))
+        self.assertEqual(fake.requests, [])
+
+
+class LanguageControlTest(Workspace):
+    """WI12-AC04: the language asked for wins over the meeting's, and a
+    summary in the other language is not delivered."""
+
+    def test_the_language_asked_for_is_the_one_requested_whatever_the_meeting(self):
+        write_teams_docx(self.transcript, ENGLISH)
+        with FakeGemini([returning(summary_text("es", "requirements"))]) as fake:
+            result = self.summarise(fake, language="es", meeting_type="requirements")
+        prompt = prompt_of(fake.requests[0])
+        self.assertEqual(result.language, "es")
+        self.assertIn("Write the summary in Spanish.", prompt)
+        self.assertIn(writer.LANGUAGE_RULE.format(name="Spanish"), prompt)
+        self.assertIn("## Proceso actual", prompt)
+        self.assertIn("[00:00:04] Ann Parker: Good morning", prompt)
+
+    def test_a_summary_in_the_other_language_is_retried_once_then_refused(self):
+        # Spanish headings, English text: the headings alone would pass.
+        english_body = summary_text("es").replace("Texto de", "This is the text of the")
+        english_body = english_body.replace("- Juan manda el detalle el viernes", "- John sends it on Friday")
+        english_body = english_body.replace("- El total supera lo esperado", "- The total is above what we expected")
+        store.create_project(self.data, "Acme", "Acme SA")
+        with FakeGemini([returning(english_body)] * 2) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake, language="es", project="acme", title="T", date="2026-09-22")
+        self.assertIn("not in Spanish", str(caught.exception))
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+        self.assertEqual(store.list_meetings(self.data, "acme"), [])
+
+    def test_a_wrong_language_then_the_right_one_is_delivered(self):
+        # English headings, Spanish text, then a summary wholly in English.
+        spanish_body = summary_text("en").replace("The text of", "Texto de la sección").replace(
+            "- John sends the detail on Friday", "- Juan manda el detalle el viernes").replace(
+            "- The total is above what was expected", "- El total está por encima de lo esperado")
+        with FakeGemini([returning(spanish_body), returning(summary_text("en"))]) as fake:
+            result = self.summarise(fake, language="en")
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text("en"))
+
+    def test_one_section_in_the_other_language_is_refused_and_named(self):
+        text = summary_text("es").replace(
+            "Texto de Temas.", "The team said that it is the cost of the plant and that this is the topic.")
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(text), writer.required_headings("es"), "es")
+        self.assertIn("the section 'Temas' is not in Spanish", str(caught.exception))
+
+    def test_quotes_keep_their_language_and_do_not_count(self):
+        quote = ('"We have to see the total of the column, it is what the board is asking for, and it is not '
+                 'there yet" (tenemos que ver el total de la columna)')
+        text = summary_text("es").replace("Texto de Temas.", f"Texto de Temas. Juan dijo: {quote}.")
+        self.assertEqual(writer.check_summary(answer(text), writer.required_headings("es"), "es"), text)
+        english = summary_text("en").replace("The text of Key topics.", 'The text of Key topics: «que el total de la '
+                                             'columna es lo que pide el directorio y no está» (the total is missing).')
+        self.assertEqual(writer.check_summary(answer(english), writer.required_headings("en"), "en"), english)
+
+    def test_code_and_tables_of_labels_seen_on_screen_keep_their_language(self):
+        """The review's F1: a query seen on screen, or a table of the labels
+        of a Spanish spreadsheet, made a section look foreign."""
+        query = ("```sql\nSELECT total FROM cost WHERE plant IS NOT NULL AND line = 'fillet' AND total IS NOT NULL\n"
+                 "AND year = 2026 AND month IS NOT NULL AND this = that AND it = the\n```")
+        text = summary_text("es", "technical").replace("Texto de Análisis visual técnico.",
+                                                       f"Texto de Análisis visual técnico:\n\n{query}")
+        self.assertEqual(writer.check_summary(answer(text), writer.required_headings("es", "technical"), "es"), text)
+        table = ("| Frame | Label on screen | Value |\n| --- | --- | --- |\n"
+                 "| 1 | Costo de la planta de proceso y de la línea | 1.250 |\n"
+                 "| 2 | Total de la columna de gastos y de los fletes para la planta | 3.400 |")
+        english = summary_text("en").replace("The text of What was on screen.", f"The text of What was on screen:\n\n{table}")
+        self.assertEqual(writer.check_summary(answer(english), writer.required_headings("en"), "en"), english)
+
+    def test_a_section_whose_prose_is_in_the_other_language_is_still_refused_next_to_a_table(self):
+        table = "| Frame | Value |\n| --- | --- |\n| 1 | 1.250 |"
+        text = summary_text("es").replace(
+            "Texto de Temas.", f"{table}\n\nThe team said that it is the cost of the plant and that this is the topic.")
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(text), writer.required_headings("es"), "es")
+        self.assertIn("the section 'Temas' is not in Spanish", str(caught.exception))
+
+    def test_a_few_words_of_the_other_language_in_a_section_are_not_judged(self):
+        # Six common Spanish words, none English: below the threshold of eight.
+        text = summary_text("en").replace("The text of Key topics.", "Costo de la planta y de la línea de proceso.")
+        self.assertEqual(writer.check_summary(answer(text), writer.required_headings("en"), "en"), text)
+
+    def test_the_default_is_still_the_transcripts_language(self):
+        write_teams_docx(self.transcript, ENGLISH)
+        with FakeGemini([returning(summary_text("en", "presale"))]) as fake:
+            self.assertEqual(self.summarise(fake, meeting_type="presale").language, "en")
+        self.assertIn("## Client problems", prompt_of(fake.requests[0]))
+
+
+class KeyAndBudgetWithTypesTest(Workspace):
+    """WI12-AC05: the key never appears and the same budget applies, with a
+    type and a language."""
+
+    def test_the_key_never_appears_with_a_type_and_a_language(self):
+        outputs = []
+        spanish_body = summary_text("en", "requirements").replace("The text of", "Texto de la sección")
+        scripts = ([returning(summary_text("en", "requirements"))], [returning(spanish_body)] * 2)
+        for script in scripts:
+            stdout, stderr = io.StringIO(), io.StringIO()
+            with FakeGemini(script) as fake, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
+                code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type",
+                             "requirements", "--language", "en"],
+                            read_key=lambda: KEY, endpoint=fake.endpoint, sleep=self.sleeps.append)
+            outputs.append((code, stdout.getvalue() + stderr.getvalue()))
+            self.assertNotIn(KEY, json.dumps(fake.requests[0]["body"]) + fake.requests[0]["path"])
+        self.assertEqual([code for code, _ in outputs], [0, 2])
+        self.assertIn("not in English", outputs[1][1])
+        for _, text in outputs:
+            self.assertNotIn(KEY, text)
+        for path in self.frames.iterdir():
+            self.assertNotIn(KEY, path.read_text(encoding="utf-8"))
+
+    def test_a_typed_request_that_could_go_over_the_budget_is_not_sent(self):
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError) as caught:
+                self.summarise(fake, meeting_type="negotiation", language="en", max_cost_usd=0.05)
+        self.assertIn("budget of US$0.05", str(caught.exception))
+        self.assertEqual(fake.requests, [])
+
+
+class NamedFramesTest(Workspace):
+    """WI12-AC08, found by the real run: the English summary named a frame
+    that does not exist, the number of one frame with the minute of the one
+    before, and the report refused it. A summary is now delivered only if the
+    report could embed every frame it names."""
+
+    def setUp(self):
+        super().setUp()
+        for name in ("frame_001_t00-01-22.jpg", "frame_002_t00-05-00.jpg"):
+            (self.frames / name).write_bytes(b"")
+
+    def with_frames(self, mention):
+        return summary_text().replace("Texto de Lo que se vio en pantalla.",
+                                      f"Texto de Lo que se vio en pantalla: {mention}, con el total de la columna.")
+
+    def test_a_summary_naming_frames_that_exist_is_delivered(self):
+        text = self.with_frames("[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]")
+        with FakeGemini([returning(text)]) as fake:
+            self.summarise(fake)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+
+    def test_a_frame_that_is_not_in_the_folder_is_retried_once_then_refused(self):
+        # The real case: frame 002's number with frame 001's minute.
+        text = self.with_frames("[frame_002_t00-01-22.jpg]")
+        with FakeGemini([returning(text)] * 2) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertIn("not in the frames folder: frame_002_t00-01-22.jpg", str(caught.exception))
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_a_frame_mentioned_without_its_file_name_is_refused(self):
+        for mention in ("(frame_001, t00:01:22)", "[frames_001-002]", "frame_001_t00-01-22.jpg"):
+            with self.subTest(mention=mention):
+                with self.assertRaises(writer.SummaryError) as caught:
+                    writer.check_summary(answer(self.with_frames(mention)), writer.required_headings("es"), "es",
+                                         {"frame_001_t00-01-22.jpg"})
+                self.assertIn("without its file name in square brackets", str(caught.exception))
+
+    def test_a_wrong_frame_then_a_right_one_is_delivered(self):
+        with FakeGemini([returning(self.with_frames("[frame_003_t00-09-00.jpg]")),
+                         returning(self.with_frames("[frame_001_t00-01-22.jpg]"))]) as fake:
+            self.assertEqual(self.summarise(fake).attempts, 2)
+
+    def test_the_summary_and_the_report_agree_on_every_case(self):
+        from meetingtool.report import document
+        cases = ["[frame_001_t00-01-22.jpg]", "[frame_002_t00-01-22.jpg]", "(frame_001, t00:01:22)",
+                 "[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]", "sin imágenes"]
+        names = {path.name for path in gemini.frame_files(self.frames)}
+        for mention in cases:
+            with self.subTest(mention=mention):
+                text = self.with_frames(mention)
+                try:
+                    writer.check_frames(text, names)
+                    summary_accepts = True
+                except writer.SummaryError:
+                    summary_accepts = False
+                try:
+                    document.cited_frames(text, self.frames)
+                    report_accepts = True
+                except document.ReportError:
+                    report_accepts = False
+                self.assertEqual(summary_accepts, report_accepts)
 
 
 if __name__ == "__main__":
