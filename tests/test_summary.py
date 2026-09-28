@@ -597,7 +597,8 @@ class NamedFramesTest(Workspace):
     """WI12-AC08, found by the real run: the English summary named a frame
     that does not exist, the number of one frame with the minute of the one
     before, and the report refused it. A summary is now delivered only if the
-    report could embed every frame it names."""
+    report could embed every frame it names. INGOL D-181 (WI13) adds the
+    owner's rule for which frames to name, and refuses a range."""
 
     def setUp(self):
         super().setUp()
@@ -640,7 +641,7 @@ class NamedFramesTest(Workspace):
     def test_the_summary_and_the_report_agree_on_every_case(self):
         from meetingtool.report import document
         cases = ["[frame_001_t00-01-22.jpg]", "[frame_002_t00-01-22.jpg]", "(frame_001, t00:01:22)",
-                 "[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]", "sin imágenes"]
+                 "[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]", "sin imágenes"] + RANGES + NOT_RANGES
         names = {path.name for path in gemini.frame_files(self.frames)}
         for mention in cases:
             with self.subTest(mention=mention):
@@ -656,6 +657,76 @@ class NamedFramesTest(Workspace):
                 except document.ReportError:
                     report_accepts = False
                 self.assertEqual(summary_accepts, report_accepts)
+
+    # INGOL D-181: every frame the summary names goes into the Word report,
+    # so the request says which screens are worth naming, and two frames
+    # named as a range (the report showed their two ends, which nobody
+    # chose) are refused like a missing frame.
+
+    def test_every_request_carries_the_owners_rule_before_the_sections(self):
+        for language in writer.SECTIONS:
+            for meeting_type in (None,) + tuple(writer.MEETING_TYPES):
+                with self.subTest(language=language, meeting_type=meeting_type):
+                    prompt = writer.build_prompt(read_turns(self.transcript), "[FRAME 1]", language, meeting_type)
+                    self.assertEqual(prompt.count(writer.FRAME_RULE), 1)
+                    self.assertLess(prompt.index(writer.FRAME_RULE),
+                                    prompt.index(f"## {writer.SECTIONS[language][0]}"))
+                    screen = guide_in(prompt, writer.SECTIONS[language][4])
+                    self.assertIn("rule for frames", screen)
+                    self.assertNotIn("For each relevant frame", screen)
+
+    def test_the_rule_says_what_the_owner_asked(self):
+        rule = " ".join(writer.FRAME_RULE.split())
+        for words in ("write down by hand", "the reason the screen was shared", "a file explorer, email, a calendar",
+                      "a transition between two views", "rows or areas without data",
+                      "one frame for each distinct thing shown", "column and row headings visible",
+                      "never a range of frames"):
+            self.assertIn(words, rule)
+
+    def test_the_request_sent_carries_the_rule(self):
+        with FakeGemini([returning(summary_text())]) as fake:
+            self.summarise(fake)
+        self.assertIn(writer.FRAME_RULE, prompt_of(fake.requests[0]))
+
+    def test_a_range_is_retried_once_then_refused_and_nothing_is_written(self):
+        with FakeGemini([returning(self.with_frames(RANGES[0]))] * 2) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertIn("a range of frames instead of each frame on its own", str(caught.exception))
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_every_way_of_writing_a_range_is_refused_and_two_frames_are_not_a_range(self):
+        names = {"frame_001_t00-01-22.jpg", "frame_002_t00-05-00.jpg"}
+        for mention in RANGES:
+            with self.subTest(mention=mention):
+                with self.assertRaises(writer.SummaryError):
+                    writer.check_frames(self.with_frames(mention), names)
+        for mention in NOT_RANGES:
+            with self.subTest(mention=mention):
+                writer.check_frames(self.with_frames(mention), names)
+
+    def test_a_range_then_each_frame_on_its_own_is_delivered(self):
+        text = self.with_frames(NOT_RANGES[1])
+        with FakeGemini([returning(self.with_frames(RANGES[0])), returning(text)]) as fake:
+            self.assertEqual(self.summarise(fake).attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+
+
+# Written as the real summaries of INGOL D-178 wrote them, and in the other
+# ways a range is said in Spanish and English.
+RANGES = ["`[frame_001_t00-01-22.jpg]` a `[frame_002_t00-05-00.jpg]`",
+          "[frame_001_t00-01-22.jpg] – [frame_002_t00-05-00.jpg]",
+          "[frame_001_t00-01-22.jpg]-[frame_002_t00-05-00.jpg]",
+          "desde [frame_001_t00-01-22.jpg] hasta [frame_002_t00-05-00.jpg]",
+          "entre [frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]",
+          "[frame_001_t00-01-22.jpg] to [frame_002_t00-05-00.jpg]",
+          "[frame_001_t00-01-22.jpg] through the [frame_002_t00-05-00.jpg]",
+          "[frame_001_t00-01-22.jpg] … [frame_002_t00-05-00.jpg]"]
+NOT_RANGES = ["[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]",
+              "[frame_001_t00-01-22.jpg], la tabla; y [frame_002_t00-05-00.jpg], el total",
+              "[frame_001_t00-01-22.jpg] and [frame_002_t00-05-00.jpg]",
+              "[frame_001_t00-01-22.jpg] a la derecha del total"]
 
 
 if __name__ == "__main__":

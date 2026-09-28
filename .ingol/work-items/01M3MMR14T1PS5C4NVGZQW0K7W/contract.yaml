@@ -1,0 +1,97 @@
+schema_version: "1"
+id: 01M3MMR14T1PS5C4NVGZQW0K7W
+objective: >
+  The summary names only the screens worth showing, and so the Word report
+  shows only those (INGOL decision D-181, the owner's first judgement of the
+  requirements report of D-178). Every frame the summary names goes into the
+  report; until now the request asked for "each relevant frame" and never
+  said what is relevant, and the owner found five images that should not be
+  there: a file explorer, an Outlook invitation the summary itself called a
+  detour, a frame repeating the one before with another zoom, rows without
+  data in a transition, and a frame without its column headings where the
+  same four minutes held better ones. The last two were the two ends of a
+  range the summary named ("frame 48 to frame 72"), which the report showed
+  as two images nobody chose.
+
+  The owner's rule goes into the request for every type and language, before
+  the sections: name a frame only if it shows information someone would
+  otherwise have to write down by hand, and that reading the image gives
+  faster (a data model, a spreadsheet's structure, the values discussed),
+  and only if that was why the screen was shared; never navigation or a
+  detour (file explorer, email, calendar, desktop, loading screen, a
+  transition, rows or areas without data, people on camera), which may be
+  described in words without naming the frame; one frame for each distinct
+  thing shown, the one that shows it best (headings and the values discussed
+  visible, least empty area); each frame on its own, never a range. The
+  guide of the on-screen section points to the rule instead of asking for
+  each relevant frame.
+
+  Two frames named as a range ("[a] a [b]", "desde [a] hasta [b]",
+  "entre [a] y [b]", "[a] to [b]", a dash or an ellipsis between them) are
+  refused like a missing frame: the summary is retried once and then not
+  delivered, and the report refuses to build from it. The pattern is
+  written once, in the summary module, and the report uses it, so the two
+  keep agreeing. Two frames named one after the other ("[a] y [b]") are not
+  a range.
+
+  Not done: the summary's text is not changed otherwise (the owner judged it
+  good; its comments change only where it names better images); the frames
+  kept by the extraction are not changed; no new request or model is added.
+
+  Known limitations: only the range is checked by the code. Whether the
+  summary leaves out navigation and detours, names one frame per thing
+  shown and picks the best one is asked of Gemini, not checked; the real run
+  measures it on the owner's five cases, and a second meeting is not
+  measured. The range pattern reads Spanish and English connectors on one
+  line; a range written across two lines, or in other words ("frames 48 on"),
+  is not caught, and the report would show whatever frames are named. A
+  sentence where "a" joins two frame names without meaning a range is
+  refused too, and retried.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3MMR14T1PS5C4NVGZQW0K7W/**
+  - docs/evidence/01M3MMR14T1PS5C4NVGZQW0K7W/**
+  - meetingtool/summary/**
+  - meetingtool/report/document.py
+  - tests/test_summary.py
+  - tests/test_report.py
+  - README.md
+acceptance:
+  - id: WI13-AC01
+    description: >
+      The request for every meeting type (and none), in Spanish and in
+      English, carries the owner's rule for which frames to name once,
+      before the sections, and the guide of the on-screen section points to
+      it and no longer asks for each relevant frame.
+  - id: WI13-AC02
+    description: >
+      A summary naming two frames as a range is retried once and then
+      refused, naming the range, and nothing is written; after a range, a
+      summary naming each frame on its own is delivered; two frames named
+      one after the other are not a range; the report refuses to build from
+      a range and writes nothing; on the same cases the summary's check and
+      the report's agree.
+  - id: WI13-AC03
+    description: >
+      Applied without any request to the five real summaries in the owner's
+      data folder, the check refuses the three that name ranges (or, as
+      before, a frame that does not exist) and accepts the two that do not.
+  - id: WI13-AC04
+    description: >
+      One real run on the owner's meeting of D-167, requirements type, in
+      Spanish, with his paid key and a budget of US$0.15, reusing the frames
+      and their reading from D-178's run (copied into a new folder in his
+      data folder, so they are not paid again and his earlier summaries stay
+      as they are), and the Word report built from it. Passes only if none
+      of the owner's five cases comes back: the file explorer (5:30) and the
+      Outlook invitation (26:09) not named, not both 31:41 and 31:47, the
+      transition at 1:01:34 not named, and no range. Recorded under
+      docs/evidence/01M3MMR14T1PS5C4NVGZQW0K7W/ as numbers and frame minutes
+      only. The owner judges the images of the new report.
+  - id: WI13-AC05
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3MMR14T1PS5C4NVGZQW0K7W/ before the pull request
+      (INGOL D-163).

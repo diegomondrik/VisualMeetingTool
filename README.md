@@ -63,6 +63,15 @@ summary that is cut short, missing a section, in the wrong language, or
 naming a frame the report could not embed is retried once and never
 delivered.
 
+Every frame the summary names goes into the report, so the summary is asked
+to name only the screens that were shared to show content someone would
+otherwise write down by hand (a data model, the structure of a spreadsheet,
+the values discussed), never navigation or a detour (a file explorer, email,
+a transition, rows without data), and one frame for each thing shown: the one
+that shows it best, with its headings and the values discussed visible. Two
+frames named as a range ("from one to the other") are refused like a missing
+frame: the report would show their two ends, which nobody chose.
+
 `--type` says what kind of meeting it was. `presale` (preventa),
 `negotiation` (venta o negociación) and `requirements` (relevamiento de un
 proyecto a desarrollar) change how the whole meeting is read, not only add
@@ -92,8 +101,9 @@ python -m meetingtool.report build --frames <frames folder> [--title "<meeting t
 
 It is written to `summary.docx` next to `summary.md`. Only the frames the
 summary names are embedded, each after the paragraph that first names it,
-with the minute of the meeting it shows. A named frame that is missing, or a
-mention that names no frame file, stops the build and is named. The document
+with the minute of the meeting it shows. A named frame that is missing, a
+mention that names no frame file, or two frames named as a range, stops the
+build and is named. The document
 is opened again before it is delivered: if a section or an image is missing,
 it is not delivered.
 

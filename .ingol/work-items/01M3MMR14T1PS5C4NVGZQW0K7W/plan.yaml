@@ -1,0 +1,48 @@
+schema_version: "1"
+work_item: 01M3MMR14T1PS5C4NVGZQW0K7W
+status: proposed
+next_gate: owner-approval-of-the-contract-then-the-real-run
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3MMR14T1PS5C4NVGZQW0K7W-screen-selection
+steps:
+  - put-the-owners-frame-rule-in-every-request-wi13-ac01
+  - refuse-a-range-in-the-summary-and-the-report-wi13-ac02
+  - check-the-five-real-summaries-without-a-request-wi13-ac03
+  - real-run-requirements-summary-and-report-wi13-ac04
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi13-ac05
+evaluations:
+  - criterion: WI13-AC01
+    method: adversarial
+    control: >-
+      tests/test_summary.py NamedFramesTest on the request built for Gemini
+      and on the request sent to the fake Gemini on localhost; with the rule
+      left out, the on-screen guide asking again for each relevant frame, or
+      the rule losing the transitions and empty rows, a test fails, recorded
+      in mutations.txt.
+  - criterion: WI13-AC02
+    method: adversarial
+    control: >-
+      tests/test_summary.py NamedFramesTest (including the parity test
+      against meetingtool.report.document.cited_frames, extended with every
+      range and non-range case) and tests/test_report.py RefusalTest; with
+      the range check removed from the summary or the report, a connector
+      dropped from the pattern, or "y" read as a range, a test fails,
+      recorded in mutations.txt.
+  - criterion: WI13-AC03
+    method: deterministic
+    control: >-
+      existing-summaries-check.txt: the check run on the five real summaries
+      with no request; only counts and the verdicts are recorded.
+  - criterion: WI13-AC04
+    method: external-evidence
+    control: >-
+      One real run with the owner's paid key, --type requirements --language
+      es --max-cost 0.15, on a copy of D-178's frames folder; the frames it
+      names listed by minute and compared with the five cases; the Word
+      report built and opened by Word; commit only numbers and minutes.
+  - criterion: WI13-AC05
+    method: deterministic
+    control: >-
+      python -m unittest discover -s tests -v in a fresh clone of the tested
+      commit; complete output committed.
