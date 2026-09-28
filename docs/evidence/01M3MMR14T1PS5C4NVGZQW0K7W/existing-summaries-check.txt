@@ -1,9 +1,9 @@
-WI13-AC03: the new range check applied, with no request, to the five real summaries in the
+WI13-AC03: the range check applied, with no request, to the five real summaries in the
 owner's data folder (outside any repository; contents are client data and are not copied here).
-Tree: work-item branch before its first commit, on main 477ae6d.
+Code: 4553284 (plus any uncommitted change in the working tree).
 
 d178-relevamiento: frames named 11, ranges 3; summary check refused (the summary names a range of frames instead of each frame on its own); report refused
 d178-preventa: frames named 7, ranges 0; summary check accepted; report accepted
 d178-venta: frames named 17, ranges 3; summary check refused (the summary names a range of frames instead of each frame on its own); report refused
 d178-relevamiento-en: frames named 19, ranges 7; summary check refused (the summary names frame(s) that are not in the frames folder); report refused
-wi09-frames: frames named 12, ranges 0; summary check accepted; report accepted
+wi09-frames: frames named 12, ranges 3; summary check refused (the summary names a range of frames instead of each frame on its own); report refused

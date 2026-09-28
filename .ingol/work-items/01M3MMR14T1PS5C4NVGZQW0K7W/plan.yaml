@@ -27,18 +27,19 @@ evaluations:
       against meetingtool.report.document.cited_frames, extended with every
       range and non-range case) and tests/test_report.py RefusalTest; with
       the range check removed from the summary or the report, a connector
-      dropped from the pattern, or "y" read as a range, a test fails,
+      dropped from the pattern, bold names or "y" read as a range, a test fails,
       recorded in mutations.txt.
   - criterion: WI13-AC03
     method: deterministic
     control: >-
-      existing-summaries-check.txt: the check run on the five real summaries
-      with no request; only counts and the verdicts are recorded.
+      existing_summaries_check.py and its output existing-summaries-check.txt:
+      the check run on the five real summaries with no request; only counts and the verdicts are recorded.
   - criterion: WI13-AC04
     method: external-evidence
     control: >-
       One real run with the owner's paid key, --type requirements --language
-      es --max-cost 0.15, on a copy of D-178's frames folder; the frames it
+      es, first --max-cost 0.15 (stopped before its retry) and then
+      --max-cost 0.50 (INGOL D-182), on a copy of D-178's frames folder; the frames it
       names listed by minute and compared with the five cases; the Word
       report built and opened by Word; commit only numbers and minutes.
   - criterion: WI13-AC05

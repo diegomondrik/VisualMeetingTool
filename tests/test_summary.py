@@ -736,11 +736,18 @@ RANGES = ["`[frame_001_t00-01-22.jpg]` a `[frame_002_t00-05-00.jpg]`",
           "entre [frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]",
           "[frame_001_t00-01-22.jpg] to [frame_002_t00-05-00.jpg]",
           "[frame_001_t00-01-22.jpg] through the [frame_002_t00-05-00.jpg]",
-          "[frame_001_t00-01-22.jpg] … [frame_002_t00-05-00.jpg]"]
+          "[frame_001_t00-01-22.jpg] … [frame_002_t00-05-00.jpg]",
+          # Found by the independent review (P2-1): bold names and arrows got through.
+          "**[frame_001_t00-01-22.jpg]** a **[frame_002_t00-05-00.jpg]**",
+          "[frame_001_t00-01-22.jpg] -> [frame_002_t00-05-00.jpg]",
+          "[frame_001_t00-01-22.jpg] → [frame_002_t00-05-00.jpg]",
+          "[frame_001_t00-01-22.jpg] -- [frame_002_t00-05-00.jpg]"]
 NOT_RANGES = ["[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]",
               "[frame_001_t00-01-22.jpg], la tabla; y [frame_002_t00-05-00.jpg], el total",
               "[frame_001_t00-01-22.jpg] and [frame_002_t00-05-00.jpg]",
-              "[frame_001_t00-01-22.jpg] a la derecha del total"]
+              "[frame_001_t00-01-22.jpg] a la derecha del total",
+              "**[frame_001_t00-01-22.jpg]** y **[frame_002_t00-05-00.jpg]**",
+              "| [frame_001_t00-01-22.jpg] | - | [frame_002_t00-05-00.jpg] |"]
 
 
 if __name__ == "__main__":

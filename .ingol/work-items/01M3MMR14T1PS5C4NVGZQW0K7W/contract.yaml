@@ -40,6 +40,13 @@ objective: >
   had been refused. A stop by the budget after a refused answer now says
   why that answer was refused.
 
+  Corrected after the independent review of 4553284 (P2-1): names in bold
+  or italics ("**[a]** a **[b]**") and arrows or a double dash between two
+  names ("->", "→", "--") are read as a range too. Run again on the five real
+  summaries, this found three bold ranges in WI09's summary, the one behind
+  the first Word report the owner judged (summary-neutral.docx), which the
+  first pattern had let through.
+
   Not done: the summary's text is not changed otherwise (the owner judged it
   good; its comments change only where it names better images); the frames
   kept by the extraction are not changed; no new request or model is added.
@@ -49,10 +56,17 @@ objective: >
   shown and picks the best one is asked of Gemini, not checked; the real run
   measures it on the owner's five cases, and a second meeting is not
   measured. The range pattern reads Spanish and English connectors on one
-  line; a range written across two lines, or in other words ("frames 48 on"),
-  is not caught, and the report would show whatever frames are named. A
-  sentence where "a" joins two frame names without meaning a range is
-  refused too, and retried.
+  line; a range written across two lines, with other text between a name and
+  the connector ("[a] (5:27) a [b]", "entre [a], y [b]", "between [a] and
+  the [b]"), or in other words ("frames 48 on"), is not caught, and the
+  report would show whatever frames are named (review P2-1). A sentence
+  where "a" or "al" joins two frame names without meaning a range is refused
+  too; if both answers do so, nothing is delivered and both are paid (P3-6).
+  A stop by the budget now prints the refusal of the answer before, which
+  for some checks includes up to 80 characters of the summary, client text
+  that must be left out of any evidence, as when the second answer is
+  refused (P3-4); after a refusal and then a network failure, it still names
+  the refusal (P3-5).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3MMR14T1PS5C4NVGZQW0K7W/**
@@ -81,14 +95,16 @@ acceptance:
   - id: WI13-AC03
     description: >
       Applied without any request to the five real summaries in the owner's
-      data folder, the check refuses the three that name ranges (or, as
-      before, a frame that does not exist) and accepts the two that do not.
+      data folder, by a committed script, the check refuses the four that
+      name ranges (one of them, as before, also for a frame that does not
+      exist) and accepts the one that does not.
   - id: WI13-AC04
     description: >
       One real run on the owner's meeting of D-167, requirements type, in
       Spanish, with his paid key (budget: US$0.15 approved; the first
-      run spent about US$0.05 and stopped before its retry; the owner is
-      asked to raise the total to US$0.25), reusing the frames
+      run spent about US$0.05 and stopped before its retry; the owner then
+      said a cap must not stop a needed document, INGOL D-182, and the run
+      was made again with the ceiling of D-173, US$0.50), reusing the frames
       and their reading from D-178's run (copied into a new folder in his
       data folder, so they are not paid again and his earlier summaries stay
       as they are), and the Word report built from it. Passes only if none

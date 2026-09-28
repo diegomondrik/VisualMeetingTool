@@ -3,12 +3,13 @@ working tree, `python -m unittest tests.test_summary tests.test_report` is run, 
 - rule left out of the request (AC01): exit 1, FAILED (failures=17) -> DETECTED
 - on-screen guide asks again for every relevant frame (AC01): exit 1, FAILED (failures=16) -> DETECTED
 - rule loses the transitions and empty rows (AC01): exit 1, FAILED (failures=1) -> DETECTED
-- range check removed from the summary (AC02): exit 1, FAILED (failures=19) -> DETECTED
-- range check removed from the report (AC02): exit 1, FAILED (failures=9) -> DETECTED
-- Spanish 'a' not read as a range (AC02): exit 1, FAILED (failures=5) -> DETECTED
-- a dash not read as a range (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- range check removed from the summary (AC02): exit 1, FAILED (failures=27) -> DETECTED
+- range check removed from the report (AC02): exit 1, FAILED (failures=13) -> DETECTED
+- Spanish 'a' not read as a range (AC02): exit 1, FAILED (failures=6) -> DETECTED
+- a dash not read as a range (AC02): exit 1, FAILED (failures=2) -> DETECTED
+- bold names not read as a range (review P2-1): exit 1, FAILED (failures=1) -> DETECTED
 - 'entre ... y' not read as a range (AC02): exit 1, FAILED (failures=1) -> DETECTED
-- two frames joined by 'y' read as a range (AC02): exit 1, FAILED (errors=3) -> DETECTED
+- two frames joined by 'y' read as a range (AC02): exit 1, FAILED (failures=7, errors=21) -> DETECTED
 - a stop by the budget no longer says why the answer before was refused (AC04 finding): exit 1, FAILED (failures=1) -> DETECTED
 - unmutated: exit 0, OK
 all mutations detected

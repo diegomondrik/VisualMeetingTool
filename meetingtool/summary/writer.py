@@ -202,9 +202,9 @@ FRAME_REF = re.compile(r"\[(frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg)\]")
 FRAME_LIKE = re.compile(r"\bframes?_", re.IGNORECASE)
 # Two frames named as the ends of a range ("[a] to [b]", "entre [a] y [b]"):
 # the report would show the two ends, which were never chosen (INGOL D-181).
-_NAMED = r"`?\[frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg\]`?"
+_NAMED = r"(?:`|\*{1,2}|_{1,2})?\[frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg\](?:`|\*{1,2}|_{1,2})?"
 FRAME_RANGE = re.compile(
-    rf"{_NAMED}\s*(?:-|–|—|…|\.{{2,3}}|\b(?:a|al|hasta|to|through|thru|till|until)\b)\s*(?:(?:el|la|the)\s+)?"
+    rf"{_NAMED}\s*(?:->|→|-{{1,2}}|–|—|…|\.{{2,3}}|\b(?:a|al|hasta|to|through|thru|till|until)\b)\s*(?:(?:el|la|the)\s+)?"
     rf"{_NAMED}|\b(?:entre|between)\s+{_NAMED}\s*(?:y|e|and)\s+{_NAMED}", re.IGNORECASE)
 # Which screens the summary may name, and so which images the report shows
 # (the owner's rule, INGOL D-181).

@@ -69,8 +69,10 @@ otherwise write down by hand (a data model, the structure of a spreadsheet,
 the values discussed), never navigation or a detour (a file explorer, email,
 a transition, rows without data), and one frame for each thing shown: the one
 that shows it best, with its headings and the values discussed visible. Two
-frames named as a range ("from one to the other") are refused like a missing
-frame: the report would show their two ends, which nobody chose.
+frames named as a range on one line ("from one to the other", with a dash or
+an arrow, in bold or not) are refused like a missing frame: the report would
+show their two ends, which nobody chose. The rest of the rule is asked of
+Gemini, not checked.
 
 `--type` says what kind of meeting it was. `presale` (preventa),
 `negotiation` (venta o negociación) and `requirements` (relevamiento de un
