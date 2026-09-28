@@ -1,9 +1,10 @@
-# local suite run for 01M3JS6BH8TTPN0C76NFB7E6N6 (INGOL D-163)
-date_utc: 2026-09-28T01:51:55Z
+# local suite run for 01M3JS6BH8TTPN0C76NFB7E6N6 (INGOL D-163), re-run after the review correction
+date_utc: 2026-09-28T02:41:11Z
 machine: owner's Windows machine; Python 3.12.10; git version 2.54.0.windows.1
 method: fresh git clone of the work-item branch, checked out at the tested commit, suite run from the clone root
-tested_commit: ebce3f17fe753ae559ba673f86d85e6c696dbb24
-tested_tree: d84a2805b37079f07ee5ed5999067aa7ea466023
+tested_commit: 063ee0bd07f16eb98cd6aa1f6890653c631aa05a
+tested_tree: 7e853060af6878e483911a92b2129509ac987691
+earlier run: ebce3f1, 179 tests OK
 python-docx: 1.2.0
 command: python -m unittest discover -s tests -v
 test_import_needs_only_the_standard_library (test_cli.VersionTest.test_import_needs_only_the_standard_library) ... ok
@@ -145,8 +146,11 @@ test_sections_out_of_order_are_refused (test_summary.IncompleteSummaryTest.test_
 test_a_typed_request_that_could_go_over_the_budget_is_not_sent (test_summary.KeyAndBudgetWithTypesTest.test_a_typed_request_that_could_go_over_the_budget_is_not_sent) ... ok
 test_the_key_never_appears_with_a_type_and_a_language (test_summary.KeyAndBudgetWithTypesTest.test_the_key_never_appears_with_a_type_and_a_language) ... ok
 test_a_few_words_of_the_other_language_in_a_section_are_not_judged (test_summary.LanguageControlTest.test_a_few_words_of_the_other_language_in_a_section_are_not_judged) ... ok
+test_a_section_whose_prose_is_in_the_other_language_is_still_refused_next_to_a_table (test_summary.LanguageControlTest.test_a_section_whose_prose_is_in_the_other_language_is_still_refused_next_to_a_table) ... ok
 test_a_summary_in_the_other_language_is_retried_once_then_refused (test_summary.LanguageControlTest.test_a_summary_in_the_other_language_is_retried_once_then_refused) ... ok
 test_a_wrong_language_then_the_right_one_is_delivered (test_summary.LanguageControlTest.test_a_wrong_language_then_the_right_one_is_delivered) ... ok
+test_code_and_tables_of_labels_seen_on_screen_keep_their_language (test_summary.LanguageControlTest.test_code_and_tables_of_labels_seen_on_screen_keep_their_language)
+The review's F1: a query seen on screen, or a table of the labels ... ok
 test_one_section_in_the_other_language_is_refused_and_named (test_summary.LanguageControlTest.test_one_section_in_the_other_language_is_refused_and_named) ... ok
 test_quotes_keep_their_language_and_do_not_count (test_summary.LanguageControlTest.test_quotes_keep_their_language_and_do_not_count) ... ok
 test_the_default_is_still_the_transcripts_language (test_summary.LanguageControlTest.test_the_default_is_still_the_transcripts_language) ... ok
@@ -188,7 +192,7 @@ test_frames_not_yet_read_are_refused_before_any_request (test_summary.WritingTes
 test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames (test_summary.WritingTest.test_one_request_carries_everything_and_the_summary_is_written_next_to_the_frames) ... ok
 
 ----------------------------------------------------------------------
-Ran 179 tests in 70.701s
+Ran 181 tests in 70.933s
 
 OK
 exit_code: 0
