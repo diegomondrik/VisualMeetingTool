@@ -220,10 +220,14 @@ def clock(hours, minutes, seconds):
 
 def cited_frames(text, frames_dir):
     """The frames the summary names, in order of first mention, as {name:
-    path}. A missing frame, or text that mentions a frame in any other way,
+    path}. A missing frame, text that mentions a frame in any other way, or
+    two frames named as a range (whose two ends nobody chose, INGOL D-181),
     is a ReportError naming every case."""
     frames, problems = {}, []
     for number, line in enumerate(text.splitlines(), start=1):
+        found = writer.FRAME_RANGE.search(line)
+        if found:
+            problems.append(f"line {number}: a range of frames; name each frame on its own: {found.group(0)[:80]}")
         for match in FRAME_REF.finditer(line):
             name = match.group(1)
             if name not in frames:

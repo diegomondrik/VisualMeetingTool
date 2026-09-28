@@ -19,6 +19,12 @@ held in (by default the transcript's), quotes in their own language with a
 translation, and a summary in the other language is refused like a missing
 section, as is one naming a frame the Word report could not embed.
 
+INGOL D-181: every frame the summary names goes into the Word report, so the
+request carries the owner's rule for which screens are worth it (content
+someone would otherwise note by hand, shared to show it; no navigation or
+detours; one frame per thing shown, the one that shows it best), and a
+summary naming two frames as a range is refused like a missing frame.
+
 The request goes through meetingtool.reading.gemini: the same retries, the
 key only in a header, and a spend budget that counts the worst case of the
 request before sending it. Nothing is written unless the summary is complete.
@@ -57,10 +63,11 @@ GUIDE = [
     "commitment, soft agreement and direction given.",
     "Table: Task | Owner | Deadline | Priority (High/Medium/Low). Include implied commitments nobody explicitly "
     "assigned, marked as implied.",
-    "For each relevant frame: its file name in square brackets (for example [frame_017_t00-13-03.jpg]), the "
-    "content type, the structured data visible, what was being discussed when it appeared, and a key "
-    "observation of what it confirms, reveals or implies. Mark information seen on screen but never said as "
-    "visual-only.",
+    "Only the screens chosen by the rule for frames above, one frame for each distinct thing shown. For each: "
+    "its file name in square brackets (for example [frame_017_t00-13-03.jpg]), the content type, the structured "
+    "data visible, what was being discussed when it appeared, and a key observation of what it confirms, "
+    "reveals or implies. Mark information seen on screen but never said as visual-only. If no screen was "
+    "shared to show content, say so in one line.",
     "Table: What was promised | Who | When it was mentioned.",
     "The thematic categories of the meeting.",
     "Unstated assumptions, topics avoided or deferred, gaps between what the team thinks was decided and what "
@@ -193,6 +200,25 @@ FOREIGN_SECTION_WORDS = 8
 # delivered only if the report could embed every frame it names.
 FRAME_REF = re.compile(r"\[(frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg)\]")
 FRAME_LIKE = re.compile(r"\bframes?_", re.IGNORECASE)
+# Two frames named as the ends of a range ("[a] to [b]", "entre [a] y [b]"):
+# the report would show the two ends, which were never chosen (INGOL D-181).
+_NAMED = r"(?:`|\*{1,2}|_{1,2})?\[frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg\](?:`|\*{1,2}|_{1,2})?"
+FRAME_RANGE = re.compile(
+    rf"{_NAMED}\s*(?:->|→|-{{1,2}}|–|—|…|\.{{2,3}}|\b(?:a|al|hasta|to|through|thru|till|until)\b)\s*(?:(?:el|la|the)\s+)?"
+    rf"{_NAMED}|\b(?:entre|between)\s+{_NAMED}\s*(?:y|e|and)\s+{_NAMED}", re.IGNORECASE)
+# Which screens the summary may name, and so which images the report shows
+# (the owner's rule, INGOL D-181).
+FRAME_RULE = """FRAMES: every frame file name you write in square brackets puts that image in the report the client
+reads, wherever you write it. Name a frame only if it shows information someone would otherwise have to write down
+by hand, and that reading the image gives faster (a data model, the structure of a spreadsheet with its tables,
+columns and rows, the values that were discussed, a diagram, a dashboard with real data), and only if showing that
+information was the reason the screen was shared. Never name a frame of navigation or of something off the
+meeting's topic: a file explorer, email, a calendar, a desktop, a loading screen, a transition between two views,
+rows or areas without data, or people on camera; you may describe such a moment in words, without naming its
+frame. Name one frame for each distinct thing shown: when several frames show the same thing (the same table
+scrolled, zoomed, or with another cell selected; the reading notes what changed from the frame before), name only
+the one that shows it best, with its column and row headings visible, the values that were discussed visible and
+the least empty area. Name each frame on its own, never a range of frames: the report cannot show a range."""
 
 ROLE = """You are a senior business analyst and AI integration specialist assisting an independent analytics and
 technology consultant who works with corporate clients on data analytics, BI, AI, planning, supply chain and
@@ -292,7 +318,7 @@ def build_prompt(turns, frames_reading, language, meeting_type=None, knowledge="
     if meeting_type and MEETING_TYPES[meeting_type].stance:
         lines += [f"MEETING TYPE: {meeting_type}. {MEETING_TYPES[meeting_type].stance}", ""]
     lines += [f"Write the summary in {LANGUAGE_NAMES[language]}.",
-              LANGUAGE_RULE.format(name=LANGUAGE_NAMES[language]),
+              LANGUAGE_RULE.format(name=LANGUAGE_NAMES[language]), "", FRAME_RULE, "",
               "Use exactly these section headings, in this order, each once, as '## <heading>':", ""]
     for heading, guide in _sections(language, meeting_type):
         lines.append(f"## {heading}\n{guide}")
@@ -343,11 +369,16 @@ def key_points(text, language):
 
 def check_frames(text, frame_names):
     """SummaryError unless every frame the summary names, as the report reads
-    a name, is one of frame_names, and no frame is mentioned any other way."""
+    a name, is one of frame_names, no frame is mentioned any other way, and
+    no two are named as a range."""
     missing = sorted({name for name in FRAME_REF.findall(text) if name not in frame_names})
     if missing:
         raise SummaryError(f"the summary names frame(s) that are not in the frames folder: {', '.join(missing)}")
     for line in text.splitlines():
+        found = FRAME_RANGE.search(line)
+        if found:
+            raise SummaryError(f"the summary names a range of frames instead of each frame on its own: "
+                               f"{found.group(0)[:80]}")
         if FRAME_LIKE.search(FRAME_REF.sub("", line)):
             raise SummaryError(f"the summary mentions a frame without its file name in square brackets: "
                                f"{FRAME_REF.sub('', line).strip()[:80]}")

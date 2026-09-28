@@ -181,12 +181,13 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
     rate-limited or unanswered request twice, after the given pauses; any
     other error ends at once. `worst` is the most one attempt can cost."""
     incomplete_retried = False
+    refused = ""  # why the answer before was refused, so a stop by the budget says it (INGOL D-181's run)
     delays = list(retry_delays)
     while True:
         if counters["spent"] + worst > max_cost_usd:
             raise ReadingError(f"stopped before sending {what}: that request could cost up to US${worst:.2f}, and with "
                                f"about US${counters['spent']:.2f} already spent it could go over the budget of "
-                               f"US${max_cost_usd:.2f}; nothing was written")
+                               f"US${max_cost_usd:.2f}; nothing was written{refused}")
         counters["attempts"] += 1
         status, answer, reason = post_generate(url, key, payload)
         if status is None:
@@ -205,10 +206,11 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                 counters["models"].add(str(answer["modelVersion"]))
             try:
                 return check(answer)
-            except ReadingError:
+            except ReadingError as error:
                 if incomplete_retried:
                     raise
                 incomplete_retried = True
+                refused = f" (the answer before was refused: {error})"
                 continue
         if status is not None and status not in RETRYABLE_STATUS:
             raise ReadingError(f"Gemini refused the request (HTTP {status}): {reason}")

@@ -1,0 +1,49 @@
+# real run for 01M3MMR14T1PS5C4NVGZQW0K7W (WI13-AC04, INGOL D-181): numbers and frame minutes only
+machine: owner's Windows machine; Python 3.12.10
+meeting: the real 117-minute meeting the owner chose as not confidential (INGOL D-167); read in place,
+         never copied into any repository; no name, number or text of it is recorded here
+frames: the 75 frames and frames_read.md of D-178's requirements run, copied into a new folder in the
+        owner's data folder (outside any repository); not read again, so the reading was not paid again
+key: the owner's paid Gemini key from the Windows credential store; it appears nowhere in this record
+
+attempt 1 (2026-09-28T20:52Z to 20:53Z), fresh clone of the branch at 95c3d4d:
+  --type requirements --language es --max-cost 0.15
+  printed: error: stopped before sending the summary: that request could cost up to US$0.12, and with
+           about US$0.05 already spent it could go over the budget of US$0.15; nothing was written
+  exit 2; nothing written
+  reading: Gemini's first answer was refused by a check and its retry did not fit the budget; the code at
+           95c3d4d did not say which check refused it, so that is not known. Spent: about US$0.05.
+  finding: a stop by the budget after a refused answer now says why it was refused (this work item).
+
+owner (session 115), on attempt 1's stop: "para que le pones el tope? el documento hace falta hacerlo igual";
+run again with the standard ceiling of INGOL D-173 (US$0.50)
+
+attempt 2 (2026-09-28T21:09Z to 21:10Z), fresh clone of the branch at 8dfdd06:
+  --type requirements --language es --max-cost 0.50
+  printed: summary written in 60.3s (2 attempt(s), language es); tokens: input 88386, output 9139,
+           thinking 3584; estimated cost US$0.114 (budget US$0.50); model gemini-3.8-flash
+  the first of its two answers was refused and the retry delivered; which check refused it is not
+  printed on success, so it is not known
+estimated_total_cost_usd: about 0.164 for both attempts (0.05 + 0.114; list prices used for D-169;
+                          the exact charge is in the owner's Google billing, not read here)
+
+frames named (by minute), against D-178's requirements summary of the same meeting:
+  D-178: 11 frames, 3 ranges: 5:27, 5:30, 5:34, 7:35, 26:09, 31:41, 31:47, 40:44, 41:16, 1:01:34, 1:05:30
+  WI13:   5 frames, 0 ranges: 5:27, 7:35, 31:41, 41:07, 1:03:43
+the owner's five cases (INGOL D-181):
+  5:30 file explorer          not named   PASS
+  26:09 Outlook invitation    not named   PASS
+  31:41 and 31:47 repeated    only 31:41  PASS
+  1:01:34 transition          not named   PASS
+  range                       none        PASS
+  (1:05:30, without column headings, was named only as a range's end; the new summary names 1:03:43
+   from that block, the unit-cost sheet with its month heading visible)
+
+Word report (WI11's command, no network, no key, cost US$0), neutral design:
+  printed: report built in 0.2s: 14 section(s), 5 image(s), 0.8 MB, language es, neutral design
+  opened by Microsoft Word through COM, read-only: 12 pages, 5 inline images
+  (D-178's report of the same meeting: 16 pages, 11 images, 1.5 MB)
+the summary and the report stay in the owner's data folder (d181-relevamiento), outside any repository;
+the owner judges the images
+
+owner's judgement (session 115), after opening the new report: "esta bien. segui" (the images are right)

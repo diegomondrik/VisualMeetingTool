@@ -216,6 +216,15 @@ class RefusalTest(Workspace):
                     self.build()
                 self.assertNothingWritten()
 
+    def test_a_range_of_frames_stops_the_build(self):
+        # INGOL D-181: the report showed the two ends of the range, which
+        # nobody chose (the real one began on rows without data).
+        self.write_summary(summary_text(screen="- `[frame_001_t00-01-22.jpg]` a `[frame_002_t00-13-03.jpg]`: "
+                                               "la planilla"))
+        with self.assertRaisesRegex(document.ReportError, "a range of frames; name each frame on its own"):
+            self.build()
+        self.assertNothingWritten()
+
     def test_every_problem_is_named_at_once(self):
         self.write_summary(summary_text(screen="- [frame_009_t00-09-09.jpg] y [frame_017, t00:13:03]"))
         with self.assertRaises(document.ReportError) as raised:
