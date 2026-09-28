@@ -1,6 +1,7 @@
 """Mutation run for 01M3MMR14T1PS5C4NVGZQW0K7W (WI13): each mutation removes
 or bends one piece of the owner's frame rule (INGOL D-181) in
-meetingtool/summary/writer.py or meetingtool/report/document.py, in a copy of
+meetingtool/summary/writer.py or meetingtool/report/document.py (and, for the
+finding of the first real run, meetingtool/reading/gemini.py), in a copy of
 the working tree, runs `python -m unittest tests.test_summary tests.test_report`,
 and must make it fail.
 
@@ -16,6 +17,7 @@ from pathlib import Path
 
 WRITER = "meetingtool/summary/writer.py"
 REPORT = "meetingtool/report/document.py"
+GEMINI = "meetingtool/reading/gemini.py"
 MUTATIONS = [
     ("rule left out of the request (AC01)", WRITER,
      'LANGUAGE_RULE.format(name=LANGUAGE_NAMES[language]), "", FRAME_RULE, "",',
@@ -37,6 +39,8 @@ MUTATIONS = [
      r"|\b(?:entre|between)\s+", r"|\b(?:zzentre|zzbetween)\s+"),
     ("two frames joined by 'y' read as a range (AC02)", WRITER,
      "(?:a|al|hasta|", "(?:y|and|a|al|hasta|"),
+    ("a stop by the budget no longer says why the answer before was refused (AC04 finding)", GEMINI,
+     'refused = f" (the answer before was refused: {error})"', 'refused = ""'),
 ]
 TESTS = ["tests.test_summary", "tests.test_report"]
 
@@ -48,7 +52,7 @@ def summary_line(stderr):
 def main(source, work):
     source, work = Path(source), Path(work)
     shutil.copytree(source, work, ignore=shutil.ignore_patterns(".git", "__pycache__"))
-    originals = {name: (work / name).read_text(encoding="utf-8") for name in (WRITER, REPORT)}
+    originals = {name: (work / name).read_text(encoding="utf-8") for name in (WRITER, REPORT, GEMINI)}
     print("mutation run for 01M3MMR14T1PS5C4NVGZQW0K7W: each mutation is applied alone to a copy of the")
     print(f"working tree, `python -m unittest {' '.join(TESTS)}` is run, and the mutation must make it fail")
     detected_all = True

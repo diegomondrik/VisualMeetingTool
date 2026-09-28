@@ -1,7 +1,7 @@
 schema_version: "1"
 work_item: 01M3MMR14T1PS5C4NVGZQW0K7W
-status: proposed
-next_gate: owner-approval-of-the-contract-then-the-real-run
+status: approved
+next_gate: independent-review-then-open-the-pull-request-and-carry-it-through-the-protected-run
 owner: Carlos Diego Mondrik
 executor: Claude Code
 branch: work-item/01M3MMR14T1PS5C4NVGZQW0K7W-screen-selection

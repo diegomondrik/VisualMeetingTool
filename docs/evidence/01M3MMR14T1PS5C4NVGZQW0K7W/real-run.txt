@@ -45,3 +45,5 @@ Word report (WI11's command, no network, no key, cost US$0), neutral design:
   (D-178's report of the same meeting: 16 pages, 11 images, 1.5 MB)
 the summary and the report stay in the owner's data folder (d181-relevamiento), outside any repository;
 the owner judges the images
+
+owner's judgement (session 115), after opening the new report: "esta bien. segui" (the images are right)
