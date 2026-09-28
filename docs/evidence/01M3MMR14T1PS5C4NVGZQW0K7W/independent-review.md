@@ -109,3 +109,22 @@ negrita y flechas.
 - **P3-3:** `existing_summaries_check.py` is committed and produced the
   current `existing-summaries-check.txt`.
 - **P3-4, P3-5, P3-6:** in the contract's known limitations.
+
+## Re-verification (reviewer, same context, on dbc04eb)
+
+- Suite: 189 tests OK (the new cases are subtests).
+- Its 33-case probe plus 19 new cases against the new pattern: bold, italic,
+  `->`, `→`, `--` ranges now refused; `**[a]** y **[b]**`, `**[a]**, **[b]**`,
+  `**[a]** and **[b]**` and table rows with or without bold still accepted; no
+  new false positives; summary and report agree on all 52 cases.
+- `existing_summaries_check.py` reproduces `existing-summaries-check.txt`
+  (only the "Code:" line differs); wi09-frames' three ranges start with `**`
+  and use " a ", counted without printing client text.
+- P2-1, P3-2, P3-3 resolved; P3-4 to P3-6 in the contract's limitations; all
+  11 changed files inside `affected_surfaces`.
+- New P3, limitations only: `***[a]*** a ***[b]***`, `[a] --- [b]`,
+  `[a] => [b]`, `[a] ⟶ [b]` still pass; WI09's summary is now refused, so the
+  first Word report the owner judged cannot be rebuilt from it. Both added to
+  the contract's limitations.
+
+**Verdict: LISTO PARA INTEGRAR**, with those P3 as known limitations.

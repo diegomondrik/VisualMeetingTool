@@ -66,7 +66,10 @@ objective: >
   for some checks includes up to 80 characters of the summary, client text
   that must be left out of any evidence, as when the second answer is
   refused (P3-4); after a refusal and then a network failure, it still names
-  the refusal (P3-5).
+  the refusal (P3-5). Found by the re-verification: names in bold and
+  italics at once ("***[a]***") and the connectors "---", "=>" and "⟶" are
+  not caught either; and WI09's summary, behind the owner's first Word
+  report, is now refused, so that report cannot be built again from it.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3MMR14T1PS5C4NVGZQW0K7W/**
