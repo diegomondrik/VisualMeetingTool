@@ -101,3 +101,16 @@ No files were written in the real repositories. The throwaway clone and probe fo
 - **F10 corrected:** the real frame file name is gone from the test docstring.
 - **F3, F4, F5 to F8:** recorded as known limitations in `contract.yaml`, and F3 and F4 said plainly in the pull request.
 - **F9:** the owner's request is recorded in INGOL's ledger for session 114.
+
+## Re-review of the correction (reviewer, head 78f4fe6)
+
+**Verdict: still LISTO CON LIMITACIONES.** The correction adds no P0 or P1. F1, F2 and F10 are fixed, and the contract records F3 to F8 accurately. Checked in a new throwaway clone at 78f4fe6 (deleted afterwards); the correction commit is 063ee0b and only `local-test-run.txt` changes after it; the full suite gives 181 tests OK.
+
+1. **F1 fixed.** Both probes of the first review pass; a section with a small table plus a paragraph in the other language is still refused (0 words of the right language, 14 of the other); the four real summaries still pass. The fix loosens the check in three ways: a section written entirely as a table is judged only as part of the whole summary (P2, recorded in the contract); text in the other language inside a fenced block is not counted, the fenced variant of F5 (P3; a whole summary in the other language, even as one-cell tables, is still refused: 5 words against 168); an unclosed fence is still counted, so malformed Markdown can still cause a wrong refusal (P3).
+2. **F2 fixed.** `--type` has no fixed list; for `discovery` the command exits 2, names "use 'presale' or 'requirements'" and sends no request; an unknown type says "unknown meeting type". Checked through the updated command test and the code (a hand run with a fake key under Temp was denied at the permission prompt). Without a saved key, or with frames not yet read, those messages come first; nothing is sent either way (P3).
+3. **F10 fixed at head.** The frame name remains in the branch's earlier commits (775ad9f to 9ede6a9) unless squash-merged; it is a frame number and a timestamp, not meeting content (P3).
+4. **Mutations reproduce 17/17**, matching `mutations.txt` line for line apart from line endings; both new mutations make a test fail.
+5. **Suite evidence is for the right commit:** tested_commit 063ee0bd…, tested_tree 7e853060…, equal to `git rev-parse`; 11 files in `main...HEAD`, all inside `affected_surfaces`.
+6. **Contract limitations accurate**; the only omission was the fenced-block variant of F5.
+
+Executor, after the re-review: the fenced-block variant of F5, the unclosed fence and the order of messages without a key were added to the contract's known limitations (text only, no code change).

@@ -64,7 +64,8 @@ objective: >
   each language, so it tells Spanish from English and nothing else; a short
   section, or a section of names and figures, is never judged; a quote not
   in quotation marks counts as text, and a summary written wholly inside
-  quotes would pass (review F5); a section whose prose is all in a table is
+  quotes or fenced code blocks would pass (review F5); an unclosed code
+  fence is counted as text; a section whose prose is all in a table is
   judged only as part of the whole summary. Whether each type's stance
   really changes what Gemini writes is judged by the owner on the real run,
   not by a test. status keeps its guides as before, as the proposal's table
@@ -79,6 +80,8 @@ objective: >
   summary for reasons this check does not cover (a "#" line that is not a
   heading, a frame file that cannot be embedded). The note on the retired
   type is also added for a meeting whose title ends in "(discovery)" (F8).
+  Without a saved key, or with frames not yet read, the command says so
+  before it says that a retired type was replaced; nothing is sent.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3JS6BH8TTPN0C76NFB7E6N6/**
