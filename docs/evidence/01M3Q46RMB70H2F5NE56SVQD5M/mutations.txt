@@ -1,0 +1,40 @@
+mutation run for 01M3Q46RMB70H2F5NE56SVQD5M: each mutation is applied alone to a copy of the
+working tree, `python -m unittest tests.test_qa tests.test_summary tests.test_report` is run, and the mutation must make it fail
+- without the option, the register is written instead of the summary (AC01): exit 1, FAILED (failures=3) -> DETECTED
+- the meeting type's stance left out of the request (AC02): exit 1, FAILED (failures=7) -> DETECTED
+- the language left out of the request (AC02): exit 1, FAILED (failures=17) -> DETECTED
+- the pending item of a question left out of the register (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- the verbatim fragment not checked against the transcript (AC03): exit 1, FAILED (failures=6, errors=1) -> DETECTED
+- the answering speaker not checked (AC03): exit 1, FAILED (failures=2) -> DETECTED
+- the asker not checked (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- a minute after the meeting accepted (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- an answer ending before it starts accepted (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- a status outside the four accepted (AC03): exit 1, FAILED (errors=3) -> DETECTED
+- a date the transcript does not say accepted (AC03): exit 1, FAILED (failures=4) -> DETECTED
+- on screen accepted without the words that show it (AC03): exit 1, FAILED (failures=4) -> DETECTED
+- a question outside its batch kept, so registered twice (AC03, review P2-4): exit 1, FAILED (failures=2) -> DETECTED
+- a verbatim fragment of fewer than five words accepted (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- a fragment said at another moment of the meeting accepted (AC03, review P2-6): exit 1, FAILED (failures=3) -> DETECTED
+- a date in the project's knowledge not checked (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- a day/month without a year read as a date anywhere (AC03, review P2-5): exit 1, FAILED (failures=5) -> DETECTED
+- the retry resends the same request (review P2-2): exit 1, FAILED (failures=2, errors=1) -> DETECTED
+- a deadline said without an agreement or a pending item left out (review P3-7): exit 1, FAILED (failures=1) -> DETECTED
+- what was seen missing for an answer on screen accepted (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- the register's language not checked (AC03): exit 1, FAILED (failures=1) -> DETECTED
+- a frame mentioned in the register's text accepted (AC03): exit 1, FAILED (errors=1) -> DETECTED
+- what was seen may name a frame outside the span (AC03, AC06): exit 1, FAILED (failures=5) -> DETECTED
+- what was seen may go to an answer that is not on screen (AC03, AC06): exit 1, FAILED (errors=1) -> DETECTED
+- every frame read, whatever the answers (AC05): exit 1, FAILED (failures=9) -> DETECTED
+- the span widened to the whole meeting (AC06): exit 1, FAILED (failures=8) -> DETECTED
+- a verbal answer looks for frames too (AC06): exit 1, FAILED (failures=3, errors=40) -> DETECTED
+- the frame on screen when an answer began left out of its span (AC06): exit 1, FAILED (failures=3) -> DETECTED
+- the span of an answer taken up again later not bounded (AC06, review P2-3): exit 1, FAILED (failures=1) -> DETECTED
+- a few frames reserve the output of seventy (review P1-1): exit 1, FAILED (failures=1) -> DETECTED
+- any fragment sharing one word with the answer's minutes accepted (owner's 85%, run 2): exit 1, FAILED (failures=8, errors=1) -> DETECTED
+- 'Name: what they said' in the speaker's field refused (run 1): exit 1, FAILED (errors=1) -> DETECTED
+- the retry told of the first refused question only (run 2): exit 1, FAILED (failures=2, errors=1) -> DETECTED
+- an accepted batch not kept, so paid again (run 2): exit 1, FAILED (failures=1) -> DETECTED
+- the words that show the screen matched at 85% instead of literally (re-verification P2-1): exit 1, FAILED (failures=1) -> DETECTED
+- a fragment's words matched however far apart (re-verification P2-2): exit 1, FAILED (failures=1) -> DETECTED
+- unmutated: exit 0, OK
+all mutations detected

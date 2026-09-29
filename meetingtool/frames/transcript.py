@@ -128,6 +128,15 @@ def read_turns(path):
     return sorted(((start, speaker, "\n".join(text)) for start, speaker, text in turns), key=lambda turn: turn[0])
 
 
+def read_text(path):
+    """Every line of the transcript, the header before the first turn (a
+    Teams title and date) included: what a written date is checked against."""
+    path = Path(path)
+    if not path.is_file():
+        raise TranscriptError(f"transcript {path} is not a file")
+    return "\n".join(_docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path))
+
+
 def has_visual_reference(text):
     return _PHRASE.search(text) is not None
 

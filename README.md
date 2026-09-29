@@ -90,6 +90,30 @@ language the meeting was held in; without it, the summary is in the
 transcript's language. Verbatim quotes stay in the language they were said,
 with a translation.
 
+### Questions and answers
+
+`--format qa` writes, instead of the summary, every question of the meeting
+with its complete answer (any meeting type, either language):
+
+```
+python -m meetingtool.summary --frames <folder> --transcript <transcript.docx> --format qa [--type requirements]
+```
+
+No list of questions is needed: they are found in the conversation. Each one
+has who raised it, the answer point by point with who gave it, the minutes,
+the agreement, what is pending, the deadline as it was said and a status
+(resolved, resolved with a caveat, pending, out of scope); then the project's
+knowledge grouped (rules, who owns and loads each piece of data, figures,
+glossary, scope) and the pending items. The transcript is read first; an
+answer that relied on the screen ("te muestro", "¿están viendo?") then gets
+only the frames of its own span read, and what they show is written apart
+from what was said. With no answer on screen, no frame is read, and the
+folder may hold no frames at all. Every answer carries a verbatim fragment,
+speakers, minutes, status and written dates that are checked against the
+transcript; a register that fails is asked once more and then not delivered.
+It is written to `summary.md` (with `qa.json`), and the Word report is built
+from it as from a summary.
+
 ## The report in Word
 
 Once the summary is written, the report for the client is built from it,

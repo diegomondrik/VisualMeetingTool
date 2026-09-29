@@ -36,7 +36,7 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
 
 from meetingtool.projects import store
-from meetingtool.summary import writer
+from meetingtool.summary import qa, writer
 
 SUMMARY_NAME = writer.OUTPUT_NAME
 OUTPUT_NAME = "summary.docx"
@@ -208,7 +208,8 @@ def summary_language(text):
     """'es' or 'en': the language whose section names the summary uses most,
     or else the language of its words."""
     headings = set(summary_headings(text))
-    counts = {language: len(headings & set(names)) for language, names in writer.SECTIONS.items()}
+    counts = {language: len(headings & set(names + qa.HEADINGS[language]))
+              for language, names in writer.SECTIONS.items()}
     best = max(counts, key=counts.get)
     return best if counts[best] else writer.detect_language(text)
 

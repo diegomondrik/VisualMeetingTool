@@ -111,19 +111,27 @@ def token_cost(input_tokens, output_tokens):
     return (input_tokens * PRICE_INPUT_PER_MILLION + output_tokens * PRICE_OUTPUT_PER_MILLION) / 1e6
 
 
-def worst_attempt_cost(frame_count):
+def listed_output_tokens(frame_count):
+    """The output cap for reading frame_count frames chosen one by one: 35
+    frames took about 550 output and thinking tokens each (D-169), so 1000
+    each leaves room, and a few frames do not reserve the cap of 70
+    (WI14's review: the register's run must fit its budget)."""
+    return min(MAX_OUTPUT_TOKENS, 2000 + 1000 * frame_count)
+
+
+def worst_attempt_cost(frame_count, max_output_tokens=MAX_OUTPUT_TOKENS):
     """The most one attempt for frame_count frames can cost."""
-    return token_cost(PROMPT_TOKENS + frame_count * INPUT_TOKENS_PER_FRAME, MAX_OUTPUT_TOKENS)
+    return token_cost(PROMPT_TOKENS + frame_count * INPUT_TOKENS_PER_FRAME, max_output_tokens)
 
 
-def _payload(frames, first):
+def _payload(frames, first, max_output_tokens=MAX_OUTPUT_TOKENS):
     parts = [{"text": PROMPT}]
     for offset, path in enumerate(frames):
         parts.append({"text": f"[FRAME {first + offset}] {path.name}"})
         parts.append({"inline_data": {"mime_type": "image/jpeg",
                                       "data": base64.b64encode(path.read_bytes()).decode("ascii")}})
     return {"contents": [{"role": "user", "parts": parts}],
-            "generationConfig": {"temperature": 0.1, "maxOutputTokens": MAX_OUTPUT_TOKENS}}
+            "generationConfig": {"temperature": 0.1, "maxOutputTokens": max_output_tokens}}
 
 
 def check_answer(answer, first, count):
@@ -175,11 +183,13 @@ def new_counters():
     return {"attempts": 0, "input": 0, "output": 0, "thinking": 0, "spent": 0.0, "models": set()}
 
 
-def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd):
+def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd, revise=None):
     """Send one request and return check(answer), within the budget and after
     the allowed retries: an answer check refuses is retried once; a busy,
     rate-limited or unanswered request twice, after the given pauses; any
-    other error ends at once. `worst` is the most one attempt can cost."""
+    other error ends at once. `worst` is the most one attempt can cost.
+    With `revise`, the retry of a refused answer sends revise(payload, error)
+    instead, so the request can say what was refused; `worst` must cover it."""
     incomplete_retried = False
     refused = ""  # why the answer before was refused, so a stop by the budget says it (INGOL D-181's run)
     delays = list(retry_delays)
@@ -211,6 +221,8 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                     raise
                 incomplete_retried = True
                 refused = f" (the answer before was refused: {error})"
+                if revise is not None:
+                    payload = revise(payload, error)
                 continue
         if status is not None and status not in RETRYABLE_STATUS:
             raise ReadingError(f"Gemini refused the request (HTTP {status}): {reason}")
@@ -237,11 +249,31 @@ def model_url(endpoint, model):
     return f"{endpoint.rstrip('/')}/{model}:generateContent"
 
 
-def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost_usd):
+def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost_usd,
+                max_output_tokens=MAX_OUTPUT_TOKENS):
     """The checked text for one chunk, after the allowed retries and within the budget."""
-    return call_checked(url, key, _payload(frames, first), lambda answer: check_answer(answer, first, len(frames)),
-                        worst_attempt_cost(len(frames)), f"frames {first}-{first + len(frames) - 1}",
+    return call_checked(url, key, _payload(frames, first, max_output_tokens),
+                        lambda answer: check_answer(answer, first, len(frames)),
+                        worst_attempt_cost(len(frames), max_output_tokens), f"frames {first}-{first + len(frames) - 1}",
                         retry_delays, sleep, counters, max_cost_usd)
+
+
+def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, chunk_size=CHUNK_SIZE):
+    """What each of `frames` shows, as {name: its [FRAME n] block}, reading
+    only those frames, each chunk checked and within the budget as
+    read_frames does (the question-and-answer register reads only the frames
+    of the answers that relied on the screen)."""
+    readings = {}
+    for start in range(0, len(frames), chunk_size):
+        chunk = frames[start:start + chunk_size]
+        text = _read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd,
+                           listed_output_tokens(len(chunk)))
+        found = list(_BLOCK.finditer(text))
+        ends = [match.start() for match in found[1:]] + [len(text)]
+        blocks = {int(match.group(1)): text[match.start():end].strip() for match, end in zip(found, ends)}
+        for offset, path in enumerate(chunk):
+            readings[path.name] = blocks[start + 1 + offset]
+    return readings
 
 
 def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUNK_SIZE,

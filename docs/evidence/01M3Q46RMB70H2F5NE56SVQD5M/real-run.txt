@@ -1,0 +1,62 @@
+WI14-AC07 / WI14-AC08 — real runs on the Cermaq meeting of 2026-09-25 (session of doubts)
+Owner's paid key, gemini-flash-latest (answered as gemini-3.8-flash), --format qa --type requirements
+--language es --max-cost 0.50 (INGOL D-182), transcript in Teams text format (1 h 46 min recorded; the
+conversation ends at about 1:39), frames: a copy of the meeting's 75 frames in a new folder of the owner's
+data folder (wi14-qa-cermaq). Only numbers, question ids and minutes are recorded here: what was said is
+client data and stays in the data folder.
+
+Run 1 (code c74f2ff) — refused, nothing delivered
+  The transcript was asked in two batches. Batch 1 was refused twice: a point of an answer carried
+  "Name: what they said" in its speaker field, and the speaker check refused it (correctly).
+  Cost: not reported by the program (it did not print what a stopped run spent; review P3-13).
+  Bound from the budget reservations: at most US$0.304. The owner read US$0.355 for the whole day in
+  Google's console before run 2 (that figure may include other use that day; not reconciled).
+  Fixed in e135d22: "Name: text" is split when the name spoke (the name is still checked); the request
+  says the speaker is only the name; a stopped run prints what it spent and both refusals.
+
+Run 2 (code e135d22) — refused, nothing delivered
+  Batch 1 accepted (1 attempt, US$0.100). Batch 2 refused twice: a verbatim fragment of one answer (a
+  different one each time) was not word for word in the transcript. Teams' transcript repeats words
+  ("Pongamos, Pongamos") and leaves stray ones ("It. Six.", "Missed."), which Gemini's copy cleans.
+  Spent, as printed: about US$0.259 in all.
+  Fixed in 8b0c9a6 (the retry names every refused question, before the material; an accepted batch is
+  kept and not paid again; a refused answer is kept to see why) and d1ea484 (owner's decision: a
+  fragment counts as said with at least 85% of its words in order within the answer's minutes).
+
+Run 3 (code d1ea484) — delivered
+  register written in 232.1s (43 question(s), language es); frames read: 8 of 75
+  on screen: P16 (29:54)
+  stage register 1/2: 2 attempt(s), US$0.221
+  stage register 2/2: 1 attempt(s), US$0.067
+  stage frames: 1 attempt(s), US$0.027
+  stage seen on screen: 1 attempt(s), US$0.005
+  tokens: input 113213, output 26086, thinking 36460; estimated cost US$0.319 (budget US$0.50)
+  First refusal of batch 1 (kept in qa-parts, read locally): 2 question(s) refused — one with minutes
+  not in H:MM:SS, one marked on screen without the words that show it within its minutes. The retry,
+  told of both, was accepted.
+
+AC07 — coverage against the owner's hand-made Word (29 questions): coverage.txt
+  By minute, 28 of 29 have a candidate; confirmed by reading both side by side: 29 of 29 (confirmed.json).
+  The 4 topics that came up in the conversation and were in no list are registered too
+  (P4-P5, P12, P17-P18, P20-P23).
+  Statuses: resolved 28, resolved with a caveat 11, pending 3, out of scope 1.
+  Dates: no written date in the register; deadlines kept as said (3, all relative).
+  Job titles: two role words appear, both said in the transcript at those minutes.
+  After the farewell: the last answer registered ends at 1:38:43, before the farewell (about 1:39:36).
+  Not grouped by themes: 43 questions, one heading each.
+  One figure differs from the owner's Word: the register writes the weights as the transcript says
+  them ("uno 15 y uno 13"); the owner's Word has 1,30. Left to the owner.
+  PASSES the threshold of 24 of 29; the owner reads the result.
+
+AC08 — frames and cost
+  Frames read: 8 of 75 (one answer on screen, P16, 29:54-39:36; its span held 8 frames; 1 named).
+  Selective reading and what was seen: US$0.032. The full reading of 75 frames of the meeting of
+  D-167 cost about US$0.125 (WI09); the cost of the full reading already paid for this meeting was not
+  recorded.
+  Cost of the delivered run: US$0.319, of which the register US$0.288 (batch 1 needed its retry).
+  Cost of the work item's three runs: at most about US$0.88 by the program's figures (0.304 bound +
+  0.259 + 0.319); the owner's console is the measure.
+
+AC04 — the Word report, from the real register
+  python -m meetingtool.report build --neutral: 51 section(s), 1 image(s), 0.2 MB, language es.
+  Opened by Word (COM, read only): 36 pages, 1 image.

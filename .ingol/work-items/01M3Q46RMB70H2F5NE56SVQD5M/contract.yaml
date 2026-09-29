@@ -1,0 +1,182 @@
+schema_version: "1"
+id: 01M3Q46RMB70H2F5NE56SVQD5M
+objective: >
+  A question-and-answer register of a meeting, question by question, with
+  each answer in detail (INGOL, session 116's proposal, approved by the owner
+  in session 117). The owner read the summary of the second Cermaq meeting
+  (the session of doubts of 2026-09-25): it grouped 29 questions and 4 topics
+  that came up in the conversation into six themes and lost the detail of each
+  answer, and it showed screens that did not matter. What a consultant needs
+  to design from such a meeting is the complete answer to every question.
+
+  A new option of the summary, --format qa, that combines with every meeting
+  type and both languages; without it the summary is exactly as before. The
+  questions are found in the conversation: no list is given. Each one carries
+  what was asked and who raised it (if known), the complete answer with who
+  gave it, the minutes, the agreement if any, what is pending, the deadline as
+  it was said (or "no date said") and a status: resolved, resolved with a
+  caveat, pending or out of scope. After the questions, the project's
+  knowledge grouped: agreed rules, who owns and who loads each piece of data,
+  figures said, glossary and scope; then the pending items of every question.
+
+  Each answer says whether it was only verbal or relied on something shown on
+  screen, judged by what is said in the conversation ("te muestro", "¿están
+  viendo?"), with the verbatim words that show it. Only answers on screen
+  look for images: the frames of that answer's span are read, and only those,
+  and what they show is added to the answer apart from what was said. The
+  span of an answer is the frame on screen when it began (the last one the
+  extraction kept before it, at most five minutes before: a frame is kept when
+  the screen changes, not while it stays the same) and the frames kept until
+  its last turn began, at most ten minutes after it began (an answer taken up
+  again much later keeps its question's minutes, and its frames are not
+  looked for in everything between). The owner's rule for frames (D-181) decides which ones
+  are named. With no answer on screen no frame is read and nothing is paid for
+  it; with no frames at all (only the transcript), an answer on screen says
+  "no image available" and nothing seen is invented. The order changes: the
+  transcript first, then only the frames some answer needs; the full reading
+  of the frames is not needed and not used.
+
+  Gemini answers in JSON and the program writes the Markdown the Word report
+  reads, so what is checked is what is delivered. Checked against the
+  transcript, and refused like an incomplete summary (retried once, then not
+  delivered): a verbatim fragment of each answer that was not said between
+  its minutes, two minutes wider on each side (or has fewer than five words),
+  said meaning at least 85% of its words in the same order within a stretch
+  a little longer than it (the owner's decision in session 117, after the
+  second real run: Teams repeats words and leaves stray ones, which Gemini's
+  copy cleans; a fragment made up or said at another moment is refused);
+  an answering speaker (or a named asker) who did not speak; a minute outside
+  the meeting or an answer ending before it starts; a status that is not one
+  of the four; a written date (a day with its month, or a day/month after a
+  word that introduces a date, or with its year) that the transcript does not
+  say, days said in Spanish words included; an answer marked on screen
+  without words that show it said between its minutes, the same way; what
+  was seen given to an answer that is not on screen with frames, or naming a
+  frame outside its span. The retry says why the answer before was refused.
+  A long transcript is asked in two batches, each registering the questions
+  raised in its half with the whole transcript as context; a question a
+  batch registers outside its half is left out, since the other batch
+  registers it.
+
+  The run fits its budget: with two batches of a transcript like Cermaq's,
+  twenty frames read and what was seen, every attempt reserved at its worst
+  fits US$0.50 together (the reading of a few frames reserves an output cap
+  in proportion to them, not that of seventy). Corrected after the
+  independent review of e1649d6 (P1-1, P2-2 to P2-6, P3-7, P3-8, P3-10).
+
+  Not done: following questions across meetings; knowing whether every
+  question was found (coverage is measured once against the owner's hand-made
+  Word of the Cermaq meeting, not checked by the code); a screen shared in
+  silence (the answer stays verbal); changing which frames the extraction
+  keeps; checking that "on screen" is right (Gemini judges it); turning
+  "next week" into a date (only written dates are checked); what is said
+  after the farewell (Gemini is asked to leave it out; the code does not check
+  it); job titles and roles (Gemini is asked not to state one nobody said;
+  not checked by the code); a transcript without speaker names ([HH:MM:SS]
+  lines), where no speaker can be checked.
+
+  Known limitations (independent review of e1649d6): four meeting types
+  (kickoff, status, technical, training) have no stance, so with them the
+  register's request is the same as with no type (P3-9); a date written only
+  as day/month with no introducing word is not checked, nor are days said in
+  English words (P2-5, what remains); an answer's minutes are Gemini's, so a
+  fragment said just outside them, beyond the margin, is refused (P2-6, what
+  remains); a question taken up again in the second batch keeps only what the
+  first batch registered of it (P2-4); the final frame check runs after
+  every request was paid, outside the retry (P3-12); a run that stops prints
+  the total spent, not the cost of each stage (P3-13, fixed after the first
+  real run).
+
+  Known limitations (re-verification of c74f2ff): the worst case of every
+  attempt fits US$0.50 together only up to about 22 frames read (the check
+  is against what was really spent, so the usual run fits far beyond; the
+  delivered run read 8); the output cap for reading one or two frames (3,000
+  or 4,000 tokens) was not measured, and a reading cut short is retried with
+  the same cap; a question left out of a batch is not reported; a day/month
+  after an introducing word ("el 1/3 de los casos") is still read as a date,
+  days in Spanish words need their accents, and "10 May 2026" or "on 9/25"
+  are not checked.
+
+  Known limitations (re-verification of f139b20): the words that show an
+  answer relied on the screen are printed between quotation marks, so they
+  are checked literally, not at 85% (P2-1, fixed); from seven words on, the
+  85% lets one word added or changed through, which may turn the sense of
+  the answer's fragment ("no paga" against "paga"); that fragment is kept in
+  qa.json, not printed in the report (P2-3); a batch kept from an earlier run
+  does not record the model that answered it (P3); a refused answer's
+  diagnostic file is named by attempt and is overwritten by the next run (P3);
+  a failure to write a kept batch loses that paid answer and does not report
+  what was spent (P3); up to 60 characters written by Gemini go into the
+  retry's note, above the material line (P3).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3Q46RMB70H2F5NE56SVQD5M/**
+  - docs/evidence/01M3Q46RMB70H2F5NE56SVQD5M/**
+  - meetingtool/summary/**
+  - meetingtool/reading/gemini.py
+  - meetingtool/frames/transcript.py
+  - meetingtool/report/document.py
+  - tests/test_qa.py
+  - tests/test_summary.py
+  - tests/test_report.py
+  - README.md
+acceptance:
+  - id: WI14-AC01
+    description: >
+      Without --format qa, the request and the summary of every meeting type
+      (and none), in Spanish and in English, are exactly as before: the
+      request built for each is byte for byte the one built by main at
+      cebd990, and the existing tests pass unchanged.
+  - id: WI14-AC02
+    description: >
+      With --format qa, for every meeting type (and none) and both
+      languages, with no list of questions given, a register is delivered
+      question by question with the fields above and the project's knowledge
+      grouped, in the language asked; a meeting type adds its stance to the
+      request.
+  - id: WI14-AC03
+    description: >
+      Each check above refuses what it must and accepts a good register: for
+      each, a register breaking only that check is retried once and then not
+      delivered, naming the problem, and nothing is written; the same checks
+      pass on a correct register.
+  - id: WI14-AC04
+    description: >
+      The Word report builds from the register with the questions one by one
+      and the knowledge grouped; only answers on screen carry what was seen,
+      marked apart, with their frames; Word opens it. Local, no spend.
+  - id: WI14-AC05
+    description: >
+      With no answer on screen no frame is read: a meeting where every
+      answer is verbal, and a run with no frames at all, send no reading
+      request (counted at the fake Gemini: zero).
+  - id: WI14-AC06
+    description: >
+      With answers on screen, only the frames within their spans are read,
+      once each, and what was seen is marked as such; a case of each kind:
+      frames read and named, frames read and none worth naming, and on
+      screen with no image available.
+  - id: WI14-AC07
+    description: >
+      One real run on the Cermaq meeting of 2026-09-25 with the owner's paid
+      key, --format qa, requirements type, in Spanish, ceiling US$0.50 (INGOL
+      D-182), on a copy of that meeting's frames in a new folder of his data
+      folder (his earlier summaries and the project prueba-resumen-gemini are
+      not touched). Passes if it covers at least 24 of the 29 questions of
+      the owner's hand-made Word, invents no date or job title, and does not
+      group by themes again. Recorded under
+      docs/evidence/01M3Q46RMB70H2F5NE56SVQD5M/ as numbers, question ids and
+      minutes only; the owner reads the result.
+  - id: WI14-AC08
+    description: >
+      That run reports how many of the 75 frames were read, which answers
+      were marked on screen (for the owner to judge), and the cost of each
+      stage, so the cost with the selective reading can be set against the
+      full reading already paid for this meeting.
+  - id: WI14-AC09
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3Q46RMB70H2F5NE56SVQD5M/ before the pull request
+      (INGOL D-163).
