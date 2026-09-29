@@ -279,9 +279,24 @@ class ChecksTest(Workspace):
         return fake
 
     def test_a_fragment_not_in_the_transcript_is_refused(self):
-        fake = self.assertRefused(changed(verbal(), 1, quote="Los carga el área de ventas una vez por mes"),
+        # Two words of ten changed: 80 % said, under the 85 % asked for.
+        fake = self.assertRefused(changed(verbal(), 1, quote="Los carga el equipo de ventas una vez por mes"),
                                   "question 1: its verbatim fragment is not in the transcript")
         self.assertEqual(len(fake.requests), 2)
+
+    def test_a_fragment_with_one_word_changed_in_thirteen_is_accepted(self):
+        quote = "Los carga el área de procesos una vez al mes con la fuente del sistema"
+        with FakeGemini([json_answer(changed(verbal(), 1, quote=quote))]) as fake:
+            self.register(fake, language="es")
+        self.assertEqual(len(fake.requests), 1)
+
+    def test_a_fragment_is_matched_through_the_noise_of_the_transcript(self):
+        noisy = [(0, "Diego", "Pongamos, Pongamos una pantalla de captura. It. Six. Donde sea una premisa, cierto.")]
+        transcript = qa.Transcript.read(noisy, "")
+        self.assertTrue(transcript.says("Pongamos una pantalla de captura donde sea una premisa", 0, 0))
+        self.assertFalse(transcript.says("una premisa donde sea una pantalla de captura pongamos", 0, 0))
+        self.assertFalse(transcript.says("Pongamos una planilla de costos donde sea una tarifa", 0, 0))
+        self.assertFalse(transcript.says("Pongamos una pantalla de captura donde sea una premisa", 400, 500))
 
     def test_a_fragment_too_short_is_refused(self):
         self.assertRefused(changed(verbal(), 1, quote="Los carga"), "its verbatim fragment is not in the transcript")

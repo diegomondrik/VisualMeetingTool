@@ -40,7 +40,11 @@ objective: >
   reads, so what is checked is what is delivered. Checked against the
   transcript, and refused like an incomplete summary (retried once, then not
   delivered): a verbatim fragment of each answer that was not said between
-  its minutes, two minutes wider on each side (or has fewer than five words);
+  its minutes, two minutes wider on each side (or has fewer than five words),
+  said meaning at least 85% of its words in the same order within a stretch
+  a little longer than it (the owner's decision in session 117, after the
+  second real run: Teams repeats words and leaves stray ones, which Gemini's
+  copy cleans; a fragment made up or said at another moment is refused);
   an answering speaker (or a named asker) who did not speak; a minute outside
   the meeting or an answer ending before it starts; a status that is not one
   of the four; a written date (a day with its month, or a day/month after a

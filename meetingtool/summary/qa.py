@@ -28,6 +28,7 @@ import dataclasses
 import datetime
 import hashlib
 import json
+import math
 import re
 import time
 import unicodedata
@@ -70,6 +71,9 @@ SPAN_MAX = 600
 # A verbatim fragment must have been said between an answer's minutes, with
 # this margin on each side for a minute read a little early or late.
 QUOTE_MARGIN = 120
+# The share of a fragment's words that must have been said, in order (owner's
+# decision in session 117, after the second real run).
+QUOTE_MATCH = 0.85
 STATUSES = ("resolved", "resolved_with_caveat", "pending", "out_of_scope")
 KNOWLEDGE = ("rules", "owners", "figures", "glossary", "scope")
 
@@ -289,6 +293,26 @@ def span_frames(frames, start, end):
     return before[-1:] + [path for second, path in timed if start <= second <= min(end, start + SPAN_MAX)]
 
 
+def in_order(wanted, words, need, stretch):
+    """True if at least `need` of the words `wanted` appear in `words` in the
+    same order, within `stretch` consecutive words (a longest common
+    subsequence over each stretch that begins with one of its first words)."""
+    firsts = set(wanted[:len(wanted) - need + 1])
+    for begin, word in enumerate(words):
+        if word not in firsts:
+            continue
+        stretch_words = words[begin:begin + stretch]
+        previous = [0] * (len(stretch_words) + 1)
+        for want in wanted:
+            current = [0]
+            for index, said in enumerate(stretch_words):
+                current.append(previous[index] + 1 if want == said else max(previous[index + 1], current[index]))
+            previous = current
+        if previous[-1] >= need:
+            return True
+    return False
+
+
 @dataclasses.dataclass(frozen=True)
 class Transcript:
     """What the register is checked against."""
@@ -309,11 +333,18 @@ class Transcript:
         return cls(words, speakers, max(start for start, _, _ in turns), frozenset(dates))
 
     def says(self, fragment, start, end):
-        """True if fragment was said, word for word, in the turns that began
-        between start and end, QUOTE_MARGIN seconds wider on each side."""
+        """True if fragment was said in the turns that began between start and
+        end, QUOTE_MARGIN seconds wider on each side: at least QUOTE_MATCH of
+        its words in the same order, within a stretch at most a little longer
+        than it. Teams' transcript repeats words and leaves stray ones ("It.
+        Six."), which a copy made by Gemini cleans without meaning to (the
+        second real run); a fragment made up or said at another moment is
+        still refused (owner's decision, session 117)."""
+        wanted = plain_words(fragment)
         said = " ".join(words for second, words in self.turns
-                        if start - QUOTE_MARGIN <= second <= end + QUOTE_MARGIN)
-        return f" {' '.join(plain_words(fragment))} " in f" {said} "
+                        if start - QUOTE_MARGIN <= second <= end + QUOTE_MARGIN).split()
+        return bool(wanted) and in_order(wanted, said, math.ceil(QUOTE_MATCH * len(wanted)),
+                                         len(wanted) + max(4, len(wanted) // 2))
 
     def spoke(self, name):
         """True if every word of name is in one speaker's name; with no
