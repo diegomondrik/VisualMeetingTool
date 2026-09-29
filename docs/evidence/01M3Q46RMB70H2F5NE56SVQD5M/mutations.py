@@ -84,6 +84,14 @@ MUTATIONS = [
      "second <= min(end, start + SPAN_MAX)]", "second <= end]"),
     ("a few frames reserve the output of seventy (review P1-1)", GEMINI,
      "listed_output_tokens(len(chunk)))", "MAX_OUTPUT_TOKENS)"),
+    ("any fragment sharing one word with the answer's minutes accepted (owner's 85%, run 2)", QA,
+     "math.ceil(QUOTE_MATCH * len(wanted))", "1"),
+    ("'Name: what they said' in the speaker's field refused (run 1)", QA,
+     "if colon and not transcript.spoke(speaker) and transcript.spoke(name):", "if False:"),
+    ("the retry told of the first refused question only (run 2)", QA,
+     "            refused.append(str(error))\n", "            raise\n"),
+    ("an accepted batch not kept, so paid again (run 2)", QA,
+     '_keep(kept, {"digest": digest, "answer": text})', "pass"),
 ]
 TESTS = ["tests.test_qa", "tests.test_summary", "tests.test_report"]
 
