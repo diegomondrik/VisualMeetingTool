@@ -1,0 +1,69 @@
+schema_version: "1"
+work_item: 01M3Q46RMB70H2F5NE56SVQD5M
+status: approved
+next_gate: independent-review-then-real-run-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3Q46RMB70H2F5NE56SVQD5M-qa-format
+steps:
+  - keep-the-summary-unchanged-without-the-option-wi14-ac01
+  - register-question-by-question-in-every-type-and-language-wi14-ac02
+  - check-the-register-against-the-transcript-wi14-ac03
+  - build-the-word-report-from-the-register-wi14-ac04
+  - read-no-frame-without-an-answer-on-screen-wi14-ac05
+  - read-only-the-frames-of-answers-on-screen-wi14-ac06
+  - real-run-on-the-cermaq-meeting-of-2026-09-25-wi14-ac07-ac08
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi14-ac09
+evaluations:
+  - criterion: WI14-AC01
+    method: deterministic
+    control: >-
+      prompts_unchanged.py builds the request of every type and language with
+      this branch and with cebd990 (git worktree) and compares them byte for
+      byte; tests/test_summary.py unchanged.
+  - criterion: WI14-AC02
+    method: adversarial
+    control: >-
+      tests/test_qa.py RequestTest and RegisterTest on the request sent to the
+      fake Gemini on localhost and on the Markdown written; a mutation that
+      drops the stance, the language or a field fails a test, recorded in
+      mutations.txt.
+  - criterion: WI14-AC03
+    method: adversarial
+    control: >-
+      tests/test_qa.py ChecksTest and BatchesTest: one broken register per
+      check, retried and refused, nothing written; each check removed by
+      mutation is caught by a test, recorded in mutations.txt.
+  - criterion: WI14-AC04
+    method: deterministic
+    control: >-
+      tests/test_qa.py ReportTest builds the Word report with
+      meetingtool.report.document and counts its images; the real run's
+      report is opened by Word.
+  - criterion: WI14-AC05
+    method: adversarial
+    control: >-
+      tests/test_qa.py ScreenTest counts the requests carrying images at the
+      fake Gemini; a mutation reading every frame is caught.
+  - criterion: WI14-AC06
+    method: adversarial
+    control: >-
+      tests/test_qa.py ScreenTest on the frames sent and the Markdown
+      written; a mutation widening the span or letting a verbal answer take a
+      frame is caught.
+  - criterion: WI14-AC07
+    method: external-evidence
+    control: >-
+      One real run with the owner's paid key, --max-cost 0.50 (INGOL D-182);
+      coverage counted against the hand-made Word by question id; only
+      numbers, ids and minutes committed; the owner reads the result.
+  - criterion: WI14-AC08
+    method: external-evidence
+    control: >-
+      The run's printed stages: requests, frames read, answers on screen by
+      minute, cost per stage.
+  - criterion: WI14-AC09
+    method: deterministic
+    control: >-
+      python -m unittest discover -s tests -v in a fresh clone of the tested
+      commit; complete output committed.

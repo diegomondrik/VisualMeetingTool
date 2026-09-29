@@ -244,6 +244,23 @@ def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost
                         retry_delays, sleep, counters, max_cost_usd)
 
 
+def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, chunk_size=CHUNK_SIZE):
+    """What each of `frames` shows, as {name: its [FRAME n] block}, reading
+    only those frames, each chunk checked and within the budget as
+    read_frames does (the question-and-answer register reads only the frames
+    of the answers that relied on the screen)."""
+    readings = {}
+    for start in range(0, len(frames), chunk_size):
+        chunk = frames[start:start + chunk_size]
+        text = _read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd)
+        found = list(_BLOCK.finditer(text))
+        ends = [match.start() for match in found[1:]] + [len(text)]
+        blocks = {int(match.group(1)): text[match.start():end].strip() for match, end in zip(found, ends)}
+        for offset, path in enumerate(chunk):
+            readings[path.name] = blocks[start + 1 + offset]
+    return readings
+
+
 def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUNK_SIZE,
                 retry_delays=RETRY_DELAYS, sleep=time.sleep, max_cost_usd=MAX_COST_USD):
     """Read every frame of frames_dir with Gemini and write OUTPUT_NAME next to
