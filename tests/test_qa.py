@@ -298,6 +298,25 @@ class ChecksTest(Workspace):
         self.assertFalse(transcript.says("Pongamos una planilla de costos donde sea una tarifa", 0, 0))
         self.assertFalse(transcript.says("Pongamos una pantalla de captura donde sea una premisa", 400, 500))
 
+    def test_a_fragment_scattered_over_a_long_stretch_is_refused(self):
+        # The same five words, in order, but far apart: not a fragment of what was said.
+        spread = " ".join(f"{word} " + "relleno " * 6 for word in "el costo viaja por kilo".split())
+        transcript = qa.Transcript.read([(0, "Juan", spread)], "")
+        self.assertFalse(transcript.says("el costo viaja por kilo", 0, 0))
+        self.assertTrue(qa.Transcript.read([(0, "Juan", "el costo viaja por kilo")], "").says(
+            "el costo viaja por kilo", 0, 0))
+
+    def test_the_words_that_show_the_screen_must_be_literal(self):
+        # They are printed between quotation marks, so the 85 % does not apply.
+        said = [(0, "Juan", "Te muestro ahora la planilla de costos de la planta del sur")]
+        transcript = qa.Transcript.read(said, "")
+        self.assertTrue(transcript.says("Te muestro ahora la planilla de costos de la planta del", 0, 0))
+        self.assertFalse(transcript.says("Te muestro ahora la planilla de gastos de la planta del", 0, 0, exact=True))
+        self.assertTrue(transcript.says("te muestro ahora la planilla", 0, 0, exact=True))
+        broken = changed(verbal(), 2, screen=True, screen_quote="Te muestro la planilla, ¿están viendo? El costo viaja "
+                                                               "por litro con la tarifa")
+        self.assertRefused(broken, "question 2 is marked on screen, but the words that show it are not")
+
     def test_a_fragment_too_short_is_refused(self):
         self.assertRefused(changed(verbal(), 1, quote="Los carga"), "its verbatim fragment is not in the transcript")
 

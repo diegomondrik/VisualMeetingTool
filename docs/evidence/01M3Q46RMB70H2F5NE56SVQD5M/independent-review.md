@@ -23,3 +23,16 @@ Veredicto: **no listo** (P1-1), listo con limitaciones una vez corregido P1-1.
 | 14 | P3 | Huecos de prueba y mutaciones faltantes | **Corregido.** Nueve mutaciones más (30 en total); pruebas del tope, del corte del tramo y de la salida de la lectura |
 
 Suite tras la corrección: 238 pruebas OK.
+
+## Re-verificaciones
+
+- **c74f2ff** (corrección de la revisión): «listo para la corrida real». Hallazgos
+  nuevos P2/P3 (reserva formal sólo hasta unas 22 imágenes; tope de salida
+  chico para una o dos imágenes; nota del reintento debajo del material;
+  descartes sin informar; fechas sueltas) anotados como limitaciones; la nota
+  del reintento se movió antes del material en 8b0c9a6.
+- **f139b20** (cambios de las tres corridas reales): «listo con limitaciones»,
+  sin P0/P1. P2-1 (las palabras de pantalla, impresas entre comillas, se
+  aceptaban al 85 %): corregido, se controlan literales; la corrida entregada
+  las tiene literales. P2-2 (ninguna prueba cuidaba el largo del tramo):
+  prueba y mutación agregadas. P2-3 y los P3: limitaciones en el contrato.

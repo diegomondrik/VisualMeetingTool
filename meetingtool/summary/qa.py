@@ -332,17 +332,23 @@ class Transcript:
             dates.add((day.day, day.month))
         return cls(words, speakers, max(start for start, _, _ in turns), frozenset(dates))
 
-    def says(self, fragment, start, end):
+    def says(self, fragment, start, end, exact=False):
         """True if fragment was said in the turns that began between start and
         end, QUOTE_MARGIN seconds wider on each side: at least QUOTE_MATCH of
         its words in the same order, within a stretch at most a little longer
         than it. Teams' transcript repeats words and leaves stray ones ("It.
         Six."), which a copy made by Gemini cleans without meaning to (the
         second real run); a fragment made up or said at another moment is
-        still refused (owner's decision, session 117)."""
+        still refused (owner's decision, session 117). With `exact`, every
+        word, one after the other: the words that show an answer relied on the
+        screen are printed between quotation marks, so they must be literal
+        (the owner's decision covers the answer's fragment only; review of
+        f139b20, P2-1)."""
         wanted = plain_words(fragment)
         said = " ".join(words for second, words in self.turns
                         if start - QUOTE_MARGIN <= second <= end + QUOTE_MARGIN).split()
+        if exact:
+            return bool(wanted) and f" {' '.join(wanted)} " in f" {' '.join(said)} "
         return bool(wanted) and in_order(wanted, said, math.ceil(QUOTE_MATCH * len(wanted)),
                                          len(wanted) + max(4, len(wanted) // 2))
 
@@ -458,7 +464,7 @@ def check_question(item, number, transcript, window):
     if not isinstance(screen, bool):
         raise QAError(f"{where}: 'screen' is not true or false")
     if screen and (len(plain_words(fields["screen_quote"])) < SCREEN_QUOTE_WORDS
-                   or not transcript.says(fields["screen_quote"], start, end)):
+                   or not transcript.says(fields["screen_quote"], start, end, exact=True)):
         raise QAError(f"{where} is marked on screen, but the words that show it are not in the transcript "
                       f"between {minute(start)} and {minute(end)}")
     for key in ("question", "agreement", "pending", "deadline"):

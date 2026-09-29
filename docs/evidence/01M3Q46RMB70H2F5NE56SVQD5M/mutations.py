@@ -92,6 +92,11 @@ MUTATIONS = [
      "            refused.append(str(error))\n", "            raise\n"),
     ("an accepted batch not kept, so paid again (run 2)", QA,
      '_keep(kept, {"digest": digest, "answer": text})', "pass"),
+    ("the words that show the screen matched at 85% instead of literally (re-verification P2-1)", QA,
+     'transcript.says(fields["screen_quote"], start, end, exact=True)',
+     'transcript.says(fields["screen_quote"], start, end)'),
+    ("a fragment's words matched however far apart (re-verification P2-2)", QA,
+     "len(wanted) + max(4, len(wanted) // 2))", "10 ** 6)"),
 ]
 TESTS = ["tests.test_qa", "tests.test_summary", "tests.test_report"]
 

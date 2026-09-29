@@ -84,7 +84,20 @@ objective: >
   remains); a question taken up again in the second batch keeps only what the
   first batch registered of it (P2-4); the final frame check runs after
   every request was paid, outside the retry (P3-12); a run that stops prints
-  the total spent, not the cost of each stage (P3-13).
+  the total spent, not the cost of each stage (P3-13, fixed after the first
+  real run).
+
+  Known limitations (re-verification of f139b20): the words that show an
+  answer relied on the screen are printed between quotation marks, so they
+  are checked literally, not at 85% (P2-1, fixed); from seven words on, the
+  85% lets one word added or changed through, which may turn the sense of
+  the answer's fragment ("no paga" against "paga"); that fragment is kept in
+  qa.json, not printed in the report (P2-3); a batch kept from an earlier run
+  does not record the model that answered it (P3); a refused answer's
+  diagnostic file is named by attempt and is overwritten by the next run (P3);
+  a failure to write a kept batch loses that paid answer and does not report
+  what was spent (P3); up to 60 characters written by Gemini go into the
+  retry's note, above the material line (P3).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3Q46RMB70H2F5NE56SVQD5M/**
