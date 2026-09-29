@@ -112,8 +112,8 @@ FIELDS = """For each question:
 - "question": what was asked or raised, in one or two sentences.
 - "asked_by": who raised it, with the speaker's name as the transcript writes it; "" if it cannot be told.
 - "start": when it was raised, and "end": when the last turn of its answer began, both as H:MM:SS.
-- "answers": the complete answer, one entry per point in the order it was said, each {"speaker": the name as the
-  transcript writes it, "text": the point}; the same speaker may appear several times. Write every point, figure,
+- "answers": the complete answer, one entry per point in the order it was said, each {"speaker": only the name,
+  as the transcript writes it, "text": the point}; the same speaker may appear several times. Write every point, figure,
   name, rule, example, condition and exception that was said; never shorten an answer to one line. An empty list
   only if nobody answered.
 - "quote": a fragment of the answer copied word for word from the transcript, 6 to 25 words, without changing,
@@ -402,15 +402,21 @@ def check_question(item, number, transcript, window):
         if not isinstance(point, dict):
             raise QAError(f"{where}: an answer is not a JSON object")
         speaker, text = _string(point, "speaker", where), _string(point, "text", where)
+        name, colon, said = speaker.partition(":")
+        if colon and not transcript.spoke(speaker) and transcript.spoke(name):
+            # "Name: what they said" in the speaker's field (the first real
+            # run, twice): the name is still checked; what follows it is kept
+            # only if the point has no text of its own.
+            speaker, text = name.strip(), text or said.strip()
         if not text:
             raise QAError(f"{where}: an answer has no text")
         if not transcript.spoke(speaker):
-            raise QAError(f"{where}: the answer is given to {speaker!r}, who did not speak in the meeting")
+            raise QAError(f"{where}: the answer is given to {speaker[:60]!r}, who did not speak in the meeting")
         points.append((speaker, text))
     if not points and fields["status"] != "pending":
         raise QAError(f"{where}: no answer, and yet its status is {fields['status']}")
     if fields["asked_by"] and not transcript.spoke(fields["asked_by"]):
-        raise QAError(f"{where}: raised by {fields['asked_by']!r}, who did not speak in the meeting")
+        raise QAError(f"{where}: raised by {fields['asked_by'][:60]!r}, who did not speak in the meeting")
     if len(plain_words(fields["quote"])) < QUOTE_WORDS or not transcript.says(fields["quote"], start, end):
         raise QAError(f"{where}: its verbatim fragment is not in the transcript between {minute(start)} and "
                       f"{minute(end)} (or has fewer than {QUOTE_WORDS} words)")
@@ -470,7 +476,7 @@ def check_seen(data, needing, language):
             raise QAError("what was seen on screen: an answer is not a JSON object")
         identifier = _string(entry, "id", "what was seen on screen")
         if identifier not in needing:
-            raise QAError(f"what was seen on screen is given to {identifier!r}, which is not an answer on screen "
+            raise QAError(f"what was seen on screen is given to {identifier[:20]!r}, which is not an answer on screen "
                           "with frames")
         if identifier in seen:
             raise QAError(f"what was seen on screen is given to {identifier} twice")
@@ -618,9 +624,19 @@ def revise(payload, error):
     return revised
 
 
-def _stage(stages, counters, name, call):
-    attempts, spent = counters["attempts"], counters["spent"]
-    result = call()
+def _stage(stages, counters, name, call, refusals=()):
+    """call(), recorded as a stage; if it fails, a QAError that also says what
+    was spent in all and in each stage done, and the refusal before the last
+    (the first real run stopped paid, and said neither)."""
+    attempts, spent, refused = counters["attempts"], counters["spent"], len(refusals)
+    try:
+        result = call()
+    except gemini.ReadingError as error:
+        done = "; ".join(f"{stage.name} US${stage.cost_usd:.3f}" for stage in stages)
+        before = f"; the answer before was refused too: {refusals[-1]}" if len(refusals) > refused else ""
+        raise QAError(f"{error}{before} [stopped at {name} after {counters['attempts'] - attempts} attempt(s) of it; "
+                      f"about US${counters['spent']:.3f} spent in all" + (f", of which {done}" if done else "")
+                      + "; nothing was written]") from None
     stages.append(Stage(name, counters["attempts"] - attempts, counters["spent"] - spent))
     return result
 
@@ -675,6 +691,11 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     counters = gemini.new_counters()
     stages = []
     started = time.monotonic()
+    refusals = []
+
+    def revising(payload, error):
+        refusals.append(str(error)[:300])
+        return revise(payload, error)
 
     questions, grouped = [], None
     windows = batches(turns)
@@ -691,7 +712,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
 
         found, found_knowledge = _stage(stages, counters, f"register {part}/{len(windows)}", lambda: gemini.call_checked(
             url, key, payload, check, worst, f"the register (part {part} of {len(windows)})", retry_delays, sleep,
-            counters, max_cost_usd, revise))
+            counters, max_cost_usd, revising), refusals)
         questions += found
         if last:
             grouped = found_knowledge
@@ -704,7 +725,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     readings = {}
     if wanted:
         readings = _stage(stages, counters, "frames", lambda: gemini.read_listed(
-            url, key, wanted, retry_delays, sleep, counters, max_cost_usd))
+            url, key, wanted, retry_delays, sleep, counters, max_cost_usd), refusals)
     needing = {identifier: [path.name for path in paths] for identifier, paths in spans.items() if paths}
     seen = {}
     if needing:
@@ -716,7 +737,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
         seen = _stage(stages, counters, "seen on screen", lambda: gemini.call_checked(
             url, key, payload, lambda answer: check_seen(parse_json(answer, "reading of the screen"), needing,
                                                         language),
-            worst, "what was seen on screen", retry_delays, sleep, counters, max_cost_usd, revise))
+            worst, "what was seen on screen", retry_delays, sleep, counters, max_cost_usd, revising), refusals)
 
     markdown = render(questions, grouped, seen, language)
     writer.check_frames(markdown, {path.name for path in frames})

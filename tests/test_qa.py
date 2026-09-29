@@ -270,6 +270,7 @@ class ChecksTest(Workspace):
                 self.register(fake, language="es")
         self.assertIn(message, str(caught.exception))
         self.assertNothingWritten()
+        self.last_error = caught.exception
         return fake
 
     def test_a_fragment_not_in_the_transcript_is_refused(self):
@@ -283,6 +284,35 @@ class ChecksTest(Workspace):
     def test_an_answer_given_to_someone_who_did_not_speak_is_refused(self):
         broken = changed(verbal(), 2, answers=[{"speaker": "Pedro Ruiz", "text": "El costo viaja por kilo."}])
         self.assertRefused(broken, "question 2: the answer is given to 'Pedro Ruiz', who did not speak")
+
+    def test_a_name_and_what_they_said_in_the_speakers_field_is_split_and_the_name_checked(self):
+        # Found by the first real run: "Name: what they said" as the speaker.
+        point = {"speaker": "Juan Gómez: El costo viaja por kilo con la tarifa de cada etapa.", "text": ""}
+        with FakeGemini([json_answer(changed(verbal(), 2, answers=[point]))]) as fake:
+            self.register(fake, language="es")
+        self.assertIn("  - **Juan Gómez:** El costo viaja por kilo con la tarifa de cada etapa.", self.text())
+        point = {"speaker": "Juan Gómez: lo que dijo", "text": "El costo viaja por kilo."}
+        self.output().unlink()
+        with FakeGemini([json_answer(changed(verbal(), 2, answers=[point]))]) as fake:
+            self.register(fake, language="es")
+        self.assertIn("  - **Juan Gómez:** El costo viaja por kilo.", self.text())
+        broken = changed(verbal(), 2, answers=[{"speaker": "Pedro Ruiz: " + "palabra " * 40, "text": "El costo."}])
+        for name in (writer.OUTPUT_NAME, qa.REGISTER_NAME):
+            (self.frames / name).unlink()
+        self.assertRefused(broken, "question 2: the answer is given to 'Pedro Ruiz: palabra palabra")
+        self.assertNotIn("palabra " * 12, str(self.last_error))
+
+    def test_a_stopped_run_says_what_it_spent_and_both_refusals(self):
+        first = changed(verbal(), 1, quote="nada de esto se dijo en la reunión")
+        second = changed(verbal(), 1, status="answered")
+        with FakeGemini([json_answer(first), json_answer(second)]) as fake:
+            with self.assertRaises(qa.QAError) as caught:
+                self.register(fake, language="es")
+        message = str(caught.exception)
+        self.assertIn("status 'answered' is not one of", message)
+        self.assertIn("the answer before was refused too: question 1: its verbatim fragment", message)
+        self.assertIn("[stopped at register 1/1 after 2 attempt(s) of it; about US$0.083 spent in all; nothing was "
+                      "written]", message)
 
     def test_a_question_raised_by_someone_who_did_not_speak_is_refused(self):
         self.assertRefused(changed(verbal(), 1, asked_by="Pedro Ruiz"), "raised by 'Pedro Ruiz', who did not speak")
