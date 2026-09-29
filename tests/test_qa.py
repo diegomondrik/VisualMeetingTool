@@ -7,6 +7,7 @@ import contextlib
 import copy
 import io
 import json
+import shutil
 import tempfile
 import unittest
 from pathlib import Path
@@ -121,7 +122,11 @@ class Workspace(unittest.TestCase):
     def tearDown(self):
         self._tmp.cleanup()
 
-    def register(self, fake, transcript=None, **kwargs):
+    def register(self, fake, transcript=None, keep=False, **kwargs):
+        # Each run starts without the batches kept by the one before, unless
+        # the test is about them.
+        if not keep:
+            shutil.rmtree(self.frames / qa.PARTS_DIR, ignore_errors=True)
         return qa.write_register(self.frames, transcript or self.transcript, KEY, endpoint=fake.endpoint,
                                  sleep=self.sleeps.append, data_dir=self.data, **kwargs)
 
@@ -310,9 +315,27 @@ class ChecksTest(Workspace):
                 self.register(fake, language="es")
         message = str(caught.exception)
         self.assertIn("status 'answered' is not one of", message)
-        self.assertIn("the answer before was refused too: question 1: its verbatim fragment", message)
-        self.assertIn("[stopped at register 1/1 after 2 attempt(s) of it; about US$0.083 spent in all; nothing was "
-                      "written]", message)
+        self.assertIn("the answer before was refused too: 1 question(s) refused: question 1: its verbatim fragment", message)
+        self.assertIn("[stopped at register 1/1 after 2 attempt(s) of it; about US$0.083 spent in all; the register "
+                      "was not written]", message)
+
+    def test_every_refused_question_is_named_for_the_retry(self):
+        broken = changed(changed(verbal(), 1, quote="nada de esto se dijo en la reunión"), 2, status="answered")
+        with FakeGemini([json_answer(broken), json_answer(verbal())]) as fake:
+            self.register(fake, language="es")
+        retry = fake.requests[1]["body"]["contents"][0]["parts"][0]["text"]
+        note = retry.index("YOUR PREVIOUS ANSWER WAS REFUSED: 2 question(s) refused: question 1: its verbatim")
+        self.assertIn("question 2: status 'answered'", retry[note:])
+        self.assertLess(note, retry.index(qa.MATERIAL))
+
+    def test_a_refused_answer_is_kept_to_see_why(self):
+        broken = changed(verbal(), 1, quote="nada de esto se dijo en la reunión")
+        self.assertRefused(broken, "its verbatim fragment")
+        kept = sorted(path.name for path in (self.frames / qa.PARTS_DIR).iterdir())
+        self.assertEqual(kept, ["refused-part-1-attempt-1.json", "refused-part-1-attempt-2.json"])
+        record = json.loads((self.frames / qa.PARTS_DIR / kept[0]).read_text(encoding="utf-8"))
+        self.assertIn("its verbatim fragment", record["refused"])
+        self.assertEqual(json.loads(record["answer"]), broken)
 
     def test_a_question_raised_by_someone_who_did_not_speak_is_refused(self):
         self.assertRefused(changed(verbal(), 1, asked_by="Pedro Ruiz"), "raised by 'Pedro Ruiz', who did not speak")
@@ -390,9 +413,11 @@ class ChecksTest(Workspace):
         self.assertEqual(result.questions, 2)
         first, second = (request["body"]["contents"][0]["parts"][0]["text"] for request in fake.requests)
         self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
-        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: question 1: its verbatim fragment is not in the transcript",
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: 1 question(s) refused: question 1: its verbatim fragment is "
+                      "not in the transcript",
                       second)
-        self.assertTrue(second.startswith(first))
+        note = second.index("YOUR PREVIOUS ANSWER WAS REFUSED")
+        self.assertEqual(second[:note] + second[second.index(qa.MATERIAL):], first)
 
     def test_a_fragment_said_at_another_moment_of_the_meeting_is_refused(self):
         self.assertRefused(changed(verbal(), 1, quote="Queda acordado: Juan manda el detalle"),
@@ -466,6 +491,30 @@ class BatchesTest(Workspace):
         self.assertEqual(self.text().count("### P"), 2)
         self.assertIn("### P1 · ¿Quién carga", self.text())
         self.assertIn("### P2 · ¿Cómo viaja", self.text())
+
+    def test_a_batch_accepted_is_not_paid_again_when_the_run_is_made_again(self):
+        first = {"questions": [REGISTER["questions"][0]], "knowledge": {}}
+        second = {"questions": [changed(verbal(), 2)["questions"][1]], "knowledge": REGISTER["knowledge"]}
+        broken = changed(second, None)
+        broken["questions"] = [dict(second["questions"][0], quote="nada de esto se dijo en la reunión")]
+        with mock.patch.object(qa, "batches", return_value=SPLIT), \
+                FakeGemini([json_answer(first), json_answer(broken), json_answer(broken)]) as fake:
+            with self.assertRaises(qa.QAError):
+                self.register(fake, language="es")
+        self.assertTrue((self.frames / qa.PARTS_DIR / "part-1-of-2.json").exists())
+        with mock.patch.object(qa, "batches", return_value=SPLIT), \
+                FakeGemini([json_answer(second)]) as fake:
+            result = self.register(fake, language="es", keep=True)
+        self.assertEqual(len(fake.requests), 1)
+        self.assertIn("part 2 of 2", fake.requests[0]["body"]["contents"][0]["parts"][0]["text"])
+        self.assertEqual([(s.name, s.attempts) for s in result.stages],
+                         [("register 1/2 (kept from an earlier run)", 0), ("register 2/2", 1)])
+        self.assertEqual(result.questions, 2)
+        # Kept for another request (another meeting type): asked again.
+        with mock.patch.object(qa, "batches", return_value=SPLIT), \
+                FakeGemini([json_answer(first), json_answer(second)]) as fake:
+            self.register(fake, language="es", keep=True, meeting_type="presale")
+        self.assertEqual(len(fake.requests), 2)
 
     def test_a_question_taken_up_again_after_the_split_is_not_registered_twice(self):
         second = {"questions": [REGISTER["questions"][0]] + [changed(verbal(), 2)["questions"][1]],
