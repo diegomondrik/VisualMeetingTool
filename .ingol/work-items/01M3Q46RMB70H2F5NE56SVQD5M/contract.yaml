@@ -87,6 +87,16 @@ objective: >
   the total spent, not the cost of each stage (P3-13, fixed after the first
   real run).
 
+  Known limitations (re-verification of c74f2ff): the worst case of every
+  attempt fits US$0.50 together only up to about 22 frames read (the check
+  is against what was really spent, so the usual run fits far beyond; the
+  delivered run read 8); the output cap for reading one or two frames (3,000
+  or 4,000 tokens) was not measured, and a reading cut short is retried with
+  the same cap; a question left out of a batch is not reported; a day/month
+  after an introducing word ("el 1/3 de los casos") is still read as a date,
+  days in Spanish words need their accents, and "10 May 2026" or "on 9/25"
+  are not checked.
+
   Known limitations (re-verification of f139b20): the words that show an
   answer relied on the screen are printed between quotation marks, so they
   are checked literally, not at 85% (P2-1, fixed); from seven words on, the
