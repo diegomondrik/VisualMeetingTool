@@ -27,7 +27,9 @@ objective: >
   span of an answer is the frame on screen when it began (the last one the
   extraction kept before it, at most five minutes before: a frame is kept when
   the screen changes, not while it stays the same) and the frames kept until
-  its last turn began. The owner's rule for frames (D-181) decides which ones
+  its last turn began, at most ten minutes after it began (an answer taken up
+  again much later keeps its question's minutes, and its frames are not
+  looked for in everything between). The owner's rule for frames (D-181) decides which ones
   are named. With no answer on screen no frame is read and nothing is paid for
   it; with no frames at all (only the transcript), an answer on screen says
   "no image available" and nothing seen is invented. The order changes: the
@@ -37,16 +39,26 @@ objective: >
   Gemini answers in JSON and the program writes the Markdown the Word report
   reads, so what is checked is what is delivered. Checked against the
   transcript, and refused like an incomplete summary (retried once, then not
-  delivered): a verbatim fragment of each answer that is not in the
-  transcript (or has fewer than five words); an answering speaker (or a named
-  asker) who did not speak; a minute outside the meeting or an answer ending
-  before it starts; a status that is not one of the four; a written date
-  (a day with its month) that the transcript does not say; an answer marked
-  on screen without verbatim words of the transcript that show it; what was
-  seen given to an answer that is not on screen with frames, or naming a
-  frame outside its span. A long transcript is asked in two batches, each
-  registering the questions raised in its half with the whole transcript as
-  context, and a question outside its batch's half is refused.
+  delivered): a verbatim fragment of each answer that was not said between
+  its minutes, two minutes wider on each side (or has fewer than five words);
+  an answering speaker (or a named asker) who did not speak; a minute outside
+  the meeting or an answer ending before it starts; a status that is not one
+  of the four; a written date (a day with its month, or a day/month after a
+  word that introduces a date, or with its year) that the transcript does not
+  say, days said in Spanish words included; an answer marked on screen
+  without words that show it said between its minutes, the same way; what
+  was seen given to an answer that is not on screen with frames, or naming a
+  frame outside its span. The retry says why the answer before was refused.
+  A long transcript is asked in two batches, each registering the questions
+  raised in its half with the whole transcript as context; a question a
+  batch registers outside its half is left out, since the other batch
+  registers it.
+
+  The run fits its budget: with two batches of a transcript like Cermaq's,
+  twenty frames read and what was seen, every attempt reserved at its worst
+  fits US$0.50 together (the reading of a few frames reserves an output cap
+  in proportion to them, not that of seventy). Corrected after the
+  independent review of e1649d6 (P1-1, P2-2 to P2-6, P3-7, P3-8, P3-10).
 
   Not done: following questions across meetings; knowing whether every
   question was found (coverage is measured once against the owner's hand-made
@@ -58,6 +70,17 @@ objective: >
   it); job titles and roles (Gemini is asked not to state one nobody said;
   not checked by the code); a transcript without speaker names ([HH:MM:SS]
   lines), where no speaker can be checked.
+
+  Known limitations (independent review of e1649d6): four meeting types
+  (kickoff, status, technical, training) have no stance, so with them the
+  register's request is the same as with no type (P3-9); a date written only
+  as day/month with no introducing word is not checked, nor are days said in
+  English words (P2-5, what remains); an answer's minutes are Gemini's, so a
+  fragment said just outside them, beyond the margin, is refused (P2-6, what
+  remains); a question taken up again in the second batch keeps only what the
+  first batch registered of it (P2-4); the final frame check runs after
+  every request was paid, outside the retry (P3-12); a run that stops prints
+  the total spent, not the cost of each stage (P3-13).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3Q46RMB70H2F5NE56SVQD5M/**

@@ -40,8 +40,10 @@ from meetingtool.summary import writer
 FORMATS = ("summary", "qa")
 REGISTER_NAME = "qa.json"
 READING_NAME = "frames_read_qa.md"
-# A register is longer than a summary: every answer in detail.
-MAX_OUTPUT_TOKENS = 40960
+# A register is longer than a summary: every answer in detail. With two
+# batches, a frame reading and what was seen, every attempt's worst case must
+# fit the budget together (WI14's review): about US$0.15 a batch here.
+MAX_OUTPUT_TOKENS = 32768
 SEEN_OUTPUT_TOKENS = 16384
 # A transcript whose turns hold more characters than this is asked in two
 # batches, so that the register is not cut (the Cermaq meeting of 2026-09-25
@@ -58,6 +60,13 @@ END_SLACK = 60
 # it was kept at most this long before: the extraction keeps a frame when the
 # screen changes, not while it stays the same.
 LEAD = 300
+# An answer that goes on later in the meeting keeps its question's minutes;
+# its frames are looked for only this long after it began, not in the whole
+# meeting between the two moments (WI14's review).
+SPAN_MAX = 600
+# A verbatim fragment must have been said between an answer's minutes, with
+# this margin on each side for a minute read a little early or late.
+QUOTE_MARGIN = 120
 STATUSES = ("resolved", "resolved_with_caveat", "pending", "out_of_scope")
 KNOWLEDGE = ("rules", "owners", "figures", "glossary", "scope")
 
@@ -151,13 +160,29 @@ MONTHS = {"enero": 1, "febrero": 2, "marzo": 3, "abril": 4, "mayo": 5, "junio": 
           "january": 1, "february": 2, "march": 3, "april": 4, "may": 5, "june": 6, "july": 7, "august": 8,
           "september": 9, "october": 10, "november": 11, "december": 12}
 _MONTH = "|".join(sorted(MONTHS, key=len, reverse=True))
+# "10 may change" is not the tenth of May: after a day, English "may" is a
+# month only with "of".
+_MONTH_AFTER_DAY = "|".join(sorted((name for name in MONTHS if name != "may"), key=len, reverse=True))
+# Days said in words in a Spanish transcript ("el dos de mayo").
+DAY_WORDS = {word: day for day, word in enumerate(
+    "uno dos tres cuatro cinco seis siete ocho nueve diez once doce trece catorce quince dieciséis diecisiete "
+    "dieciocho diecinueve veinte veintiuno veintidós veintitrés veinticuatro veinticinco veintiséis veintisiete "
+    "veintiocho veintinueve treinta".split(), start=1)} | {"primero": 1, "treinta y uno": 31}
+_DAY_WORD = "|".join(sorted(DAY_WORDS, key=len, reverse=True))
 # A written date: a day with its month. "abril", "next week" or "Friday" are
-# not dates the code can check (the request asks to keep them as said).
+# not dates the code can check (the request asks to keep them as said). A
+# day/month without a year counts only after a word that introduces a date,
+# so that "1/2 de la producción" or "24/7" is not one (WI14's review).
 _DATES = (
     (re.compile(r"\b\d{4}-(\d{1,2})-(\d{1,2})\b"), lambda m: (m.group(2), m.group(1))),
-    (re.compile(r"\b(\d{1,2})/(\d{1,2})(?:/\d{2,4})?\b"), lambda m: (m.group(1), m.group(2))),
-    (re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th|º|°)?\s+(?:de\s+|of\s+)?({_MONTH})\b"), lambda m: (m.group(1), m.group(2))),
+    (re.compile(r"\b(\d{1,2})/(\d{1,2})/(?:\d{4}|\d{2})\b"), lambda m: (m.group(1), m.group(2))),
+    (re.compile(r"\b(?:el|al|del|hasta el|desde el|para el|antes del|después del|on|by|until|before|after|from)"
+                r"\s+(\d{1,2})/(\d{1,2})\b"), lambda m: (m.group(1), m.group(2))),
+    (re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th|º|°)?\s+(?:de\s+|of\s+)?({_MONTH_AFTER_DAY})\b"),
+     lambda m: (m.group(1), m.group(2))),
+    (re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)?\s+of\s+(may)\b"), lambda m: (m.group(1), m.group(2))),
     (re.compile(rf"\b({_MONTH})\s+(\d{{1,2}})(?:st|nd|rd|th)?\b"), lambda m: (m.group(2), m.group(1))),
+    (re.compile(rf"\b({_DAY_WORD})\s+de\s+({_MONTH})\b"), lambda m: (DAY_WORDS[m.group(1)], m.group(2))),
 )
 _CLOCK = re.compile(r"(?:(\d{1,2}):)?(\d{1,3}):(\d{2})")
 _FRAME_TIME = re.compile(r"_t(\d{2})-(\d{2})-(\d{2})\.jpg$")
@@ -231,8 +256,9 @@ def written_dates(text):
 
 
 def parse_clock(value):
-    """Seconds of H:MM:SS or M:SS, or None."""
-    match = _CLOCK.fullmatch(value.strip()) if isinstance(value, str) else None
+    """Seconds of H:MM:SS or M:SS (also in square brackets, as the request
+    writes the transcript's), or None."""
+    match = _CLOCK.fullmatch(value.strip().strip("[]").strip()) if isinstance(value, str) else None
     if not match:
         return None
     hours, minutes, seconds = int(match.group(1) or 0), int(match.group(2)), int(match.group(3))
@@ -254,33 +280,37 @@ def frame_second(path):
 def span_frames(frames, start, end):
     """The frames of an answer's span: the one on screen when it began (the
     last kept before it, at most LEAD seconds before) and those kept until
-    its last turn began."""
+    its last turn began, at most SPAN_MAX seconds after it began."""
     timed = [(frame_second(path), path) for path in frames if frame_second(path) is not None]
     before = [path for second, path in timed if start - LEAD <= second < start]
-    return before[-1:] + [path for second, path in timed if start <= second <= end]
+    return before[-1:] + [path for second, path in timed if start <= second <= min(end, start + SPAN_MAX)]
 
 
 @dataclasses.dataclass(frozen=True)
 class Transcript:
     """What the register is checked against."""
-    words: str
+    turns: tuple
     speakers: tuple
     last: int
     dates: frozenset
 
     @classmethod
     def read(cls, turns, text, date=None):
-        words = " ".join(" ".join(plain_words(said)) for _, _, said in turns)
+        words = tuple((start, " ".join(plain_words(said))) for start, _, said in turns)
         speakers = tuple(sorted({frozenset(plain_words(speaker)) for _, speaker, _ in turns if speaker.strip()},
                                 key=sorted))
         dates = set(written_dates(text))
         if date:
             day = datetime.date.fromisoformat(date)
             dates.add((day.day, day.month))
-        return cls(f" {words} ", speakers, max(start for start, _, _ in turns), frozenset(dates))
+        return cls(words, speakers, max(start for start, _, _ in turns), frozenset(dates))
 
-    def says(self, fragment):
-        return f" {' '.join(plain_words(fragment))} " in self.words
+    def says(self, fragment, start, end):
+        """True if fragment was said, word for word, in the turns that began
+        between start and end, QUOTE_MARGIN seconds wider on each side."""
+        said = " ".join(words for second, words in self.turns
+                        if start - QUOTE_MARGIN <= second <= end + QUOTE_MARGIN)
+        return f" {' '.join(plain_words(fragment))} " in f" {said} "
 
     def spoke(self, name):
         """True if every word of name is in one speaker's name; with no
@@ -331,6 +361,8 @@ def _check_text(text, where, transcript):
 def _check_language(text, what, language):
     """The summary's language check (quotes and code left out), naming what
     is checked."""
+    if not (writer._SPANISH.search(text) or writer._ENGLISH.search(text)):
+        return  # labels and figures only ("Tabla: SKU, Planta, Kg."): no language to judge (WI14's review)
     try:
         writer.check_language(text, [], language)
     except writer.SummaryError as error:
@@ -338,13 +370,19 @@ def _check_language(text, what, language):
 
 
 def check_question(item, number, transcript, window):
-    """The question as a Question, or QAError naming the first check it fails."""
+    """The question as a Question, None if it was raised outside the part of
+    the meeting asked for (the other batch registers it: a batch may carry a
+    question raised before it and taken up again in it, WI14's review), or
+    QAError naming the first check it fails."""
     where = f"question {number}"
     if not isinstance(item, dict):
         raise QAError(f"{where} is not a JSON object")
     fields = {key: _string(item, key, where) for key in ("question", "asked_by", "start", "end", "quote",
                                                          "agreement", "pending", "deadline", "status",
                                                          "screen_quote")}
+    raised = parse_clock(fields["start"])
+    if raised is not None and not window[0] <= raised < window[1]:
+        return None
     if not fields["question"]:
         raise QAError(f"{where} has no question")
     if fields["status"] not in STATUSES:
@@ -356,8 +394,6 @@ def check_question(item, number, transcript, window):
         raise QAError(f"{where}: its answer ends ({minute(end)}) before it starts ({minute(start)})")
     if end > transcript.last + END_SLACK:
         raise QAError(f"{where}: minute {minute(end)} is after the meeting's last turn ({minute(transcript.last)})")
-    if not window[0] <= start < window[1]:
-        raise QAError(f"{where}: raised at {minute(start)}, outside the part of the meeting asked for")
     answers = item.get("answers")
     if not isinstance(answers, list):
         raise QAError(f"{where}: 'answers' is not a list")
@@ -375,15 +411,16 @@ def check_question(item, number, transcript, window):
         raise QAError(f"{where}: no answer, and yet its status is {fields['status']}")
     if fields["asked_by"] and not transcript.spoke(fields["asked_by"]):
         raise QAError(f"{where}: raised by {fields['asked_by']!r}, who did not speak in the meeting")
-    if len(plain_words(fields["quote"])) < QUOTE_WORDS or not transcript.says(fields["quote"]):
-        raise QAError(f"{where}: its verbatim fragment is not in the transcript (or has fewer than "
-                      f"{QUOTE_WORDS} words)")
+    if len(plain_words(fields["quote"])) < QUOTE_WORDS or not transcript.says(fields["quote"], start, end):
+        raise QAError(f"{where}: its verbatim fragment is not in the transcript between {minute(start)} and "
+                      f"{minute(end)} (or has fewer than {QUOTE_WORDS} words)")
     screen = item.get("screen")
     if not isinstance(screen, bool):
         raise QAError(f"{where}: 'screen' is not true or false")
     if screen and (len(plain_words(fields["screen_quote"])) < SCREEN_QUOTE_WORDS
-                   or not transcript.says(fields["screen_quote"])):
-        raise QAError(f"{where} is marked on screen, but the words that show it are not in the transcript")
+                   or not transcript.says(fields["screen_quote"], start, end)):
+        raise QAError(f"{where} is marked on screen, but the words that show it are not in the transcript "
+                      f"between {minute(start)} and {minute(end)}")
     for key in ("question", "agreement", "pending", "deadline"):
         _check_text(fields[key], where, transcript)
     for _, text in points:
@@ -398,7 +435,8 @@ def check_register(data, transcript, window, language, with_knowledge):
     questions = data.get("questions")
     if not isinstance(questions, list):
         raise QAError("the register has no list of questions")
-    found = [check_question(item, number, transcript, window) for number, item in enumerate(questions, start=1)]
+    checked = [check_question(item, number, transcript, window) for number, item in enumerate(questions, start=1)]
+    found = [question for question in checked if question is not None]
     knowledge = None
     if with_knowledge:
         grouped = data.get("knowledge")
@@ -543,7 +581,7 @@ def render(questions, knowledge, seen, language):
             lines.append(f"- **{labels['agreement']}:** {_line(q.agreement)}")
         if q.pending:
             lines.append(f"- **{labels['open']}:** {_line(q.pending)}")
-        if q.agreement or q.pending:
+        if q.deadline or q.agreement or q.pending:
             lines.append(f"- **{labels['deadline']}:** {_line(q.deadline) or labels['no_date']}")
         support = f"{labels['screen']}: «{_line(q.screen_quote)}»" if q.screen else labels["verbal"]
         lines.append(f"- **{labels['support']}:** {support}")
@@ -563,6 +601,21 @@ def render(questions, knowledge, seen, language):
     else:
         lines.append(labels["no_pending"])
     return "\n".join(lines) + "\n"
+
+
+RETRY_NOTE = ("\n\nYOUR PREVIOUS ANSWER WAS REFUSED: {error}. Answer again, the whole JSON, and fix that; copy "
+              "every verbatim fragment exactly as the transcript writes it.")
+# What the retry adds to a request, at most, in characters (its note, with a
+# refusal message), so that the worst case of the retry is reserved too.
+RETRY_NOTE_CHARS = 1000
+
+
+def revise(payload, error):
+    """The same request, saying why the answer before was refused (WI14's
+    review: resending it unchanged would likely get the same answer)."""
+    revised = json.loads(json.dumps(payload))
+    revised["contents"][0]["parts"][0]["text"] += RETRY_NOTE.format(error=str(error)[:600])
+    return revised
 
 
 def _stage(stages, counters, name, call):
@@ -631,14 +684,14 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
         payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": MAX_OUTPUT_TOKENS,
                                         "responseMimeType": "application/json"}}
-        worst = gemini.token_cost(len(prompt) / writer.CHARS_PER_TOKEN, MAX_OUTPUT_TOKENS)
+        worst = gemini.token_cost((len(prompt) + RETRY_NOTE_CHARS) / writer.CHARS_PER_TOKEN, MAX_OUTPUT_TOKENS)
 
         def check(answer, window=window, last=last):
             return check_register(parse_json(answer, "register"), checked, window, language, last)
 
         found, found_knowledge = _stage(stages, counters, f"register {part}/{len(windows)}", lambda: gemini.call_checked(
             url, key, payload, check, worst, f"the register (part {part} of {len(windows)})", retry_delays, sleep,
-            counters, max_cost_usd))
+            counters, max_cost_usd, revise))
         questions += found
         if last:
             grouped = found_knowledge
@@ -659,11 +712,11 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
         payload = {"contents": [{"role": "user", "parts": [{"text": prompt}]}],
                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": SEEN_OUTPUT_TOKENS,
                                         "responseMimeType": "application/json"}}
-        worst = gemini.token_cost(len(prompt) / writer.CHARS_PER_TOKEN, SEEN_OUTPUT_TOKENS)
+        worst = gemini.token_cost((len(prompt) + RETRY_NOTE_CHARS) / writer.CHARS_PER_TOKEN, SEEN_OUTPUT_TOKENS)
         seen = _stage(stages, counters, "seen on screen", lambda: gemini.call_checked(
             url, key, payload, lambda answer: check_seen(parse_json(answer, "reading of the screen"), needing,
                                                         language),
-            worst, "what was seen on screen", retry_delays, sleep, counters, max_cost_usd))
+            worst, "what was seen on screen", retry_delays, sleep, counters, max_cost_usd, revise))
 
     markdown = render(questions, grouped, seen, language)
     writer.check_frames(markdown, {path.name for path in frames})

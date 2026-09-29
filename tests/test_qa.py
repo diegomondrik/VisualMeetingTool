@@ -358,6 +358,31 @@ class ChecksTest(Workspace):
             result = self.register(fake, language="es")
         self.assertEqual(len(fake.requests), 2)
         self.assertEqual(result.questions, 2)
+        first, second = (request["body"]["contents"][0]["parts"][0]["text"] for request in fake.requests)
+        self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: question 1: its verbatim fragment is not in the transcript",
+                      second)
+        self.assertTrue(second.startswith(first))
+
+    def test_a_fragment_said_at_another_moment_of_the_meeting_is_refused(self):
+        self.assertRefused(changed(verbal(), 1, quote="Queda acordado: Juan manda el detalle"),
+                           "question 1: its verbatim fragment is not in the transcript between 0:04 and 0:40")
+
+    def test_words_showing_the_screen_said_at_another_moment_are_refused(self):
+        self.assertRefused(changed(verbal(), 1, screen=True, screen_quote="Gracias a todos"),
+                           "question 1 is marked on screen, but the words that show it are not in the transcript "
+                           "between 0:04 and 0:40")
+
+    def test_a_deadline_said_without_an_agreement_is_kept(self):
+        with FakeGemini([json_answer(changed(verbal(), 1, deadline="el 25 de septiembre"))]) as fake:
+            self.register(fake, language="es")
+        self.assertEqual(self.text().count("- **Plazo:** el 25 de septiembre"), 2)
+
+    def test_what_was_seen_in_labels_and_figures_only_is_accepted(self):
+        seen = {"answers": [dict(SEEN["answers"][0], seen="Tabla: SKU, Planta, Kg.")]}
+        with FakeGemini([json_answer(REGISTER), reading, json_answer(seen)]) as fake:
+            self.register(fake, language="es")
+        self.assertIn("- **Lo visto en pantalla:** Tabla: SKU, Planta, Kg.", self.text())
 
     def test_what_was_seen_outside_the_span_or_for_a_verbal_answer_is_refused(self):
         cases = ((dict(frames=["frame_003_t00-04-00.jpg"]), "P2: frame(s) outside its span or not read"),
@@ -401,13 +426,26 @@ class BatchesTest(Workspace):
         self.assertIn("### P2 · ", self.text())
         self.assertIn("### Reglas acordadas\n\n- El costo viaja", self.text())
 
-    def test_a_question_outside_its_batch_is_refused(self):
+    def test_a_question_outside_its_batch_is_left_to_the_other_batch(self):
+        # Both batches answer both questions: each keeps only the one raised in
+        # its part, so none is lost or repeated, and nothing is refused.
         with mock.patch.object(qa, "batches", return_value=SPLIT), \
                 FakeGemini([json_answer(verbal()), json_answer(verbal())]) as fake:
-            with self.assertRaises(qa.QAError) as caught:
-                self.register(fake, language="es")
-        self.assertIn("question 2: raised at 2:10, outside the part of the meeting asked for", str(caught.exception))
-        self.assertNothingWritten()
+            result = self.register(fake, language="es")
+        self.assertEqual((len(fake.requests), result.questions), (2, 2))
+        self.assertEqual(self.text().count("### P"), 2)
+        self.assertIn("### P1 · ¿Quién carga", self.text())
+        self.assertIn("### P2 · ¿Cómo viaja", self.text())
+
+    def test_a_question_taken_up_again_after_the_split_is_not_registered_twice(self):
+        second = {"questions": [REGISTER["questions"][0]] + [changed(verbal(), 2)["questions"][1]],
+                  "knowledge": REGISTER["knowledge"]}
+        with mock.patch.object(qa, "batches", return_value=SPLIT), \
+                FakeGemini([json_answer({"questions": [REGISTER["questions"][0]], "knowledge": {}}),
+                            json_answer(second)]) as fake:
+            result = self.register(fake, language="es")
+        self.assertEqual(result.questions, 2)
+        self.assertEqual(self.text().count("¿Quién carga los estándares"), 2)  # the board's row and the heading
 
 
 class ScreenTest(Workspace):
@@ -434,6 +472,7 @@ class ScreenTest(Workspace):
             result = self.register(fake, language="es")
         sent = [label for request in self.image_requests(fake) for label in request["labels"]]
         self.assertEqual(sent, ["[FRAME 1] frame_001_t00-00-10.jpg", "[FRAME 2] frame_002_t00-02-20.jpg"])
+        self.assertEqual(self.image_requests(fake)[0]["body"]["generationConfig"]["maxOutputTokens"], 4000)
         self.assertEqual((result.frames_read, result.on_screen), (2, (("P2", "2:10"),)))
         seen_prompt = fake.requests[2]["body"]["contents"][0]["parts"][0]["text"]
         self.assertIn("ANSWER P2 (2:10 to 2:30)", seen_prompt)
@@ -458,6 +497,11 @@ class ScreenTest(Workspace):
         self.assertEqual([p.name for p in qa.span_frames(first, 10 + qa.LEAD, 10 + qa.LEAD + 2)],
                          ["frame_001_t00-00-10.jpg"])
         self.assertEqual([p.name for p in qa.span_frames(first, 10 + qa.LEAD + 1, 10 + qa.LEAD + 2)], [])
+        later = frames + [Path("frame_005_t00-20-00.jpg")]
+        self.assertEqual([p.name for p in qa.span_frames(later, 130, 2000)],
+                         ["frame_001_t00-00-10.jpg", "frame_002_t00-02-20.jpg", "frame_003_t00-04-00.jpg",
+                          "frame_004_t00-06-00.jpg"])
+        self.assertEqual(qa.span_frames(later, 1200 - qa.SPAN_MAX, 2000)[-1].name, "frame_005_t00-20-00.jpg")
         self.assertEqual([p.name for p in qa.span_frames(frames, 240, 360)],
                          ["frame_002_t00-02-20.jpg", "frame_003_t00-04-00.jpg", "frame_004_t00-06-00.jpg"])
 
@@ -506,9 +550,37 @@ class DatesTest(unittest.TestCase):
 
     def test_figures_minutes_and_months_alone_are_not_dates(self):
         for text in ("0,14 USD/kg", "1.250 kilos", "en abril", "1:22:57", "la próxima semana", "el viernes",
-                     "aporte 2,40 %", "40/99"):
+                     "aporte 2,40 %", "el 40/99", "1/2 de la producción", "atención 24/7", "3/4 partes",
+                     "turnos 2/3", "versión 1/12", "the lead time of 10 may change"):
             with self.subTest(text=text):
                 self.assertEqual(qa.written_dates(text), set())
+
+    def test_a_day_said_in_words_is_a_date(self):
+        self.assertEqual(qa.written_dates("lo mandamos el dos de mayo"), {(2, 5)})
+        self.assertEqual(qa.written_dates("hasta el treinta y uno de marzo"), {(31, 3)})
+        self.assertEqual(qa.written_dates("on the 10 of May"), {(10, 5)})
+        self.assertEqual(qa.written_dates("antes del 2/5"), {(2, 5)})
+
+    def test_a_minute_may_come_in_square_brackets(self):
+        self.assertEqual(qa.parse_clock("[00:12:05]"), 725)
+        self.assertEqual(qa.parse_clock("4:43"), 283)
+        self.assertIsNone(qa.parse_clock("al principio"))
+
+
+class BudgetTest(unittest.TestCase):
+    def test_the_whole_run_on_a_meeting_like_cermaq_fits_the_ceiling_at_its_worst_without_retries(self):
+        # About 115,000 characters of request per batch (the transcript whole
+        # in both), 20 frames read, and about 20,000 characters of what they
+        # show: every attempt reserved at its worst must fit US$0.50 together.
+        batch = gemini.token_cost((115000 + qa.RETRY_NOTE_CHARS) / writer.CHARS_PER_TOKEN, qa.MAX_OUTPUT_TOKENS)
+        frames = gemini.worst_attempt_cost(20, gemini.listed_output_tokens(20))
+        seen = gemini.token_cost((20000 + qa.RETRY_NOTE_CHARS) / writer.CHARS_PER_TOKEN, qa.SEEN_OUTPUT_TOKENS)
+        self.assertLess(2 * batch + frames + seen, writer.MAX_COST_USD)
+
+    def test_a_few_frames_do_not_reserve_the_output_of_seventy(self):
+        self.assertEqual(gemini.listed_output_tokens(2), 4000)
+        self.assertEqual(gemini.listed_output_tokens(70), gemini.MAX_OUTPUT_TOKENS)
+        self.assertEqual(gemini.worst_attempt_cost(70), gemini.worst_attempt_cost(70, gemini.MAX_OUTPUT_TOKENS))
 
 
 if __name__ == "__main__":
