@@ -737,9 +737,11 @@ def _write(path, text):
 
 def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, title=None, date=None,
                    meeting_type=None, language=None, recording=None, endpoint=gemini.ENDPOINT, model=gemini.MODEL,
-                   max_cost_usd=writer.MAX_COST_USD, retry_delays=gemini.RETRY_DELAYS, sleep=time.sleep):
+                   max_cost_usd=writer.MAX_COST_USD, retry_delays=gemini.RETRY_DELAYS, sleep=time.sleep,
+                   counters=None, add_meeting=None):
     """Write the register as summary.md in frames_dir (with qa.json, and the
-    reading of the frames it read), only once every request succeeded."""
+    reading of the frames it read), only once every request succeeded.
+    `counters` and `add_meeting` are as for writer.write_summary."""
     gemini.check_key(key)
     frames_dir = Path(frames_dir)
     if not frames_dir.is_dir():
@@ -776,7 +778,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     language = language or writer.detect_language(" ".join(said for _, _, said in turns))
     checked = Transcript.read(turns, text, date)
     url = gemini.model_url(endpoint, model)
-    counters = gemini.new_counters()
+    counters = gemini.new_counters() if counters is None else counters
     stages = []
     started = time.monotonic()
     refusals = []
@@ -864,9 +866,9 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
         summary = f"{labels['questions']}: {len(questions)} ({', '.join(counts)})."
         points = [q.agreement for q in questions if q.agreement][:8] or [q.question for q in questions][:8]
         try:
-            added = store.add_meeting(data_dir, project, title, date, meeting_type=meeting_type or "",
-                                      recording=recording or "", transcript=str(transcript), summary=summary,
-                                      key_points=points)
+            added = (add_meeting or store.add_meeting)(
+                data_dir, project, title, date, meeting_type=meeting_type or "", recording=recording or "",
+                transcript=str(transcript), summary=summary, key_points=points)
         except (store.ProjectError, OSError) as error:
             raise QAError(f"{output} was written, but the meeting could not be added to project {project}: "
                           f"{error}") from error

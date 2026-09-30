@@ -1,0 +1,58 @@
+schema_version: "1"
+work_item: 01M3QPZT9YPTVTYSED4GF7YDD3
+status: approved
+next_gate: implement-then-independent-review-then-real-run-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3QPZT9YPTVTYSED4GF7YDD3-local-app
+steps:
+  - five-screens-with-invented-data-wi15-ac01
+  - only-this-machine-and-no-other-site-wi15-ac02
+  - process-a-meeting-end-to-end-with-nothing-half-done-wi15-ac03
+  - show-the-owners-data-folder-as-it-is-wi15-ac04
+  - real-run-from-the-window-wi15-ac05
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi15-ac06
+evaluations:
+  - criterion: WI15-AC01
+    method: deterministic
+    control: >-
+      tests/test_app.py ScreensTest starts the server on a free port with a
+      data folder invented at test time and requests every screen and action
+      with the session cookie; fake credential functions stand in for the
+      Windows Credential Manager.
+  - criterion: WI15-AC02
+    method: adversarial
+    control: >-
+      tests/test_app.py IsolationTest sends each forbidden request (other
+      address, peer, cookie, Host, Origin, Sec-Fetch-Site, form) and checks
+      the refusal and that nothing was read or changed; each guard removed by
+      mutation is caught by a test, recorded in mutations.txt; a headless
+      Edge run, if Edge is present, opens a page of another origin that tries
+      to read and process, recorded in cross-site-browser.txt.
+  - criterion: WI15-AC03
+    method: adversarial
+    control: >-
+      tests/test_app.py ProcessTest runs the job with a recording made at test
+      time and the fake Gemini on localhost, once per format, and once with a
+      failure in each stage; the request is compared with the one the command
+      sends; a mutation that adds the meeting before the Word report, keeps
+      the folder after a failure or gives each stage the whole ceiling is
+      caught, recorded in mutations.txt.
+  - criterion: WI15-AC04
+    method: external-evidence
+    control: >-
+      existing_data_check.py hashes every file of the owner's data folder,
+      runs the application over it with no key, requests every screen, and
+      hashes again; only counts and the comparison are committed.
+  - criterion: WI15-AC05
+    method: external-evidence
+    control: >-
+      The owner processes a meeting from the window with his paid key and a
+      US$1.00 ceiling (INGOL D-186); the run record's stages, seconds and cost are
+      committed as numbers; the owner says whether it is understood.
+  - criterion: WI15-AC06
+    method: deterministic
+    control: >-
+      python -m unittest discover -s tests -v in a fresh clone of the tested
+      commit; complete output committed; git diff against main shows no
+      existing test changed.

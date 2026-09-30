@@ -133,10 +133,12 @@ def _parse_date(value):
 
 
 def add_meeting(data_dir, project_id, title, date, meeting_type="", recording="", transcript="",
-                summary="", key_points=()):
+                summary="", key_points=(), meeting_folder=""):
     """Add a meeting to a project, rebuild its knowledge file, and return the
     meeting record. _project_dir checks the project's own folder, which also
-    covers a data folder inside a git work tree."""
+    covers a data folder inside a git work tree. `meeting_folder`, the meeting's
+    own folder relative to the project's (the application's results), is
+    recorded only when given: a meeting added from the terminal has none."""
     folder = _project_dir(data_dir, project_id)
     iso_date = _parse_date(date)
     if iso_date is None:
@@ -160,6 +162,8 @@ def add_meeting(data_dir, project_id, title, date, meeting_type="", recording=""
         "key_points": [point.strip() for point in key_points if point.strip()],
         "added_utc": _now_utc(),
     }
+    if meeting_folder:
+        record["folder"] = meeting_folder
     _write_json(meetings / meeting_id / "meeting.json", record)
     rebuild_knowledge(data_dir, project_id)
     return record

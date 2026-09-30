@@ -413,7 +413,12 @@ def check_summary(answer, headings, language, frame_names=None):
 
 def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, title=None, date=None,
                   meeting_type=None, language=None, recording=None, endpoint=gemini.ENDPOINT, model=gemini.MODEL,
-                  max_cost_usd=MAX_COST_USD, retry_delays=gemini.RETRY_DELAYS, sleep=time.sleep):
+                  max_cost_usd=MAX_COST_USD, retry_delays=gemini.RETRY_DELAYS, sleep=time.sleep, counters=None,
+                  add_meeting=None):
+    """Write the summary as summary.md in frames_dir and, with a project, add
+    the meeting to it. `counters` is a spending meter shared with the other
+    stages of a run (default: its own); `add_meeting` replaces
+    store.add_meeting, for a caller that records the meeting later."""
     gemini.check_key(key)
     frames_dir = Path(frames_dir)
     gemini.check_outside_repository(frames_dir)
@@ -454,7 +459,7 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
                "generationConfig": {"temperature": 0.3, "maxOutputTokens": MAX_OUTPUT_TOKENS}}
     worst = gemini.token_cost(len(prompt) / CHARS_PER_TOKEN, MAX_OUTPUT_TOKENS)
     frame_names = {path.name for path in gemini.frame_files(frames_dir)}
-    counters = gemini.new_counters()
+    counters = gemini.new_counters() if counters is None else counters
     started = time.monotonic()
     text = gemini.call_checked(gemini.model_url(endpoint, model), key, payload,
                                lambda answer: check_summary(answer, headings, language, frame_names), worst,
@@ -468,9 +473,9 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
     if project:
         executive = section_text(text, SECTIONS[language][0])
         try:
-            record = store.add_meeting(data_dir, project, title, date, meeting_type=meeting_type or "",
-                                       recording=recording or "", transcript=str(transcript), summary=executive,
-                                       key_points=key_points(text, language))
+            record = (add_meeting or store.add_meeting)(
+                data_dir, project, title, date, meeting_type=meeting_type or "", recording=recording or "",
+                transcript=str(transcript), summary=executive, key_points=key_points(text, language))
         except (store.ProjectError, OSError) as error:
             raise SummaryError(f"{output} was written, but the meeting could not be added to project {project}: "
                                f"{error}") from error

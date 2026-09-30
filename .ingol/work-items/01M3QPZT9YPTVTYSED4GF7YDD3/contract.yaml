@@ -1,0 +1,167 @@
+schema_version: "1"
+id: 01M3QPZT9YPTVTYSED4GF7YDD3
+objective: >
+  The application on the owner's machine, the first of the three jobs that
+  finish MeetingTool (INGOL D-185, approving
+  docs/work-items/f8-owner-project/finish-app-plan-proposal.md of INGOL). Today
+  everything works only from a terminal, in five commands run in order; the
+  owner asked to see his projects and meetings on his machine, and to process a
+  meeting without them.
+
+  A new command, `meetingtool app` (also `python -m meetingtool app`), starts a
+  web server that only this machine can reach and opens the browser on it. It
+  has five screens, in Spanish: the projects (the list, creating one with name
+  and client, and the result folders of the data folder that belong to no
+  project, shown read-only); a project (its meetings by date with type and
+  format, and what the project knows); a meeting (the summary or the
+  question-and-answer register on screen, the frames it names, the Word report
+  to open or download, and what it cost); a new meeting (the transcript, and
+  the recording if there is one, uploaded from the browser; title, date, type,
+  language, format and spending ceiling; a "Procesar" button); and the settings
+  (saving, replacing or deleting the Gemini key, never shown back; the
+  company's Word template).
+
+  "Procesar" runs the same functions as the commands, in order: the frames of
+  the recording (only with a recording), their reading (only for the summary,
+  which needs it), the summary or the register with what the project knows,
+  and the Word report. The page shows the stage it is in, the time and what
+  was spent. One ceiling covers the whole run: each stage is given what the
+  ones before it left. It is US$1.00 unless the page says otherwise (INGOL
+  D-186, after the first real run: its first request of 70 frames got no
+  answer, was counted at its worst of about US$0.26, and its retry did not fit
+  the US$0.50 first proposed; a ceiling must cover each request and its retry
+  at their worst, INGOL D-182). A stop by the ceiling after a request that got
+  no answer says why that request failed. Nothing is added to the project until the Word report
+  is built and opened again: if a stage fails, the meeting does not appear in
+  the project and its working folder is removed; the page says which stage
+  failed, why, and what was spent. A processed meeting keeps, in its own
+  folder inside the project, its frames, transcript, summary, Word report and
+  a record of the run (stages, cost, model); its record in the project names
+  that folder. The recording itself is not kept: its frames are.
+
+  Only this machine: the server listens on 127.0.0.1 only and refuses a
+  request whose peer is not a loopback address. A page of another site open
+  in the same browser cannot use it: every request needs a cookie the server
+  sets when the browser opens the launch address (a random token, new at each
+  start, SameSite=Strict, HttpOnly); a request whose Host is not the server's
+  own address (a DNS rebinding) is refused, as is one whose Origin is another,
+  or whose Sec-Fetch-Site says it comes from another site. Changes (processing,
+  uploading, creating, the key, the template) are only accepted as JSON or raw
+  uploads with a custom header, which a page of another site cannot send
+  without the server's consent, never given. Pages forbid being framed and
+  run no inline script. Paths come only from identifiers checked as slugs,
+  never from the request.
+
+  The commands are unchanged: without `meetingtool app` everything works as
+  before. The summary and the register accept a way to record the meeting in
+  the project later instead of at once (the default is at once, as today); the
+  reading, the summary and the register accept one spending meter shared by
+  all three, so that a single ceiling covers them together and what was spent
+  is known when one fails (the default is a meter of their own, as today); and
+  a meeting record may name its folder (records without one are read as
+  before, and a meeting added from the terminal has none).
+
+  Not done: the installer (WI16) and the team's guide (WI17); sharing a
+  project between people (each sees his own, on his machine); using it from a
+  phone or another machine; changing how summaries are written; reusing, on a
+  second try, what a failed run already paid for (the command line keeps the
+  register's paid batches and can reuse them; the application removes the
+  failed run's folder); cancelling a run once started; progress within a
+  stage.
+
+  Corrected after the independent review of afb0d9f: a save that fails half
+  way (the meeting's record written, the project's knowledge not) removes
+  that record and rebuilds the knowledge, so no meeting stays without its
+  report (P2-1); a window closed during a run leaves a working folder with the
+  client's transcript and frames, and the next start removes every project's
+  working folders and every unused upload (P2-2); for that to be safe, one
+  application at a time holds a data folder, through a lock on a file of it
+  (.meetingtool-app.lock) that the system drops when the process ends, and a
+  second one is refused (P3-3); a refused request removes what it uploaded
+  (P3-1); a failed run only removes a result folder it moved there itself, so
+  a name taken by another meeting is refused, not removed (P3-2); the server
+  asks Windows for its port alone (P3-6: measured on the owner's machine, a
+  second socket asking to share the port is refused even without it, so it
+  is kept but not counted as a control).
+
+  Known limitations (independent review of afb0d9f): a request refused after
+  its uploads is uploaded again in full on the next try (P3-1, what remains);
+  the test that the request sent to Gemini is the command's compares the
+  summary's and the register's requests, not the reading's, which is the same
+  function with the same arguments by reading of the code (P3-4); the browser
+  run attacks from http://localhost with another port, not from
+  http://127.0.0.1 with another port, the one case where the browser sends the
+  session cookie (ports do not count for SameSite) and only the Origin and
+  Sec-Fetch-Site checks refuse it; those are covered by tests and mutations,
+  not by a browser (P3-5); any local process can receive the cookie by
+  serving on 127.0.0.1, outside what this protects against (P3-5); the owner's
+  data folder holds no project, so AC04 exercised only the loose results
+  (P3-7); while a stage runs its own cost shows 0 until it ends, the total
+  spent is live (P3-8).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3QPZT9YPTVTYSED4GF7YDD3/**
+  - docs/evidence/01M3QPZT9YPTVTYSED4GF7YDD3/**
+  - meetingtool/app/**
+  - meetingtool/__main__.py
+  - meetingtool/projects/store.py
+  - meetingtool/summary/writer.py
+  - meetingtool/summary/qa.py
+  - meetingtool/reading/gemini.py
+  - tests/test_app.py
+  - pyproject.toml
+  - README.md
+acceptance:
+  - id: WI15-AC01
+    description: >
+      The five screens work with invented projects and meetings: each is
+      requested from a running server and shows what it must (projects and
+      loose result folders; a project's meetings in date order and its
+      knowledge; a meeting's summary or register with its frames, the Word
+      report and the cost; the new-meeting form; the settings with whether a
+      key is saved, never the key). Creating a project, saving and deleting a
+      key and setting a template work from the page. No network, no key.
+  - id: WI15-AC02
+    description: >
+      A request from another machine, or from a page of another site, is
+      refused, and tests attempt it: the server listens only on 127.0.0.1 (a
+      connection to another address of the machine fails); a request from a
+      non-loopback peer, with no cookie or a wrong one, with another Host
+      (DNS rebinding), with another Origin, or with Sec-Fetch-Site cross-site
+      or same-site, is refused with nothing read or changed; a change sent as
+      a form is refused; the launch address with a wrong token sets no
+      cookie.
+  - id: WI15-AC03
+    description: >
+      "Procesar" runs the stages in order (frames, reading, summary or
+      register, Word), shows the stage and what was spent while it runs, and
+      ends with the meeting in its project and its Word report built; with
+      the fake Gemini, a failure in each stage leaves no meeting in the
+      project and no working folder, says which stage failed and what was
+      spent; the whole run keeps under one ceiling; the request sent to Gemini
+      is the one the command sends for the same meeting and project.
+  - id: WI15-AC04
+    description: >
+      The owner's existing data folder is shown as it is, with no migration:
+      a local run of the application over
+      C:/Users/Diego/VisualMeetingTool-data, with no key and no spend, lists
+      its projects and its loose result folders and opens each; every file of
+      the folder has the same bytes before and after (hashes compared, only
+      counts recorded).
+  - id: WI15-AC05
+    description: >
+      One real run from the window: the owner processes one of his meetings
+      with his paid key and a ceiling of US$1.00 (INGOL D-186; the first run,
+      with US$0.50, stopped in the reading and left nothing), sees the Word
+      report, and says whether the application is understood. Recorded under
+      docs/evidence/01M3QPZT9YPTVTYSED4GF7YDD3/ as numbers only (stages,
+      seconds, cost, frames); the meeting's content stays in his data folder.
+  - id: WI15-AC06
+    description: >
+      Without `meetingtool app` everything stays the same: the whole suite
+      passes with `python -m unittest discover -s tests -v` in a fresh clone
+      of the tested commit on the owner's machine, with the existing tests
+      unchanged, and its complete output is committed under
+      docs/evidence/01M3QPZT9YPTVTYSED4GF7YDD3/ before the pull request
+      (INGOL D-163); importing meetingtool and its entry point still needs
+      only the standard library.

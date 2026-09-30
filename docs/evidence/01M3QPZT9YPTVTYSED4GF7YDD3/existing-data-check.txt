@@ -1,0 +1,7 @@
+$ python docs/evidence/01M3QPZT9YPTVTYSED4GF7YDD3/existing_data_check.py C:/Users/Diego/VisualMeetingTool-data   (commit 9bf8cb9, 2026-09-30T13:25:25Z, no key, no network)
+data folder: 250 files, 791987122 bytes
+projects: 0; meetings: 0; loose results: 2
+screens requested: 4; files requested from them: 8; answers by status: {200: 12}
+after: 250 files; changed: 0; removed: 0; added: 0
+RESULT: the folder is identical and every screen answered 200
+exit 0
