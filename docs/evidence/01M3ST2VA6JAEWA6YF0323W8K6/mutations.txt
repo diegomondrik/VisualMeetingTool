@@ -1,0 +1,30 @@
+(on commit a69ea22 with this script as in the working tree, 2026-09-30T21:04:35Z)
+mutation run for 01M3ST2VA6JAEWA6YF0323W8K6: each mutation is applied alone to a copy of the
+working tree, `python -m unittest tests.test_report tests.test_app` is run, and the mutation must make it fail
+- the header and footer fields not filled (AC01): exit 1, FAILED (errors=19) -> DETECTED
+- a field filled only when it is within one run (AC02): exit 1, FAILED (errors=15) -> DETECTED
+- a known field left in the finished document delivered (AC03): exit 1, FAILED (failures=3) -> DETECTED
+- an unknown field accepted (AC03): exit 1, FAILED (failures=3) -> DETECTED
+- the template's model kept in the report (AC04): exit 1, FAILED (failures=12) -> DETECTED
+- a table of contents inside a content control not found (AC04): exit 1, FAILED (errors=1) -> DETECTED
+- the table of contents left as Word saved it (AC05): exit 1, FAILED (failures=2, errors=24) -> DETECTED
+- the field's levels ignored (AC05): exit 1, FAILED (errors=1) -> DETECTED
+- an entry linking nowhere (AC05): exit 1, FAILED (errors=1) -> DETECTED
+- Word asked to update fields on opening (AC05): exit 1, FAILED (failures=1) -> DETECTED
+- a field marked to update kept so (AC05): exit 1, FAILED (failures=1) -> DETECTED
+- the completeness check reads the cover too, and its table of contents (AC06): exit 1, FAILED (failures=1) -> DETECTED
+- the table of contents not checked (AC06): exit 1, FAILED (failures=2) -> DETECTED
+- the name the page gave not kept (AC07): exit 1, FAILED (failures=2) -> DETECTED
+- the report's start counted before the tables of contents are rewritten (review P1-1): exit 1, FAILED (failures=1, errors=3) -> DETECTED
+- the tables of contents checked against what was written in them (review P2-2): exit 1, FAILED (failures=1) -> DETECTED
+- a field left in a header or footer not looked for (review P3): exit 1, FAILED (failures=1) -> DETECTED
+- the bookmarks numbered from 0, over the template's own (review P3): exit 1, FAILED (failures=1) -> DETECTED
+- the cover's own section dropped with the model (review P2-1): exit 1, FAILED (failures=4) -> DETECTED
+- the section break kept even when what is kept already ends one (re-verification P2-A): exit 1, FAILED (failures=1) -> DETECTED
+- a page break added after a cover that ends on a new page (re-verification P2-B): exit 1, FAILED (failures=3) -> DETECTED
+- a continuous section break taken for a new page (re-verification P3): exit 1, FAILED (failures=1) -> DETECTED
+- the start type read from the cover's section, not the report's (second re-verification P2-C): exit 1, FAILED (failures=2) -> DETECTED
+- the section ended by the table of contents' last line dropped (review P2-1): exit 1, FAILED (failures=3) -> DETECTED
+- text before the field counted as an entry (review P2-3): exit 1, FAILED (errors=1) -> DETECTED
+- unmutated: exit 0, OK
+all mutations detected
