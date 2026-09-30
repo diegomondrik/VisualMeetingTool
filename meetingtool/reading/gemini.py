@@ -202,6 +202,7 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
         status, answer, reason = post_generate(url, key, payload)
         if status is None:
             counters["spent"] += worst  # no answer: it may have been billed in full
+            refused = f" (the attempt before got no answer: {reason})"
         if status == 200:
             usage = answer.get("usageMetadata") if isinstance(answer, dict) else None
             if isinstance(usage, dict) and "promptTokenCount" in usage:

@@ -48,7 +48,7 @@ evaluations:
     method: external-evidence
     control: >-
       The owner processes a meeting from the window with his paid key and a
-      US$0.50 ceiling; the run record's stages, seconds and cost are
+      US$1.00 ceiling (INGOL D-186); the run record's stages, seconds and cost are
       committed as numbers; the owner says whether it is understood.
   - criterion: WI15-AC06
     method: deterministic

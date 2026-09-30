@@ -249,7 +249,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                                      library.knowledge(data_dir, project_id)))
             if parts[2:] == ["new"]:
                 return self._html(pages.new_meeting_page(project, pages.meeting_types(), pages.languages(),
-                                                         gemini.MAX_COST_USD))
+                                                         jobs.DEFAULT_MAX_COST_USD))
             if parts[2] == "m" and len(parts) == 4:
                 entry = library.meeting(data_dir, project_id, parts[3])
                 record = entry["record"]

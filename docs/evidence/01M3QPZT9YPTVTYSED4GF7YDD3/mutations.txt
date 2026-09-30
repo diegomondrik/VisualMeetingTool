@@ -1,3 +1,4 @@
+(on commit 9bf8cb9 with this script as in the working tree, 2026-09-30T13:38:52Z)
 mutation run for 01M3QPZT9YPTVTYSED4GF7YDD3: each mutation is applied alone to a copy of the
 working tree, `python -m unittest tests.test_app` is run, and the mutation must make it fail
 - a peer that is not this machine accepted (AC02): exit 1, FAILED (errors=1) -> DETECTED
@@ -13,7 +14,7 @@ working tree, `python -m unittest tests.test_app` is run, and the mutation must 
 - what a summary says placed without escaping (AC01): exit 1, FAILED (failures=1) -> DETECTED
 - any file of a meeting's folder served (AC01): exit 1, FAILED (failures=1) -> DETECTED
 - a meeting's folder followed wherever its record says (AC01): exit 1, FAILED (failures=1) -> DETECTED
-- the meeting added by the summary at once, before the Word report (AC03): exit 1, FAILED (failures=7) -> DETECTED
+- the meeting added by the summary at once, before the Word report (AC03): exit 1, FAILED (failures=8) -> DETECTED
 - the run's folder kept after a failure (AC03): exit 1, FAILED (failures=6) -> DETECTED
 - the summary given a spending meter of its own (AC03): exit 1, FAILED (failures=2) -> DETECTED
 - the reading given a spending meter of its own (AC03): exit 1, FAILED (failures=2) -> DETECTED
@@ -21,6 +22,11 @@ working tree, `python -m unittest tests.test_app` is run, and the mutation must 
 - the summary started without a recording (AC03): exit 1, FAILED (failures=1) -> DETECTED
 - the copy of the recording kept in the meeting (AC03): exit 1, FAILED (failures=1) -> DETECTED
 - the meeting's record naming the transcript of the working folder (AC03): exit 1, FAILED (failures=1) -> DETECTED
-- the job said done or failed before its folder was cleaned (AC03): exit 1, FAILED (failures=6) -> DETECTED
+- the job said done or failed before its folder was cleaned (AC03): exit 1, FAILED (failures=8) -> DETECTED
+- a record half written by a failed save kept (review P2-1): exit 1, FAILED (failures=1) -> DETECTED
+- what a closed window left not cleared at start (review P2-2): exit 1, FAILED (failures=1) -> DETECTED
+- a second application over the same data folder allowed (review P3-3): exit 1, FAILED (failures=1) -> DETECTED
+- the uploads of a refused request kept (review P3-1): exit 1, FAILED (failures=1) -> DETECTED
+- a folder this run did not make removed on failure (review P3-2): exit 1, FAILED (errors=1) -> DETECTED
 - unmutated: exit 0, OK
 all mutations detected

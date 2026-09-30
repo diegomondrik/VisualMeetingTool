@@ -247,7 +247,7 @@ class ScreensTest(Running):
     def test_the_new_meeting_screen_has_every_field(self):
         text = self.page(f"/p/{self.project}/new")
         for field in ('name="title"', 'name="date"', 'name="transcript"', 'name="recording"', 'name="meeting_type"',
-                      'name="language"', 'value="summary"', 'value="qa"', 'name="max_cost"', 'value="0.50"'):
+                      'name="language"', 'value="summary"', 'value="qa"', 'name="max_cost"', 'value="1.00"'):
             self.assertIn(field, text)
         for meeting_type in writer.MEETING_TYPES:
             self.assertIn(f'value="{meeting_type}"', text)
@@ -780,6 +780,24 @@ class ReviewFixesTest(Processing):
         finally:
             lock.release()
         server.DataFolderLock(self.data).acquire().release()
+
+    def test_the_ceiling_covers_a_retry_of_the_reading_and_of_the_summary(self):
+        # The first real run (INGOL D-186): the first request of 70 frames got no
+        # answer, was counted at its worst, and its retry did not fit US$0.50.
+        reading, summary = gemini.worst_attempt_cost(70), gemini.token_cost(60000 / writer.CHARS_PER_TOKEN,
+                                                                            writer.MAX_OUTPUT_TOKENS)
+        self.assertGreater(2 * reading, 0.50)
+        self.assertGreaterEqual(jobs.DEFAULT_MAX_COST_USD, 2 * reading + 2 * summary)
+
+    def test_a_stop_by_the_ceiling_says_why_the_attempt_before_failed(self):
+        counters = gemini.new_counters()
+        with mock.patch.object(gemini, "post_generate", return_value=(None, None, "timed out")):
+            with self.assertRaises(gemini.ReadingError) as caught:
+                gemini.call_checked("http://127.0.0.1:9/x", KEY, {}, lambda answer: answer, 0.26, "frames 1-70",
+                                    (0, 0), lambda seconds: None, counters, 0.50)
+        self.assertIn("stopped before sending frames 1-70", str(caught.exception))
+        self.assertIn("the attempt before got no answer: timed out", str(caught.exception))
+        self.assertEqual(counters["attempts"], 1)
 
     def test_no_other_process_takes_the_port(self):
         # Measured, not a control of this code: on the owner's Windows the thief is refused even

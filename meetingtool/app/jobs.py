@@ -28,6 +28,10 @@ from meetingtool.projects import store
 from meetingtool.reading import gemini
 
 FORMATS = ("summary", "qa")
+# The ceiling of one meeting, every stage together (INGOL D-186): it must cover each paid request and
+# its retry at their worst, or a long meeting stops before a retry of its reading (the first real run:
+# 70 frames reserve about US$0.26, twice is over US$0.50). What is usually paid is far less.
+DEFAULT_MAX_COST_USD = 1.00
 TRANSCRIPT_SUFFIXES = (".docx", ".txt")
 RECORDING_SUFFIXES = (".mp4", ".mov", ".mkv", ".webm", ".avi", ".wmv", ".m4v")
 LABELS = {"frames": "Imágenes del video", "reading": "Lectura de las imágenes", "summary": "Resumen",
@@ -119,7 +123,7 @@ def check_request(data, data_dir, uploads, meeting_types, languages):
     if kind == "summary" and recording is None:
         raise JobError("el resumen necesita el video, para leer lo que se mostró; sin video, elegí el formato "
                        "preguntas y respuestas")
-    max_cost = data.get("max_cost", 0.50)
+    max_cost = data.get("max_cost", DEFAULT_MAX_COST_USD)
     if isinstance(max_cost, bool) or not isinstance(max_cost, (int, float)) or not 0 < max_cost <= 5:
         raise JobError("el techo de gasto tiene que ser un número de dólares mayor que 0 y hasta 5")
     return {"project": project_id, "project_name": project["name"], "title": title, "date": date,

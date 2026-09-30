@@ -26,7 +26,12 @@ objective: >
   which needs it), the summary or the register with what the project knows,
   and the Word report. The page shows the stage it is in, the time and what
   was spent. One ceiling covers the whole run: each stage is given what the
-  ones before it left. Nothing is added to the project until the Word report
+  ones before it left. It is US$1.00 unless the page says otherwise (INGOL
+  D-186, after the first real run: its first request of 70 frames got no
+  answer, was counted at its worst of about US$0.26, and its retry did not fit
+  the US$0.50 first proposed; a ceiling must cover each request and its retry
+  at their worst, INGOL D-182). A stop by the ceiling after a request that got
+  no answer says why that request failed. Nothing is added to the project until the Word report
   is built and opened again: if a stage fails, the meeting does not appear in
   the project and its working folder is removed; the page says which stage
   failed, why, and what was spent. A processed meeting keeps, in its own
@@ -146,7 +151,8 @@ acceptance:
   - id: WI15-AC05
     description: >
       One real run from the window: the owner processes one of his meetings
-      with his paid key and a ceiling of US$0.50 (INGOL D-182), sees the Word
+      with his paid key and a ceiling of US$1.00 (INGOL D-186; the first run,
+      with US$0.50, stopped in the reading and left nothing), sees the Word
       report, and says whether the application is understood. Recorded under
       docs/evidence/01M3QPZT9YPTVTYSED4GF7YDD3/ as numbers only (stages,
       seconds, cost, frames); the meeting's content stays in his data folder.
