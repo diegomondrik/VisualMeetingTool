@@ -77,6 +77,19 @@ MUTATIONS = [
      "        except Exception as error:  # every failure ends the job with its reason\n"
      "            job.error = str(error) or error.__class__.__name__\n            job.state = \"failed\"\n"
      "            time.sleep(0.5)\n"),
+    # The independent review of afb0d9f.
+    ("a record half written by a failed save kept (review P2-1)", JOBS,
+     '                    forget_meeting(self.data_dir, request["project"], folder_name)\n', ""),
+    ("what a closed window left not cleared at start (review P2-2)", JOBS,
+     "    for folder in data_dir.glob(f\"*/{library.PROCESSING_DIR}\"):\n",
+     "    for folder in ():\n"),
+    ("a second application over the same data folder allowed (review P3-3)", SERVER,
+     "                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)\n", "                pass\n"),
+    ("the uploads of a refused request kept (review P3-1)", SERVER,
+     '                app.uploads.discard([data.get("transcript"), data.get("recording")])\n', ""),
+    ("a folder this run did not make removed on failure (review P3-2)", JOBS,
+     "                if moved:  # never a folder this run did not make\n",
+     "                if True:  # never a folder this run did not make\n"),
 ]
 
 

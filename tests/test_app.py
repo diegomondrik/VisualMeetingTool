@@ -725,6 +725,74 @@ class FailureTest(Processing):
         self.assertNothingLeft(job)
 
 
+class ReviewFixesTest(Processing):
+    """The independent review of afb0d9f: P2-1, P2-2 and the P3s fixed."""
+
+    def script(self):
+        return [lambda first, count: answer_for(first, count), test_summary.returning(test_summary.summary_text("es"))]
+
+    def test_a_save_that_fails_half_way_leaves_no_meeting(self):
+        # add_meeting writes the record, then the knowledge (P2-1).
+        with mock.patch.object(store, "rebuild_knowledge", side_effect=OSError("knowledge.md is locked")):
+            job = self.process(meeting_type="")
+        self.assertEqual(job["failed_stage"], jobs.LABELS["saving"])
+        self.assertEqual(list((self.data / self.project / "meetings").glob("*/meeting.json")), [])
+        self.assertNothingLeft(job)
+        self.assertNotIn("Sesión de dudas", (self.data / self.project / "knowledge.md").read_text(encoding="utf-8"))
+
+    def test_a_name_taken_by_another_meeting_is_not_removed(self):
+        real = jobs.secrets.token_hex
+        taken = self.data / self.project / library.RESULTS_DIR / "2026-09-25-sesion-de-dudas-abc123"
+        taken.mkdir(parents=True)
+        (taken / "summary.md").write_text("otra reunión", encoding="utf-8")
+        with mock.patch.object(jobs.secrets, "token_hex", side_effect=lambda n: "abc123" if n == 3 else real(n)):
+            job = self.process(meeting_type="")
+        self.assertEqual(job["state"], "failed")
+        self.assertIn("ya hay una carpeta", job["error"])
+        self.assertEqual((taken / "summary.md").read_text(encoding="utf-8"), "otra reunión")
+        self.assertFalse((self.data / self.project / library.PROCESSING_DIR).exists())
+
+    def test_a_refused_request_leaves_no_upload(self):
+        self.process(expect=400, date="mal")
+        self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
+
+    def test_the_start_clears_what_a_closed_window_left(self):
+        left = self.data / self.project / library.PROCESSING_DIR / "2026-09-25-cortada-abc123"
+        left.mkdir(parents=True)
+        (left / "transcript.docx").write_bytes(b"client data")
+        stranger = self.data / "no-es-proyecto" / library.PROCESSING_DIR
+        stranger.mkdir(parents=True)
+        self.upload("transcript", self.transcript)
+        jobs.clear_leftovers(self.data)
+        self.assertFalse((self.data / self.project / library.PROCESSING_DIR).exists())
+        self.assertFalse((self.data / ".meetingtool-uploads").exists())
+        self.assertTrue(stranger.is_dir())  # not a project's: not touched
+        self.assertEqual(len(store.list_projects(self.data)), 1)
+
+    def test_one_application_per_data_folder(self):
+        lock = server.DataFolderLock(self.data).acquire()
+        try:
+            with self.assertRaises(server.DataFolderInUse):
+                server.DataFolderLock(self.data).acquire()
+            with contextlib.redirect_stdout(io.StringIO()), contextlib.redirect_stderr(io.StringIO()) as said:
+                self.assertEqual(server.serve(self.data, open_browser=False), 2)
+            self.assertIn("ya está abierto", said.getvalue())
+        finally:
+            lock.release()
+        server.DataFolderLock(self.data).acquire().release()
+
+    def test_no_other_process_takes_the_port(self):
+        # Measured, not a control of this code: on the owner's Windows the thief is refused even
+        # without SO_EXCLUSIVEADDRUSE, which the server sets anyway (review P3-6).
+        thief = socket.socket()
+        try:
+            thief.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            with self.assertRaises(OSError):
+                thief.bind((server.HOST, self.app.port))
+        finally:
+            thief.close()
+
+
 # ── The command ───────────────────────────────────────────────────────────────
 
 class CommandTest(unittest.TestCase):

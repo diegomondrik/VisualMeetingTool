@@ -152,6 +152,45 @@ class Uploads:
         path = self.folder / name
         return path if path.is_file() else None
 
+    def discard(self, names):
+        """Remove the uploads of a request that was refused."""
+        for name in names:
+            path = self.get(name, TRANSCRIPT_SUFFIXES + RECORDING_SUFFIXES) if isinstance(name, str) else None
+            if path is not None:
+                path.unlink(missing_ok=True)
+
+
+def forget_meeting(data_dir, project_id, folder_name):
+    """Remove a meeting record that names folder_name, if add_meeting wrote it
+    before failing (it writes the record, then the knowledge), and rebuild the
+    project's knowledge, so a failed save leaves no meeting behind."""
+    meetings = Path(data_dir) / project_id / "meetings"
+    removed = False
+    for record in meetings.glob("*/meeting.json") if meetings.is_dir() else ():
+        try:
+            named = json.loads(record.read_text(encoding="utf-8")).get("folder")
+        except (OSError, ValueError, AttributeError):
+            continue
+        if named == folder_name:
+            shutil.rmtree(record.parent, ignore_errors=True)
+            removed = True
+    if removed:
+        try:
+            store.rebuild_knowledge(data_dir, project_id)
+        except (store.ProjectError, OSError):
+            pass
+
+
+def clear_leftovers(data_dir):
+    """What a run cut short by closing the window left: the working folders
+    of every project, and the uploads no run took. Called at start, while
+    this session holds the data folder's lock."""
+    data_dir = Path(data_dir)
+    for folder in data_dir.glob(f"*/{library.PROCESSING_DIR}"):
+        if (folder.parent / "project.json").is_file():
+            shutil.rmtree(folder, ignore_errors=True)
+    Uploads(data_dir).clear()
+
 
 class Runner:
     """Starts one run at a time in a thread of its own and keeps every job of
@@ -213,7 +252,8 @@ class Runner:
                  f"{secrets.token_hex(3)}"
         work = project_dir / library.PROCESSING_DIR / run_id
         final = project_dir / library.RESULTS_DIR / run_id
-        added, phase = False, "preparing"
+        added, moved, phase = False, False, "preparing"
+        folder_name = f"{library.RESULTS_DIR}/{run_id}"
         try:
             store.check_data_dir(project_dir)
             work.mkdir(parents=True)
@@ -262,10 +302,12 @@ class Runner:
             (work / library.RUN_NAME).write_text(json.dumps(run, indent=2, ensure_ascii=False) + "\n",
                                                  encoding="utf-8")
             final.parent.mkdir(parents=True, exist_ok=True)
+            if final.exists():
+                raise JobError(f"ya hay una carpeta {folder_name} en el proyecto")
             os.replace(work, final)
+            moved = True
             later["kwargs"]["transcript"] = str(final / transcript.name)
-            record = store.add_meeting(*later["args"], **later["kwargs"],
-                                       meeting_folder=f"{library.RESULTS_DIR}/{run_id}")
+            record = store.add_meeting(*later["args"], **later["kwargs"], meeting_folder=folder_name)
             added = True
             job.meeting_id = record["id"]
         except Exception as error:  # every failure ends the job with its reason
@@ -274,7 +316,9 @@ class Runner:
         finally:
             if not added:
                 shutil.rmtree(work, ignore_errors=True)
-                shutil.rmtree(final, ignore_errors=True)
+                if moved:  # never a folder this run did not make
+                    forget_meeting(self.data_dir, request["project"], folder_name)
+                    shutil.rmtree(final, ignore_errors=True)
                 for leftover in (request["transcript"], request["recording"]):
                     if leftover is not None and leftover.exists():
                         leftover.unlink()

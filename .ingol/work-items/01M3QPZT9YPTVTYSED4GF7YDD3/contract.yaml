@@ -63,6 +63,36 @@ objective: >
   register's paid batches and can reuse them; the application removes the
   failed run's folder); cancelling a run once started; progress within a
   stage.
+
+  Corrected after the independent review of afb0d9f: a save that fails half
+  way (the meeting's record written, the project's knowledge not) removes
+  that record and rebuilds the knowledge, so no meeting stays without its
+  report (P2-1); a window closed during a run leaves a working folder with the
+  client's transcript and frames, and the next start removes every project's
+  working folders and every unused upload (P2-2); for that to be safe, one
+  application at a time holds a data folder, through a lock on a file of it
+  (.meetingtool-app.lock) that the system drops when the process ends, and a
+  second one is refused (P3-3); a refused request removes what it uploaded
+  (P3-1); a failed run only removes a result folder it moved there itself, so
+  a name taken by another meeting is refused, not removed (P3-2); the server
+  asks Windows for its port alone (P3-6: measured on the owner's machine, a
+  second socket asking to share the port is refused even without it, so it
+  is kept but not counted as a control).
+
+  Known limitations (independent review of afb0d9f): a request refused after
+  its uploads is uploaded again in full on the next try (P3-1, what remains);
+  the test that the request sent to Gemini is the command's compares the
+  summary's and the register's requests, not the reading's, which is the same
+  function with the same arguments by reading of the code (P3-4); the browser
+  run attacks from http://localhost with another port, not from
+  http://127.0.0.1 with another port, the one case where the browser sends the
+  session cookie (ports do not count for SameSite) and only the Origin and
+  Sec-Fetch-Site checks refuse it; those are covered by tests and mutations,
+  not by a browser (P3-5); any local process can receive the cookie by
+  serving on 127.0.0.1, outside what this protects against (P3-5); the owner's
+  data folder holds no project, so AC04 exercised only the loose results
+  (P3-7); while a stage runs its own cost shows 0 until it ends, the total
+  spent is live (P3-8).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3QPZT9YPTVTYSED4GF7YDD3/**

@@ -25,6 +25,7 @@ import ipaddress
 import json
 import os
 import secrets
+import socket
 import sys
 import threading
 import time
@@ -290,8 +291,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/template/remove":
             return self._json({"removed": app.remove_template(data_dir)})
         if path == "/api/process":
-            request = jobs.check_request(data, data_dir, app.uploads, pages.meeting_types(), pages.languages())
-            job = app.runner.start(request)
+            try:
+                request = jobs.check_request(data, data_dir, app.uploads, pages.meeting_types(), pages.languages())
+                job = app.runner.start(request)
+            except jobs.JobError:
+                app.uploads.discard([data.get("transcript"), data.get("recording")])
+                raise
             return self._json({"job": job.id})
         if path == "/api/open":
             target = data.get("target", "")
@@ -344,6 +349,59 @@ class Handler(http.server.BaseHTTPRequestHandler):
         return self._json({"upload": target.name})
 
 
+class Server(http.server.ThreadingHTTPServer):
+    """No other process may take the same port while this one holds it
+    (Windows lets one with SO_REUSEADDR do so)."""
+
+    allow_reuse_address = False
+    daemon_threads = True
+
+    def server_bind(self):
+        if hasattr(socket, "SO_EXCLUSIVEADDRUSE"):
+            self.socket.setsockopt(socket.SOL_SOCKET, socket.SO_EXCLUSIVEADDRUSE, 1)
+        super().server_bind()
+
+
+class DataFolderInUse(Exception):
+    """Another MeetingTool application holds this data folder."""
+
+
+class DataFolderLock:
+    """One application per data folder: the lock is held by an open file for
+    the life of the process, and the system drops it when the process ends,
+    however it ends."""
+
+    NAME = ".meetingtool-app.lock"
+
+    def __init__(self, data_dir):
+        self.path = Path(data_dir) / self.NAME
+        self.handle = None
+
+    def acquire(self):
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        handle = open(self.path, "a+b")
+        try:
+            if os.name == "nt":
+                import msvcrt
+
+                handle.seek(0)
+                msvcrt.locking(handle.fileno(), msvcrt.LK_NBLCK, 1)
+            else:
+                import fcntl
+
+                fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
+        except OSError:
+            handle.close()
+            raise DataFolderInUse(f"MeetingTool ya está abierto sobre {self.path.parent}: usá esa ventana") from None
+        self.handle = handle
+        return self
+
+    def release(self):
+        if self.handle is not None:
+            self.handle.close()
+            self.handle = None
+
+
 class App:
     """The server and what it needs. Everything that touches the key, Gemini or
     the machine can be replaced, so the tests need no key and no network."""
@@ -366,8 +424,7 @@ class App:
         self.uploads = jobs.Uploads(self.data_dir)
         self.runner = jobs.Runner(self.data_dir, self.read_key, endpoint=endpoint, sleep=sleep,
                                   retry_delays=retry_delays)
-        self.httpd = http.server.ThreadingHTTPServer((HOST, port), Handler)
-        self.httpd.daemon_threads = True
+        self.httpd = Server((HOST, port), Handler)
         self.httpd.app = self
         self.port = self.httpd.server_address[1]
         self.hosts = {f"{HOST}:{self.port}", f"localhost:{self.port}"}
@@ -402,12 +459,21 @@ def serve(data_dir=None, port=0, open_browser=True):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
+    data_dir = Path(data_dir or store.default_data_dir())
     try:
-        app = App(data_dir or store.default_data_dir(), port=port)
-    except (store.ProjectError, OSError) as error:
+        store.check_data_dir(data_dir)
+        lock = DataFolderLock(data_dir).acquire()
+    except (store.ProjectError, DataFolderInUse, OSError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2
-    app.uploads.clear()  # what an earlier session uploaded and no run took
+    try:
+        # What a session closed during a run, or its unused uploads, left.
+        jobs.clear_leftovers(data_dir)
+        app = App(data_dir, port=port)
+    except (store.ProjectError, OSError) as error:
+        lock.release()
+        print(f"error: {error}", file=sys.stderr)
+        return 2
     print(f"MeetingTool está abierto en tu navegador ({app.url}); sólo esta máquina puede entrar.")
     print(f"Si no se abrió, pegá esta dirección en el navegador: {app.launch_url}")
     print("Dejá esta ventana abierta mientras lo uses; para cerrarlo, cerrá esta ventana o apretá Ctrl+C.",
@@ -420,4 +486,5 @@ def serve(data_dir=None, port=0, open_browser=True):
         pass
     finally:
         app.httpd.server_close()
+        lock.release()
     return 0
