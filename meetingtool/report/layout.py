@@ -181,28 +181,47 @@ def read_layout(document):
 
 # ── Filling it ───────────────────────────────────────────────────────────────
 
+def section_break(child):
+    """The section break a body element ends with, or None."""
+    properties = child.find(qn("w:pPr")) if child.tag == qn("w:p") else None
+    return properties.find(qn("w:sectPr")) if properties is not None else None
+
+
 def drop_model(document, layout):
-    """Remove the template's model; return the section break that ended the
-    cover, when the first one is among what was removed (the cover is then a
-    section of its own), else None."""
+    """Remove the template's model. The first section break among what is
+    removed ends the last section kept (the cover's, or its table of
+    contents'), unless what is kept already ends with one: it stays, on an
+    empty line, before any field is filled, so that section's header and
+    footer are filled too."""
     if layout.start is None:
-        return None
-    body, kept = document.element.body, None
-    for child in body_children(document)[layout.start:]:
-        properties = child.find(qn("w:pPr")) if child.tag == qn("w:p") else None
-        section = properties.find(qn("w:sectPr")) if properties is not None else None
-        if section is not None and kept is None and not _section_before(document, layout.start):
-            properties.remove(section)
-            kept = section
+        return
+    body = document.element.body
+    children = body_children(document)
+    kept, dropped = children[:layout.start], children[layout.start:]
+    ended = bool(kept) and section_break(kept[-1]) is not None
+    carried = None
+    for child in dropped:
+        section = section_break(child)
+        if section is not None and carried is None and not ended:
+            carried = section
         body.remove(child)
-    return kept
+    if carried is not None:
+        line = OxmlElement("w:p")
+        line.get_or_add_pPr().append(carried)
+        if kept:
+            kept[-1].addnext(line)
+        else:
+            body.insert(0, line)
 
 
-def _section_before(document, start):
-    """Whether a section break already ends somewhere in the kept body."""
-    return any(child.tag == qn("w:p") and child.find(qn("w:pPr")) is not None
-               and child.find(qn("w:pPr")).find(qn("w:sectPr")) is not None
-               for child in body_children(document)[:start])
+def ends_on_a_new_page(document):
+    """Whether the body ends with a section break that starts a new page."""
+    children = body_children(document)
+    section = section_break(children[-1]) if children else None
+    if section is None:
+        return False
+    kind = section.find(qn("w:type"))
+    return kind is None or kind.get(qn("w:val")) != "continuous"
 
 
 def field_values(language, *, client=None, project=None, meeting=None, date=None, meeting_type=None):

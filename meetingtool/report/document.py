@@ -501,11 +501,11 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     labels = LABELS[language]
 
     template = None if neutral else (Path(template) if template else stored_template(data_dir))
-    found, cover_section = None, None
+    found = None
     if template is not None:
         document = docx.Document(io.BytesIO(template_bytes(template)))
         found = layout.read_layout(document)
-        cover_section = layout.drop_model(document, found)
+        layout.drop_model(document, found)
         layout.fill_fields(document, layout.field_values(
             language, client=client, project=project_name, meeting=title.strip() if title else None, date=date,
             meeting_type=meeting_type))
@@ -522,10 +522,8 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
             section.left_margin = section.right_margin = Cm(2.5)
         cover = False
     cover_images = _body_images(document)
-    if cover and cover_section is not None:
-        # The template's cover is a section of its own: its break ends the cover.
-        document.add_paragraph()._p.get_or_add_pPr().append(cover_section)
-    elif cover:
+    if cover and not layout.ends_on_a_new_page(document):
+        # A cover ending with its own section break already starts the report on a new page.
         document.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
     section = document.sections[-1]

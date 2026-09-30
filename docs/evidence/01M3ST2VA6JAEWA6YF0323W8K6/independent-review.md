@@ -140,3 +140,73 @@ con un índice largo, dos índices, y un campo después del índice con `{inform
 - No abrí el informe en Word ni vi la plantilla real del owner.
 - No corrí `mutations.py` completo.
 - La salida de la suite para AC11 todavía no está commiteada.
+
+---
+
+# Re-verificación, commit 24de6a7 (correcciones sobre d0cce57)
+
+Mismo subagente. Transcripta por el implementador.
+
+**Veredicto: NO LISTO.** Los arreglos de la revisión anterior funcionan: P1-1,
+P2-2, P2-3 y los P3, y P2-1 en los dos casos de dos secciones pedidos. Pero la
+corrección de P2-1 abre un P1 nuevo.
+
+## Qué ejecutó
+
+Clon descartable de 24de6a7 con `--no-hardlinks`, borrado. Suite completa: 333
+pruebas OK en 184 s. Sondas anteriores repetidas:
+
+| Sonda | d0cce57 | 24de6a7 |
+|---|---|---|
+| Índice común de 12 renglones | rechazado ("faltan las 9 secciones") | OK, 9 entradas |
+| Índice común de 20 renglones | rechazado | OK, 9 entradas |
+| Dos índices comunes | rechazado | OK, 18 entradas (9 + 9) |
+| Índice de 1 renglón + `{cliente}` + `{informe}`, con `fill_fields` anulado | **entregado con `{cliente}`** | rechazado |
+| P2-1 variante 1: salto de sección después del índice | 2 secciones → 1 | 2 → 2 |
+| P2-1 variante 2: salto de sección en el último renglón del índice | 2 → 1 | 2 → 2 |
+| P2-3: "Índice: " antes del campo | rechazado | OK, 9 entradas |
+
+Sondas nuevas: portada como sección propia con datos en su pie (dos variantes),
+y tres secciones (portada | índice | modelo).
+
+## P1
+
+**P1-A (lo introduce la corrección de P2-1): el pie o encabezado propio de la
+portada queda sin llenar y el informe se rechaza siempre.** `build_report` corre
+`drop_model` (que separa el `sectPr` de la portada) antes de `fill_fields`, y lo
+vuelve a enganchar recién después: mientras está separado, `fill_fields` no ve
+esa sección. Caso: portada, índice, salto de sección en el párrafo siguiente;
+pie de la sección 1 "Portada {fecha}" → `ReportError: ... still has {fecha}
+unfilled`. Consecuencia: una plantilla así se acepta en Ajustes y rechaza cada
+informe. Arreglo: volver a enganchar el `sectPr` antes de llenar.
+
+## P2
+
+- **P2-A: con tres o más secciones se pierde la sección del índice.** La regla
+  correcta: el primer `sectPr` descartado cierra la última sección guardada,
+  salvo que el último elemento guardado ya lleve su propio salto.
+- **P2-B: probable página en blanco cuando la portada termina en un salto de
+  sección** (salto de sección y además salto de página). No verificado en Word.
+
+## P3
+
+- `toc_entries` lee sólo hipervínculos: debilitamiento teórico, sin caso.
+- Un salto de sección "continuo" conservado dejaría el informe en la misma hoja
+  que la portada. No probado.
+
+## Lo que comprobó y está bien
+
+P1-1 (`first` es siempre el párrafo del título, en todas las sondas quedó en
+`start`), P2-2 (lista esperada desde las líneas `#` del resumen con la misma
+fórmula de nivel), P2-3 y P3.
+
+## Qué hizo el implementador (commit siguiente)
+
+- P1-A y P2-A: `drop_model` deja el primer salto descartado en una línea vacía
+  al final de lo guardado, antes de llenar los datos, salvo que lo guardado ya
+  termine en un salto.
+- P2-B y el P3 del salto continuo: el salto de página después de la portada se
+  agrega sólo si la portada no termina en un salto de sección de página nueva.
+- Pruebas: portada en sección propia con un dato en el pie (dos variantes), tres
+  secciones, salto continuo; las cuatro fallan sobre 24de6a7. Tres mutaciones
+  nuevas.
