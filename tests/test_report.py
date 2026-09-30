@@ -1174,6 +1174,27 @@ class WI16ReviewCorrectionsTest(Workspace):
         self.assertIn("Página de Índice", every_text(self.output()))
         self.assertNotIn("Modelo que no va", every_text(self.output()))
 
+    def test_reverification_p2_a_a_cover_that_ends_its_section_takes_none_from_the_model(self):
+        template = docx.Document()
+        template.sections[0].header.paragraphs[0].text = "Portada"
+        template.add_paragraph("Portada de {cliente}")
+        made = add_toc(template, ["Viejo 1", "Viejo 2"])
+        for header in ("Modelo", "Final"):
+            section = template.add_section()
+            section.header.is_linked_to_previous = False
+            section.header.paragraphs[0].text = header
+            if header == "Modelo":  # the cover's break goes on the table's last line
+                breaker = layout.body_children(template)[-1]
+                made[-1].find(qn("w:pPr")).append(breaker.find(qn("w:pPr")).find(qn("w:sectPr")))
+                breaker.getparent().remove(breaker)
+            template.add_paragraph(f"Página de {header}")
+        template.save(str(self.tmp / "modelo-con-seccion.docx"))
+        document.set_template(self.tmp / "modelo-con-seccion.docx", self.data)
+        self.build(**MEETING)
+        report = docx.Document(str(self.output()))
+        self.assertEqual([s.header.paragraphs[0].text for s in report.sections], ["Portada", "Final"])
+        self.assertNotIn("Página de Modelo", every_text(self.output()))
+
     def test_reverification_p2_b_a_continuous_break_after_the_cover_still_gets_a_page_break(self):
         report = self.sectioned(["Portada", "Cuerpo"], continuous="report")
         self.assertEqual(len(self.page_breaks_before_the_title(report)), 1)

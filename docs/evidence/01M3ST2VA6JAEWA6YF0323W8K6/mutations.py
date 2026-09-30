@@ -52,10 +52,15 @@ MUTATIONS = [
      "                app.set_template(target, app.data_dir, name=name)\n",
      "                app.set_template(target, app.data_dir)\n"),
     # Added after the independent review of d0cce57.
+    # Two replacements, in order: the count after the rewrite goes, and one
+    # before it takes its place (as in d0cce57).
     ("the report's start counted before the tables of contents are rewritten (review P1-1)", DOCUMENT,
-     "    contents = []\n    if found is not None and found.tocs:\n",
-     "    start = layout.body_children(document).index(first._p)\n    contents = []\n"
-     "    if found is not None and found.tocs:\n"),
+     [("    # rewritten: they may have changed how many paragraphs the cover has.\n"
+       "    start = layout.body_children(document).index(first._p)\n",
+       "    # rewritten: they may have changed how many paragraphs the cover has.\n"),
+      ("    contents = []\n    if found is not None and found.tocs:\n",
+       "    start = layout.body_children(document).index(first._p)\n    contents = []\n"
+       "    if found is not None and found.tocs:\n")], None),
     ("the tables of contents checked against what was written in them (review P2-2)", DOCUMENT,
      "            for toc in found.tocs:\n"
      "                layout.fill_toc(document, toc, placed, bookmarks)\n"
@@ -119,10 +124,12 @@ def main(source, work):
     detected_all = True
     try:
         for label, name, old, new in MUTATIONS:
-            original = originals[name]
-            if original.count(old) != 1:
-                raise SystemExit(f"mutation {label!r} does not apply exactly once")
-            (work / name).write_text(original.replace(old, new), encoding="utf-8", newline="\n")
+            original = mutated = originals[name]
+            for part_old, part_new in (old if isinstance(old, list) else [(old, new)]):
+                if mutated.count(part_old) != 1:
+                    raise SystemExit(f"mutation {label!r} does not apply exactly once")
+                mutated = mutated.replace(part_old, part_new)
+            (work / name).write_text(mutated, encoding="utf-8", newline="\n")
             run = run_tests(work)
             (work / name).write_text(original, encoding="utf-8", newline="\n")
             detected = run.returncode != 0
