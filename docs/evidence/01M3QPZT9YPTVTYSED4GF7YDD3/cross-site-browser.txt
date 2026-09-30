@@ -1,0 +1,15 @@
+$ python docs/evidence/01M3QPZT9YPTVTYSED4GF7YDD3/cross_site_browser.py   (2026-09-30T11:26:03Z, Microsoft Edge headless, own profile)
+the application's own tab opened with its session: yes (title 'Proyectos · MeetingTool')
+page of another site: http://localhost:61372/ (the application is at http://127.0.0.1:61371)
+- read the projects page with fetch: blocked: TypeError
+- read the running job with fetch: blocked: TypeError
+- create a project with JSON and the header: blocked: TypeError
+- create a project without reading the answer (no-cors): blocked: TypeError
+- save a key without reading the answer (no-cors): blocked: TypeError
+- create a project with a form: submitted (checked on the server)
+- load a frame of a meeting as an image: blocked: the image did not load
+- load the application's script: blocked: the script did not load
+projects after the attempts: ['Proyecto del cliente']
+key after the attempts: unchanged
+RESULT: every attempt of the other site failed
+exit 0

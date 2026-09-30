@@ -145,6 +145,38 @@ python -m meetingtool.report template show
 python -m meetingtool.report template remove
 ```
 
+## The application
+
+Everything above can also be done from a window, without the commands:
+
+```
+python -m meetingtool app
+```
+
+It opens the browser on a page served by this machine only (127.0.0.1): the
+projects and their meetings with the summary or the register, their frames,
+the Word report to open and what each cost; a form to process a new meeting
+(the transcript, and the recording if there is one, uploaded from the
+browser; type, language, format and spending ceiling); and the settings (the
+Gemini key, never shown back, and the company's Word template). Keep the
+window it was started from open while it is used.
+
+"Procesar" runs the same functions as the commands, in order: frames,
+reading (for the summary), summary or register, Word report. One ceiling
+covers the whole run. The meeting is added to its project only once its Word
+report is built; if a stage fails, nothing is left of the run and the page
+says which stage failed, why and what was spent. Each processed meeting keeps
+its frames, transcript, summary, report and a record of the run in
+`<data>/<project>/results/<run>/`; the recording itself is not copied.
+Folders of the data folder made with the commands outside a project are
+listed read-only.
+
+Only this machine can use it: the server listens on 127.0.0.1, every request
+needs the session cookie set when the browser opens the launch address (a new
+token at each start), and a request from a page of another site (another
+Origin, Sec-Fetch-Site or Host) is refused. `--port` fixes the port and
+`--no-browser` only prints the launch address.
+
 ## Running the tests
 
 Python 3.11 or newer, with the libraries in `pyproject.toml` installed:

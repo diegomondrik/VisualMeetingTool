@@ -20,5 +20,8 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools.packages.find]
 include = ["meetingtool", "meetingtool.*"]
 
+[tool.setuptools.package-data]
+"meetingtool.app" = ["static/*"]
+
 [tool.setuptools.dynamic]
 version = { attr = "meetingtool.__version__" }

@@ -277,9 +277,11 @@ def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, c
 
 
 def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUNK_SIZE,
-                retry_delays=RETRY_DELAYS, sleep=time.sleep, max_cost_usd=MAX_COST_USD):
+                retry_delays=RETRY_DELAYS, sleep=time.sleep, max_cost_usd=MAX_COST_USD, counters=None):
     """Read every frame of frames_dir with Gemini and write OUTPUT_NAME next to
-    them, only once every request succeeded and without going over the budget."""
+    them, only once every request succeeded and without going over the budget.
+    `counters` (from new_counters) is shared with the stages of the same run,
+    so the budget covers them together; by default the reading has its own."""
     check_key(key)
     frames_dir = Path(frames_dir)
     check_outside_repository(frames_dir)
@@ -289,7 +291,7 @@ def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUN
     if chunk_size < 1:
         raise ReadingError("the chunk size must be at least 1")
     url = model_url(endpoint, model)
-    counters = new_counters()
+    counters = new_counters() if counters is None else counters
     started = time.monotonic()
     answers = []
     for start in range(0, len(frames), chunk_size):
