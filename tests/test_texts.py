@@ -25,7 +25,7 @@ from unittest import mock
 from PIL import Image
 
 from meetingtool import texts
-from meetingtool.app import company, jobs, library, pages
+from meetingtool.app import company, jobs, library
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.report import document
