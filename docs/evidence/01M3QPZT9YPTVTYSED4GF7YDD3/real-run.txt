@@ -1,0 +1,39 @@
+WI15-AC05: real runs from the window (the owner's machine, his paid Gemini key)
+Only numbers are recorded here; the meeting's content stays in his data folder.
+
+First run, 2026-09-30, ceiling US$0.50 (INGOL D-185), summary format, with recording
+  Stopped in the stage "Lectura de las imágenes", as the page reported it (the owner pasted it):
+    "stopped before sending frames 1-70: that request could cost up to US$0.26, and with about
+    US$0.26 already spent it could go over the budget of US$0.50; nothing was written.
+    La reunión no se agregó al proyecto y no quedó nada a medias."
+  The first request of frames 1-70 got no answer (it is the only case counted at its worst
+  before an answer); why it got none was not recorded (fixed in 5e4792e: the stop now says it).
+  What Google billed for it is not known here (between 0 and about US$0.26; its console says).
+  Checked in the data folder afterwards: no meeting in the project, no working folder, no
+  upload left (AC03 in a real run).
+  Consequence: the ceiling of one meeting is US$1.00 (INGOL D-186, owner: "si hace el cambio").
+
+Second run, 2026-09-30T16:06:24Z (finished), ceiling US$1.00, commit 5e4792e
+  format summary; meeting type requirements; language of the result en (the meeting's)
+  stage                     state   seconds   cost US$
+  Imágenes del video        done    174.8     0.0000
+  Lectura de las imágenes   done    213.1     0.3589
+  Resumen                   done     32.4     0.0545
+  Informe en Word           done      0.2     0.0000
+  total                             420.5     0.4134 (of a ceiling of 1.00)
+  requests to Gemini: 4 (3 of the reading, 1 of the summary; no retry)
+  frames kept and read: 149; images in the Word report: 4; model gemini-3.8-flash
+  the meeting's record names its folder results/<run>; no working folder or upload left
+  The owner opened the Word report from the page.
+
+The owner (session 118): "corri. todo bien." Earlier in the same session: "la aplicacion esta
+bien". His observations, for the next work item (they are about the company template of
+WI11, not about the application):
+  - the template's graphics and text formats are kept, but its table of contents is not built,
+    and the text of its first page prepared for the client's name, the project, the date, etc.
+    is not filled: how that information is given to the template should be guided more;
+  - "the template was taken as .docx, not as .dotx": a .dotx is accepted (checked by uploading
+    one through the page: 200), but the kept copy is always named report-template.docx and the
+    settings show that name; a .dot (Word 97) is refused;
+  - wanted as well: the company's logo and name in the settings, shown across the application,
+    and the application's language (Spanish or English) for every menu, instruction and message.
