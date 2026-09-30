@@ -654,6 +654,8 @@ def add_toc(template, stale, *, levels="1-3", sdt=False, dirty=False):
     PAGEREF field; sdt wraps it in a content control, as Word's automatic
     table does."""
     made = []
+    if "toc 1" not in [style.name for style in template.styles]:
+        template.styles.add_style("toc 1", WD_STYLE_TYPE.PARAGRAPH)
     for number, entry in enumerate(stale):
         paragraph = template.add_paragraph(style="toc 1")._p
         if number == 0:
@@ -693,7 +695,8 @@ def split_field(paragraph, pieces, formats):
         run.italic = style == "italic"
 
 
-def owner_shaped(path, *, sdt=False, levels="1-3", dirty=False, update_fields=False):
+def owner_shaped(path, *, sdt=False, levels="1-3", dirty=False, update_fields=False,
+                 stale=("Cliente", "RESUMEN EJECUTIVO", "Caso 1")):
     """A template shaped like the owner's (2026-09-30): a cover with fields,
     one split by Word, a table of contents holding what Word last saved, and
     after it a page of model with headings; fields in the header and footer."""
@@ -709,7 +712,7 @@ def owner_shaped(path, *, sdt=False, levels="1-3", dirty=False, update_fields=Fa
                 [None, "bold", "italic", None, None])
     template.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
     template.add_paragraph("Índice", style="TOC Heading")
-    add_toc(template, ["Cliente", "RESUMEN EJECUTIVO", "Caso 1"], levels=levels, sdt=sdt, dirty=dirty)
+    add_toc(template, list(stale), levels=levels, sdt=sdt, dirty=dirty)
     template.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
     template.add_heading(MODEL[0], 1)
     template.add_paragraph(MODEL[1])
@@ -1024,6 +1027,134 @@ class ExampleTemplateTest(Workspace):
         code, _, err = self.run_main("template", "example", str(example))
         self.assertEqual((code, example.read_bytes()), (2, b"mine"))
         self.assertIn("already exists", err)
+
+
+class WI16ReviewCorrectionsTest(Workspace):
+    """The independent review of d0cce57 (docs/evidence/01M3ST2VA6JAEWA6YF0323W8K6/independent-review.md)."""
+
+    def headings(self):
+        return document.summary_headings(summary_text())
+
+    def entries(self):
+        report = docx.Document(str(self.output()))
+        return [layout.toc_entries(report, toc) for toc in layout._tocs(report)]
+
+    def test_p1_1_a_long_table_of_contents_gives_a_good_report(self):
+        for count in (3, 12, 20):
+            with self.subTest(saved_entries=count):
+                document.set_template(owner_shaped(self.tmp / "larga.docx", stale=[f"Viejo {n}" for n in range(count)]),
+                                      self.data)
+                self.build(**MEETING)
+                self.assertEqual(self.entries(), [self.headings()])
+
+    def test_p1_1_two_tables_of_contents_are_both_filled(self):
+        template = docx.Document()
+        template.add_paragraph("Portada de {cliente}")
+        add_toc(template, [f"Viejo {n}" for n in range(6)])
+        template.add_paragraph("Entre los dos")
+        add_toc(template, ["Otro viejo"])
+        template.add_paragraph("Modelo que no va")
+        template.save(str(self.tmp / "dos.docx"))
+        document.set_template(self.tmp / "dos.docx", self.data)
+        result = self.build(**MEETING)
+        self.assertEqual(self.entries(), [self.headings(), self.headings()])
+        self.assertEqual(result.dropped, 1)
+        self.assertNotIn("Modelo que no va", every_text(self.output()))
+
+    def test_p1_1_a_field_after_a_table_of_contents_left_unfilled_is_not_delivered(self):
+        template = docx.Document()
+        template.add_paragraph("Portada")
+        add_toc(template, ["Viejo"])
+        template.add_paragraph("Cliente: {cliente}")
+        template.add_paragraph("{informe}")
+        template.save(str(self.tmp / "campo.docx"))
+        document.set_template(self.tmp / "campo.docx", self.data)
+        with mock.patch.object(document.layout, "fill_fields"), \
+                self.assertRaisesRegex(document.ReportError, r"\{cliente\} unfilled"):
+            self.build(**MEETING)
+        self.assertNothingWritten()
+
+    def test_p3_a_field_only_in_the_footer_left_unfilled_is_not_delivered(self):
+        document.set_template(fields_template(self.tmp / "pie.docx", ["Portada"], footer="{fecha}"), self.data)
+        with mock.patch.object(document.layout, "fill_fields"), \
+                self.assertRaisesRegex(document.ReportError, r"\{fecha\} unfilled"):
+            self.build(**MEETING)
+        self.assertNothingWritten()
+
+    def test_p3_the_bookmarks_do_not_repeat_the_templates_ids(self):
+        template = owner_shaped(self.tmp / "marcas.docx")
+        made = docx.Document(str(template))
+        cover = made.paragraphs[2]._p
+        for tag in ("w:bookmarkStart", "w:bookmarkEnd"):
+            node = OxmlElement(tag)
+            node.set(qn("w:id"), "7")
+            if tag == "w:bookmarkStart":
+                node.set(qn("w:name"), "MarcaDeLaEmpresa")
+            cover.append(node)
+        made.save(str(template))
+        document.set_template(template, self.data)
+        self.build(**MEETING)
+        report = docx.Document(str(self.output()))
+        ids = [node.get(qn("w:id")) for node in report.element.body.iter(qn("w:bookmarkStart"))]
+        self.assertEqual(len(ids), len(set(ids)))
+        self.assertEqual(len(ids), len(self.headings()) + 1)
+
+    def test_p2_1_a_cover_in_its_own_section_keeps_it(self):
+        for where in ("after the table of contents", "on the table of contents' last line"):
+            with self.subTest(section_break=where):
+                template = docx.Document()
+                template.sections[0].header.paragraphs[0].text = "Portada"
+                template.add_paragraph("Portada de {cliente}")
+                made = add_toc(template, ["Viejo 1", "Viejo 2"])
+                body = template.add_section()
+                body.header.is_linked_to_previous = False
+                body.header.paragraphs[0].text = "Cuerpo"
+                if where.startswith("on"):
+                    breaker = layout.body_children(template)[-1]
+                    made[-1].find(qn("w:pPr")).append(breaker.find(qn("w:pPr")).find(qn("w:sectPr")))
+                    breaker.getparent().remove(breaker)
+                template.add_heading("Modelo que no va", 1)
+                template.save(str(self.tmp / "secciones.docx"))
+                document.set_template(self.tmp / "secciones.docx", self.data)
+                self.build(**MEETING)
+                report = docx.Document(str(self.output()))
+                self.assertEqual([s.header.paragraphs[0].text for s in report.sections], ["Portada", "Cuerpo"])
+                self.assertNotIn("Modelo que no va", every_text(self.output()))
+                self.assertEqual(self.entries(), [self.headings()])
+
+    def test_p2_3_text_before_the_field_on_its_line_is_not_an_entry(self):
+        template = owner_shaped(self.tmp / "antes.docx")
+        made = docx.Document(str(template))
+        (toc,) = layout._tocs(made)
+        label = _run_of(_text("Índice: "))
+        properties = toc[0].find(qn("w:pPr"))
+        properties.addnext(label)
+        made.save(str(template))
+        document.set_template(template, self.data)
+        self.build(**MEETING)
+        self.assertEqual(self.entries(), [self.headings()])
+        self.assertTrue(any(text.startswith("Índice: ") for text in every_text(self.output())))
+
+    def test_p3_a_page_with_only_an_empty_table_of_contents_is_filled(self):
+        template = docx.Document()
+        add_toc(template, [""])
+        template.save(str(self.tmp / "vacio.docx"))
+        document.set_template(self.tmp / "vacio.docx", self.data)
+        result = self.build(**MEETING)
+        self.assertTrue(result.cover)
+        self.assertEqual(self.entries(), [self.headings()])
+
+    def test_p2_2_the_table_is_checked_against_the_summary_not_against_what_was_written(self):
+        document.set_template(owner_shaped(self.tmp / "duena.docx"), self.data)
+        written = layout.fill_toc
+
+        def one_short(document_, toc, headings, bookmarks):
+            return written(document_, toc, headings[:-1], bookmarks[:-1])
+
+        with mock.patch.object(document.layout, "fill_toc", one_short), \
+                self.assertRaisesRegex(document.ReportError, "table of contents"):
+            self.build(**MEETING)
+        self.assertNothingWritten()
 
 
 if __name__ == "__main__":

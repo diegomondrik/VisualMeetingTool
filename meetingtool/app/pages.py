@@ -284,9 +284,12 @@ def job_page(job_id):
 
 
 def _day(utc):
-    """'2026-09-30T12:57:00Z' as 30/9/2026."""
-    year, month, day = utc[:10].split("-")
-    return f"{int(day)}/{int(month)}/{year}"
+    """'2026-09-30T12:57:00Z' as 30/9/2026; '?' for a record edited by hand."""
+    try:
+        year, month, day = utc[:10].split("-")
+        return f"{int(day)}/{int(month)}/{int(year)}"
+    except ValueError:
+        return "?"
 
 
 def _template_block(info, problem):

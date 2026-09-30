@@ -182,11 +182,27 @@ def read_layout(document):
 # ── Filling it ───────────────────────────────────────────────────────────────
 
 def drop_model(document, layout):
+    """Remove the template's model; return the section break that ended the
+    cover, when the first one is among what was removed (the cover is then a
+    section of its own), else None."""
     if layout.start is None:
-        return
-    body = document.element.body
+        return None
+    body, kept = document.element.body, None
     for child in body_children(document)[layout.start:]:
+        properties = child.find(qn("w:pPr")) if child.tag == qn("w:p") else None
+        section = properties.find(qn("w:sectPr")) if properties is not None else None
+        if section is not None and kept is None and not _section_before(document, layout.start):
+            properties.remove(section)
+            kept = section
         body.remove(child)
+    return kept
+
+
+def _section_before(document, start):
+    """Whether a section break already ends somewhere in the kept body."""
+    return any(child.tag == qn("w:p") and child.find(qn("w:pPr")) is not None
+               and child.find(qn("w:pPr")).find(qn("w:sectPr")) is not None
+               for child in body_children(document)[:start])
 
 
 def field_values(language, *, client=None, project=None, meeting=None, date=None, meeting_type=None):
@@ -361,20 +377,27 @@ def fill_toc(document, toc, headings, bookmarks):
     made[-1].append(_run(_field_char("end")))
     for node in after:
         made[-1].append(node)
+    properties = end.find(qn("w:pPr"))
+    section = properties.find(qn("w:sectPr")) if properties is not None else None
+    if section is not None:  # the table of contents ends a section: its last entry still does
+        made[-1].get_or_add_pPr().append(section)
     for offset, paragraph in enumerate(made):
         parent.insert(position + offset, paragraph)
     return [text for _, text, _ in entries]
 
 
 def toc_entries(document, toc):
-    """The texts of a table of contents' entries, as Word would show them."""
+    """The texts of a table of contents' entries: its links, one per
+    paragraph (text before the field in its first paragraph is not an
+    entry)."""
     begin, end, _ = toc
     parent = begin.getparent()
     siblings = list(parent.iterchildren())
     texts = []
     for element in siblings[siblings.index(begin):siblings.index(end) + 1]:
         if element.tag == qn("w:p"):
-            texts.append("".join(node.text or "" for node in element.iter(qn("w:t"))).strip())
+            texts.append("".join(node.text or "" for link in element.iter(qn("w:hyperlink"))
+                                 for node in link.iter(qn("w:t"))).strip())
     return [text for text in texts if text]
 
 

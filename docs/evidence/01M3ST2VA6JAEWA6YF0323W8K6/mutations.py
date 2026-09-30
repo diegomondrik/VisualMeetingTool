@@ -9,6 +9,7 @@ make it fail.
 The output of the recorded run is mutations.txt next to this file.
 """
 
+import os
 import shutil
 import subprocess
 import sys
@@ -29,13 +30,12 @@ MUTATIONS = [
      "    if left:\n", "    if False:\n"),
     ("an unknown field accepted (AC03)", LAYOUT, "    if unknown:\n", "    if False:\n"),
     ("the template's model kept in the report (AC04)", LAYOUT,
-     "    if layout.start is None:\n        return\n", "    return\n"),
+     "    if layout.start is None:\n        return None\n", "    return None\n"),
     ("a table of contents inside a content control not found (AC04)", LAYOUT,
      "    tocs = [toc for toc in tocs if id(_top(toc[0], body)) in kept_ids]\n",
      "    tocs = [toc for toc in tocs if toc[0].getparent() is body]\n"),
     ("the table of contents left as Word saved it (AC05)", DOCUMENT,
-     "        contents = [layout.fill_toc(document, toc, placed, bookmarks) for toc in found.tocs]\n",
-     "        contents = []\n"),
+     "                layout.fill_toc(document, toc, placed, bookmarks)\n", "                pass\n"),
     ("the field's levels ignored (AC05)", LAYOUT,
      "zip(headings, bookmarks) if low <= level <= high]\n", "zip(headings, bookmarks)]\n"),
     ("an entry linking nowhere (AC05)", LAYOUT,
@@ -51,6 +51,38 @@ MUTATIONS = [
     ("the name the page gave not kept (AC07)", SERVER,
      "                app.set_template(target, app.data_dir, name=name)\n",
      "                app.set_template(target, app.data_dir)\n"),
+    # Added after the independent review of d0cce57.
+    ("the report's start counted before the tables of contents are rewritten (review P1-1)", DOCUMENT,
+     "    contents = []\n    if found is not None and found.tocs:\n",
+     "    start = layout.body_children(document).index(first._p)\n    contents = []\n"
+     "    if found is not None and found.tocs:\n"),
+    ("the tables of contents checked against what was written in them (review P2-2)", DOCUMENT,
+     "            for toc in found.tocs:\n"
+     "                layout.fill_toc(document, toc, placed, bookmarks)\n"
+     "        except layout.LayoutError as error:\n"
+     '            raise ReportError(f"the template {Path(template).name} cannot be used: {error}") from None\n'
+     "        # What each table of contents must list, from the summary's headings\n"
+     "        # and the field's levels, not from what was written in it.\n"
+     "        depth = [max(1, min(len(HEADING.match(line).group(1)) - 1, 3)) for line in text.splitlines()\n"
+     "                 if HEADING.match(line)]\n"
+     "        for _, _, instruction in found.tocs:\n"
+     "            low, high = layout.levels(instruction)\n"
+     "            contents.append([heading for level, heading in zip(depth, expected) if low <= level <= high])\n",
+     "            for toc in found.tocs:\n"
+     "                contents.append(layout.fill_toc(document, toc, placed, bookmarks))\n"
+     "        except layout.LayoutError as error:\n"
+     '            raise ReportError(f"the template {Path(template).name} cannot be used: {error}") from None\n'),
+    ("a field left in a header or footer not looked for (review P3)", LAYOUT,
+     "    elements += [p for part in header_footer_parts(document) for p in paragraphs([part])]\n", ""),
+    ("the bookmarks numbered from 0, over the template's own (review P3)", LAYOUT,
+     "    next_id = max(_bookmark_ids(document), default=0) + 1\n", "    next_id = 0\n"),
+    ("the cover's own section dropped with the model (review P2-1)", DOCUMENT,
+     "    if cover and cover_section is not None:\n", "    if False:\n"),
+    ("the section ended by the table of contents' last line dropped (review P2-1)", LAYOUT,
+     "    if section is not None:  # the table of contents ends a section", "    if False:  # the table of contents ends a section"),
+    ("text before the field counted as an entry (review P2-3)", LAYOUT,
+     'for link in element.iter(qn("w:hyperlink"))\n                                 for node in link.iter(qn("w:t"))',
+     'for node in element.iter(qn("w:t"))'),
 ]
 
 
@@ -62,6 +94,7 @@ def summary_line(stderr):
 def run_tests(work):
     try:
         return subprocess.run([sys.executable, "-m", "unittest", *TESTS], cwd=work, capture_output=True, text=True,
+                              encoding="utf-8", errors="replace", env={**os.environ, "PYTHONIOENCODING": "utf-8"},
                               timeout=900)
     except subprocess.TimeoutExpired:
         return subprocess.CompletedProcess([], 124, "", "FAILED (timeout)")

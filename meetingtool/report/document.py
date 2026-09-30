@@ -501,16 +501,16 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     labels = LABELS[language]
 
     template = None if neutral else (Path(template) if template else stored_template(data_dir))
-    found = None
+    found, cover_section = None, None
     if template is not None:
         document = docx.Document(io.BytesIO(template_bytes(template)))
         found = layout.read_layout(document)
-        layout.drop_model(document, found)
+        cover_section = layout.drop_model(document, found)
         layout.fill_fields(document, layout.field_values(
             language, client=client, project=project_name, meeting=title.strip() if title else None, date=date,
             meeting_type=meeting_type))
         layout.no_update_on_open(document)
-        cover = not _body_is_empty(document)
+        cover = bool(found.tocs) or not _body_is_empty(document)
         if not cover:
             _clear_body(document)
     else:
@@ -522,9 +522,11 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
             section.left_margin = section.right_margin = Cm(2.5)
         cover = False
     cover_images = _body_images(document)
-    if cover:
+    if cover and cover_section is not None:
+        # The template's cover is a section of its own: its break ends the cover.
+        document.add_paragraph()._p.get_or_add_pPr().append(cover_section)
+    elif cover:
         document.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
-    start = len(layout.body_children(document))
 
     section = document.sections[-1]
     try:
@@ -534,9 +536,10 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
 
     heading_title = title.strip() if title and title.strip() else labels["title"]
     if _has_style(document, "Title"):
-        document.add_paragraph(heading_title, style="Title")
+        first = document.add_paragraph(heading_title, style="Title")
     else:
-        run = document.add_paragraph().add_run(heading_title)
+        first = document.add_paragraph()
+        run = first.add_run(heading_title)
         run.bold = True
         run.font.size = Pt(20)
     facts = [f"{labels['date']}: {date}" if date else "", f"{labels['project']}: {project_name}" if project_name else ""]
@@ -572,15 +575,29 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
                                   "the report was not built") from None
             embedded.add(name)
 
+    expected = [FRAME_REF.sub(lambda m: labels["mention"].format(clock=clock(*m.groups()[1:])), heading)
+                for heading in headings]
     contents = []
     if found is not None and found.tocs:
         bookmarks = layout.bookmark_headings(document, placed)
-        contents = [layout.fill_toc(document, toc, placed, bookmarks) for toc in found.tocs]
+        try:
+            for toc in found.tocs:
+                layout.fill_toc(document, toc, placed, bookmarks)
+        except layout.LayoutError as error:
+            raise ReportError(f"the template {Path(template).name} cannot be used: {error}") from None
+        # What each table of contents must list, from the summary's headings
+        # and the field's levels, not from what was written in it.
+        depth = [max(1, min(len(HEADING.match(line).group(1)) - 1, 3)) for line in text.splitlines()
+                 if HEADING.match(line)]
+        for _, _, instruction in found.tocs:
+            low, high = layout.levels(instruction)
+            contents.append([heading for level, heading in zip(depth, expected) if low <= level <= high])
+    # Where the report starts, counted after the tables of contents were
+    # rewritten: they may have changed how many paragraphs the cover has.
+    start = layout.body_children(document).index(first._p)
 
     output = frames_dir / OUTPUT_NAME
     partial = frames_dir / (OUTPUT_NAME + ".partial")
-    expected = [FRAME_REF.sub(lambda m: labels["mention"].format(clock=clock(*m.groups()[1:])), heading)
-                for heading in headings]
     try:
         document.save(str(partial))
         check_report(partial, expected, cover_images, frames.values(), start=start, contents=contents)
