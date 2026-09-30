@@ -15,6 +15,8 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
 
+from meetingtool import texts
+
 BOOST = 0.12
 WINDOW = 30.0
 
@@ -36,7 +38,7 @@ _BRACKET_TIME = re.compile(r"^\[(\d{1,2}):(\d{2}):(\d{2})\]\s*(.*)$")
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
 
 
-class TranscriptError(Exception):
+class TranscriptError(texts.Failure):
     """A transcript that cannot be read into timed blocks."""
 
 
@@ -53,7 +55,7 @@ def _docx_lines(path):
         with zipfile.ZipFile(path) as archive:
             root = ElementTree.fromstring(archive.read("word/document.xml"))
     except (zipfile.BadZipFile, KeyError, ElementTree.ParseError, OSError) as error:
-        raise TranscriptError(f"cannot read the Word transcript {path}: {error}") from error
+        raise TranscriptError("transcript.word_unreadable", path=str(path), detail=texts.External(str(error))) from error
     lines = []
     for paragraph in root.iter(f"{_W}p"):
         pieces = []
@@ -72,7 +74,7 @@ def _text_lines(path):
     try:
         return Path(path).read_text(encoding="utf-8").splitlines()
     except (OSError, UnicodeDecodeError) as error:
-        raise TranscriptError(f"cannot read the transcript {path}: {error}") from error
+        raise TranscriptError("transcript.unreadable", path=str(path), detail=texts.External(str(error))) from error
 
 
 def read_blocks(path):
@@ -80,7 +82,7 @@ def read_blocks(path):
     file with [HH:MM:SS] lines. Refuses a transcript with no timed line."""
     path = Path(path)
     if not path.is_file():
-        raise TranscriptError(f"transcript {path} is not a file")
+        raise TranscriptError("transcript.not_a_file", path=str(path))
     lines = _docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path)
     blocks = []
     for raw in lines:
@@ -97,7 +99,7 @@ def read_blocks(path):
         elif blocks:
             blocks[-1][1].append(line)
     if not blocks:
-        raise TranscriptError(f"transcript {path} has no timed line (Teams 'Speaker   M:SS' or '[HH:MM:SS]')")
+        raise TranscriptError("transcript.no_timed_line", path=str(path))
     return sorted(((start, "\n".join(text)) for start, text in blocks), key=lambda block: block[0])
 
 
@@ -107,7 +109,7 @@ def read_turns(path):
     summary needs who said what; the boost only needs when."""
     path = Path(path)
     if not path.is_file():
-        raise TranscriptError(f"transcript {path} is not a file")
+        raise TranscriptError("transcript.not_a_file", path=str(path))
     lines = _docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path)
     turns = []
     for raw in lines:
@@ -124,7 +126,7 @@ def read_turns(path):
         elif turns:
             turns[-1][2].append(line)
     if not turns:
-        raise TranscriptError(f"transcript {path} has no timed line (Teams 'Speaker   M:SS' or '[HH:MM:SS]')")
+        raise TranscriptError("transcript.no_timed_line", path=str(path))
     return sorted(((start, speaker, "\n".join(text)) for start, speaker, text in turns), key=lambda turn: turn[0])
 
 
@@ -133,7 +135,7 @@ def read_text(path):
     Teams title and date) included: what a written date is checked against."""
     path = Path(path)
     if not path.is_file():
-        raise TranscriptError(f"transcript {path} is not a file")
+        raise TranscriptError("transcript.not_a_file", path=str(path))
     return "\n".join(_docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path))
 
 

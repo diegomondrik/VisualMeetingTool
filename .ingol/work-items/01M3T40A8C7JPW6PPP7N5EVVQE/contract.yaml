@@ -1,0 +1,103 @@
+schema_version: "1"
+id: 01M3T40A8C7JPW6PPP7N5EVVQE
+objective: >
+  The company and the language of the application (INGOL D-188, approving
+  docs/work-items/f8-owner-project/brand-language-word-proposal.md of INGOL).
+  WI17 of the sequence that finishes MeetingTool; it starts once WI16 is
+  integrated (VisualMeetingTool PR #17, a2b98aa). The installer is WI18 and
+  the guide WI19.
+
+  The company that owns the installation. In Settings, the company's name
+  and logo. They appear at the top of every screen, next to "MeetingTool",
+  and in the tab's name. Without a name or logo everything stays as today.
+  The logo is a PNG or JPG of at most 1 MB, and a real image of that kind:
+  the file is decoded, not trusted by its name, and what is kept is the image
+  written again, so nothing hidden in the file travels with it. An SVG is
+  refused, because an SVG can carry code that would run inside the
+  application. The name is shown as text, never as markup.
+
+  The language of the application. In Settings, Spanish or English; Spanish
+  until someone changes it. It changes everything the application says:
+  menus, titles, buttons, instructions, button notices, the progress of each
+  stage and the error messages of every stage (frames, reading, summary,
+  questions and answers, Word report, projects), which today come out in
+  English. It is independent of the summary's language: someone using the
+  application in Spanish can still ask for an English summary.
+
+  One list of messages. Every text the application shows and every error the
+  program raises is an entry of one list, with its text in each language and
+  the data it carries by name (the file, the amount...). A new language is a
+  new file of that list; nothing else is rewritten. An error raised with
+  text written anywhere else makes the tests fail.
+
+  What stays in its language, and why. The terminal commands keep speaking
+  English, exactly as today: they are for whoever maintains the program. A
+  message that comes from outside (an error of Google, of the system, of a
+  library) cannot be translated beforehand: the application shows a sentence
+  in the chosen language saying what happened and what to do, and the
+  original text below it, as a detail.
+
+  Not done (D-188): other languages (the list is ready for one, none is
+  added); translating the terminal; the logo inside the Word report (the
+  template carries it); the installer (WI18) and its window (D-187); the
+  guide (WI19).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3T40A8C7JPW6PPP7N5EVVQE/**
+  - docs/evidence/01M3T40A8C7JPW6PPP7N5EVVQE/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI17-AC01
+    description: >
+      The company's name and logo are saved from Settings and shown at the top
+      of every screen and in the tab's name; they can be changed and removed;
+      with neither, every screen is as it was before this work item.
+  - id: WI17-AC02
+    description: >
+      A logo that is not a real PNG or JPG (text renamed .png, a truncated
+      image), an SVG under any name, or one of more than 1 MB is refused,
+      saying why, and nothing is kept; a name with markup or script is shown
+      as text.
+  - id: WI17-AC03
+    description: >
+      Every screen, in English, has no Spanish text, and in Spanish no English
+      text, apart from the data shown in it (a project's name, a summary);
+      a text left out of the list of messages, in a page or in the page's
+      script, makes the test fail, and this is shown by a mutation.
+  - id: WI17-AC04
+    description: >
+      Every message exists in both languages with the same data inside (the
+      same named values); every message and every language is checked.
+  - id: WI17-AC05
+    description: >
+      Each stage, when it fails (frames, reading, summary, questions and
+      answers, Word report, saving in the project), shows its error in the
+      chosen language, one test per stage and language, with Gemini faked.
+  - id: WI17-AC06
+    description: >
+      An error raised in the program with text that is not an entry of the
+      list of messages, or with data that the entry does not name, makes the
+      tests fail; shown by a mutation.
+  - id: WI17-AC07
+    description: >
+      A message that comes from outside (Google's reason for refusing a
+      request, a system error, an unexpected failure) is shown with the
+      sentence in the chosen language and the original text as a detail.
+  - id: WI17-AC08
+    description: >
+      Real run, at no cost: the application in English, a meeting processed
+      with a spending ceiling so low that nothing is sent to Gemini; the
+      error comes out in English and the cost is zero; recorded under
+      docs/evidence/01M3T40A8C7JPW6PPP7N5EVVQE/ as numbers and the error's
+      text only. The owner goes through the screens in both languages with
+      the company's logo.
+  - id: WI17-AC09
+    description: >
+      The terminal commands say exactly what they said before, in English
+      (every existing test of their messages passes unchanged); the whole
+      suite passes with `python -m unittest discover -s tests -v` in a fresh
+      clone of the tested commit on the owner's machine, and its complete
+      output is committed under docs/evidence/01M3T40A8C7JPW6PPP7N5EVVQE/
+      before the pull request (INGOL D-163).

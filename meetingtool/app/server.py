@@ -15,7 +15,9 @@
   cannot send them without a CORS permission the server never gives.
 - Pages forbid being framed and run no inline script (Content-Security-Policy).
 
-Every refusal happens in `refusal`, before any route runs.
+Every refusal happens in `refusal`, before any route runs. Everything the
+server says is an entry of meetingtool.texts, in the application's language
+(INGOL D-188, WI17).
 """
 
 import hmac
@@ -33,7 +35,8 @@ import webbrowser
 from pathlib import Path
 from urllib.parse import parse_qs, quote, unquote, urlsplit
 
-from meetingtool.app import jobs, library, pages
+from meetingtool import texts
+from meetingtool.app import company, jobs, library, pages
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 
@@ -44,9 +47,12 @@ STATIC_TYPES = {"app.js": "text/javascript; charset=utf-8", "style.css": "text/c
 JSON_LIMIT = 1_000_000
 DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 EXAMPLE_NAME = pages.EXAMPLE_NAME
-UPLOAD_LIMITS = {"transcript": 50_000_000, "recording": 16_000_000_000, "template": 50_000_000}
+UPLOAD_LIMITS = {"transcript": 50_000_000, "recording": 16_000_000_000, "template": 50_000_000,
+                 "logo": company.LOGO_LIMIT}
 UPLOAD_SUFFIXES = {"transcript": jobs.TRANSCRIPT_SUFFIXES, "recording": jobs.RECORDING_SUFFIXES,
-                   "template": (".docx", ".dotx")}
+                   "template": (".docx", ".dotx"), "logo": company.LOGO_SUFFIXES}
+# Uploads of the settings, each to its own address; a meeting's go to /api/upload.
+SETTING_UPLOADS = {"/api/template": "template", "/api/logo": "logo"}
 CHUNK = 1 << 20
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; "
@@ -61,44 +67,45 @@ SECURITY_HEADERS = {
 CHANGES = ("POST", "PUT", "DELETE")
 
 
-class Refused(Exception):
-    def __init__(self, status, message):
-        super().__init__(message)
+class Refused(texts.Failure):
+    def __init__(self, status, key, **params):
+        super().__init__(key, **params)
         self.status = status
 
 
 def refusal(app, peer, method, path, headers):
-    """Why the request is refused, as (status, message), or None."""
+    """Why the request is refused, as (status, the key of its message), or
+    None."""
     try:
         if not ipaddress.ip_address(peer).is_loopback:
-            return 403, "sólo se atienden pedidos de esta misma máquina"
+            return 403, "app.refused.not_local"
     except ValueError:
-        return 403, "sólo se atienden pedidos de esta misma máquina"
+        return 403, "app.refused.not_local"
     if headers.get("Host", "") not in app.hosts:
-        return 403, "el pedido no es para esta aplicación"
+        return 403, "app.refused.not_this_app"
     origin = headers.get("Origin")
     if origin is not None and origin not in app.origins:
-        return 403, "un pedido de otro sitio no se atiende"
+        return 403, "app.refused.other_site"
     site = headers.get("Sec-Fetch-Site")
     if site is not None and site not in ("same-origin", "none"):
-        return 403, "un pedido de otro sitio no se atiende"
+        return 403, "app.refused.other_site"
     if path == "/open" and method == "GET":
         return None
     cookie = http.cookies.SimpleCookie()
     try:
         cookie.load(headers.get("Cookie", ""))
     except http.cookies.CookieError:
-        return 403, "abrí la aplicación desde MeetingTool (la sesión no es válida)"
+        return 403, "app.refused.session"
     session = cookie.get(COOKIE)
     if session is None or not hmac.compare_digest(session.value.encode(), app.token.encode()):
-        return 403, "abrí la aplicación desde MeetingTool (la sesión no es válida)"
+        return 403, "app.refused.session"
     if method in CHANGES:
         if headers.get("X-MeetingTool") != "1":
-            return 403, "un cambio sólo se acepta desde la página de la aplicación"
+            return 403, "app.refused.change_page"
         if method == "POST" and headers.get("Content-Type", "").split(";")[0].strip().lower() != "application/json":
-            return 415, "un cambio sólo se acepta en JSON"
+            return 415, "app.refused.json_only"
     elif method not in ("GET", "HEAD"):
-        return 405, "método no admitido"
+        return 405, "app.refused.method"
     return None
 
 
@@ -119,6 +126,12 @@ class Handler(http.server.BaseHTTPRequestHandler):
     @property
     def app(self):
         return self.server.app
+
+    def view(self):
+        """What every screen needs from the settings: the application's
+        language and the company."""
+        owner = company.company(self.app.data_dir)
+        return pages.View(company.language(self.app.data_dir), owner.name, owner.logo is not None)
 
     # ── Answers ──────────────────────────────────────────────────────────────
 
@@ -141,13 +154,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
         self._send(status, json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
     def _error(self, status, message):
+        """Answer with what failed, in the application's language: `message`
+        is a texts.Message (what came from outside it goes as `detail`), or
+        text said as it is."""
+        view = self.view()
+        text, details = texts.said(message, view.language)
         if self.path.startswith("/api/"):
-            self._json({"error": message}, status)
+            self._json({"error": text, "detail": details}, status)
         else:
-            self._html(pages.message_page("No se puede mostrar", message), status)
+            self._html(pages.message_page(view, view.say("app.error.cannot_show"), text, details), status)
 
     def _file(self, path):
-        if path.suffix == ".docx":
+        if path.name in company.LOGO_TYPES:
+            self._send(200, path.read_bytes(), company.LOGO_TYPES[path.name])
+        elif path.suffix == ".docx":
             self._send(200, path.read_bytes(), DOCX_TYPE,
                        [("Content-Disposition", "attachment; filename=\"summary.docx\"")])
         else:
@@ -161,7 +181,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         refused = refusal(self.app, self.client_address[0], self.command, address.path, self.headers)
         if refused is not None:
             self._discard_body()
-            return self._error(*refused)
+            return self._error(refused[0], texts.Message(refused[1]))
         try:
             if self.command in ("GET", "HEAD"):
                 self._get(address)
@@ -172,15 +192,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             else:
                 raise library.NotFound(address.path)
         except library.NotFound:
-            self._error(404, "no hay nada en esta dirección")
+            self._error(404, texts.Message("app.not_found"))
         except Refused as error:
             self._discard_body()
-            self._error(error.status, str(error))
-        except (jobs.JobError, store.ProjectError, gemini.ReadingError, self.app.report_error,
-                self.app.credential_error) as error:
-            self._error(400, str(error))
+            self._error(error.status, error.message)
+        except texts.Failure as error:
+            self._error(400, error.message)
         except Exception as error:  # the page says what failed; the server keeps running
-            self._error(500, f"falló algo inesperado: {error}")
+            self._error(500, texts.Message("app.unexpected", detail=texts.External(str(error))))
 
     do_GET = do_HEAD = do_POST = do_PUT = do_DELETE = do_OPTIONS = do_PATCH = _handle
 
@@ -204,15 +223,15 @@ class Handler(http.server.BaseHTTPRequestHandler):
         try:
             length = int(self.headers.get("Content-Length", ""))
         except ValueError:
-            raise Refused(411, "falta el largo del pedido") from None
+            raise Refused(411, "app.refused.no_length") from None
         if not 0 <= length <= JSON_LIMIT:
-            raise Refused(413, "el pedido es demasiado grande")
+            raise Refused(413, "app.refused.too_big")
         try:
             data = json.loads(self.rfile.read(length) or b"{}")
         except ValueError:
-            raise Refused(400, "el pedido no es JSON válido") from None
+            raise Refused(400, "app.refused.not_json") from None
         if not isinstance(data, dict):
-            raise Refused(400, "el pedido no es un objeto JSON")
+            raise Refused(400, "app.refused.not_object")
         return data
 
     # ── GET ──────────────────────────────────────────────────────────────────
@@ -223,56 +242,62 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/open":
             token = parse_qs(address.query).get("token", [""])[0]
             if not hmac.compare_digest(token.encode(), app.token.encode()):
-                return self._error(403, "esta dirección ya no es válida: abrí la aplicación de nuevo desde MeetingTool")
+                return self._error(403, texts.Message("app.refused.stale_link"))
             cookie = f"{COOKIE}={app.token}; Path=/; HttpOnly; SameSite=Strict"
             return self._send(303, b"", "text/plain", [("Location", "/"), ("Set-Cookie", cookie)])
         parts = _segments(path)
+        view = self.view()
         if not parts:
-            return self._html(pages.projects_page(library.projects(data_dir), library.loose(data_dir)))
+            return self._html(pages.projects_page(view, library.projects(data_dir), library.loose(data_dir)))
         head = parts[0]
         if head == "static" and len(parts) == 2 and parts[1] in STATIC_TYPES:
             return self._send(200, (STATIC / parts[1]).read_bytes(), STATIC_TYPES[parts[1]])
+        if head == "company" and parts[1:] == ["logo"]:
+            logo = company.logo_path(data_dir)
+            if logo is None:
+                raise library.NotFound(path)
+            return self._file(logo)
         if head == "settings" and len(parts) == 1:
             saved = app.read_key()
             try:
                 template, problem = app.template_info(data_dir), ""
             except app.report_error as error:
-                template, problem = None, str(error)
-            return self._html(pages.settings_page(len(saved) if saved else 0, template, problem))
+                template, problem = None, error.text(view.language)
+            return self._html(pages.settings_page(view, len(saved) if saved else 0, company.company(data_dir),
+                                                  template, problem))
         if path == "/" + EXAMPLE_NAME:
+            name = view.say("app.template.example_file")
             return self._send(200, app.example_template(), DOCX_TYPE,
-                              [("Content-Disposition", f"attachment; filename=\"{EXAMPLE_NAME}\"")])
+                              [("Content-Disposition", f"attachment; filename=\"{name}\"")])
         if head == "job" and len(parts) == 2 and parts[1] in app.runner.jobs:
-            return self._html(pages.job_page(parts[1]))
+            return self._html(pages.job_page(view, parts[1]))
         if head == "api" and parts[1:2] == ["jobs"] and len(parts) == 3 and parts[2] in app.runner.jobs:
-            return self._json(app.runner.jobs[parts[2]].as_dict())
+            return self._json(app.runner.jobs[parts[2]].as_dict(view.language))
         if head == "api" and parts[1:] == ["running"]:
             job = app.runner.running()
-            return self._json({"job": job.as_dict() if job else None})
+            return self._json({"job": job.as_dict(view.language) if job else None})
         if head == "p" and len(parts) >= 2:
             project_id = parts[1]
             project = library.project(data_dir, project_id)
             if len(parts) == 2:
-                return self._html(pages.project_page(project, library.meetings(data_dir, project_id),
+                return self._html(pages.project_page(view, project, library.meetings(data_dir, project_id),
                                                      library.knowledge(data_dir, project_id)))
             if parts[2:] == ["new"]:
-                return self._html(pages.new_meeting_page(project, pages.meeting_types(), pages.languages(),
+                return self._html(pages.new_meeting_page(view, project, pages.meeting_types(), pages.languages(),
                                                          jobs.DEFAULT_MAX_COST_USD))
             if parts[2] == "m" and len(parts) == 4:
                 entry = library.meeting(data_dir, project_id, parts[3])
                 record = entry["record"]
                 base = f"/p/{quote(project_id)}/m/{quote(record['id'])}/f/"
-                crumbs = (f"<a href=\"/\">Proyectos</a> › <a href=\"/p/{quote(project_id)}\">"
-                          f"{pages.e(project['name'])}</a> ›")
-                return self._html(pages.result_page(record["title"], crumbs, record, entry["result"], base,
-                                                    f"{project_id}/{record['id']}"))
+                return self._html(pages.result_page(view, record["title"], pages.project_crumbs(view, project),
+                                                    record, entry["result"], base, f"{project_id}/{record['id']}"))
             if parts[2] == "m" and len(parts) == 6 and parts[4] == "f":
                 return self._file(library.meeting_file(data_dir, project_id, parts[3], parts[5]))
         if head == "r" and len(parts) >= 2:
             if len(parts) == 2:
                 entry = library.loose_result(data_dir, parts[1])
-                return self._html(pages.result_page(parts[1], "<a href=\"/\">Proyectos</a> › Resultados sin proyecto ›",
-                                                    None, entry["result"], f"/r/{quote(parts[1])}/f/", parts[1]))
+                return self._html(pages.result_page(view, parts[1], pages.loose_crumbs(view), None, entry["result"],
+                                                    f"/r/{quote(parts[1])}/f/", parts[1]))
             if len(parts) == 4 and parts[2] == "f":
                 return self._file(library.loose_file(data_dir, parts[1], parts[3]))
         raise library.NotFound(path)
@@ -284,13 +309,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/projects":
             name, client = data.get("name", ""), data.get("client", "")
             if not isinstance(name, str) or not isinstance(client, str):
-                raise jobs.JobError("el nombre y el cliente son texto")
+                raise jobs.JobError("app.request.project_not_text")
             record = store.create_project(data_dir, name, client)
             return self._json({"id": record["id"]})
         if path == "/api/key":
             key = data.get("key", "")
             if not isinstance(key, str) or not key.strip():
-                raise jobs.JobError("pegá la clave antes de guardarla")
+                raise jobs.JobError("app.key.paste")
             gemini.check_key(key.strip())
             app.save_key(key.strip())
             return self._json({"saved": True})
@@ -298,6 +323,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._json({"deleted": bool(app.delete_key())})
         if path == "/api/template/remove":
             return self._json({"removed": app.remove_template(data_dir)})
+        if path == "/api/company":
+            return self._json({"name": company.set_company_name(data_dir, data.get("name", ""))})
+        if path == "/api/logo/remove":
+            return self._json({"removed": company.remove_logo(data_dir)})
+        if path == "/api/language":
+            company.set_language(data_dir, data.get("language"))
+            return self._json({"language": data["language"]})
         if path == "/api/process":
             try:
                 request = jobs.check_request(data, data_dir, app.uploads, pages.meeting_types(), pages.languages())
@@ -321,19 +353,24 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _put(self, path, query):
         app = self.app
-        kind = {"/api/upload": query.get("kind", [""])[0], "/api/template": "template"}.get(path)
-        if kind not in UPLOAD_LIMITS or (path == "/api/upload" and kind == "template"):
+        kind = SETTING_UPLOADS[path] if path in SETTING_UPLOADS else (
+            query.get("kind", [""])[0] if path == "/api/upload" else None)
+        if kind not in UPLOAD_LIMITS or (path == "/api/upload" and kind in SETTING_UPLOADS.values()):
             raise library.NotFound(path)
         name = query.get("name", [""])[0]
         suffix = Path(name).suffix.lower()
+        if kind == "logo" and suffix == ".svg":
+            raise Refused(415, "app.logo.svg")
         if suffix not in UPLOAD_SUFFIXES[kind]:
-            raise Refused(415, f"ese archivo no sirve: tiene que ser {' o '.join(UPLOAD_SUFFIXES[kind])}")
+            raise Refused(415, "app.refused.bad_file", kinds=", ".join(UPLOAD_SUFFIXES[kind]))
         try:
             length = int(self.headers.get("Content-Length", ""))
         except ValueError:
-            raise Refused(411, "falta el largo del archivo") from None
+            raise Refused(411, "app.refused.no_file_length") from None
+        if kind == "logo" and length > UPLOAD_LIMITS[kind]:
+            raise Refused(413, "app.logo.too_big")
         if not 0 < length <= UPLOAD_LIMITS[kind]:
-            raise Refused(413, "el archivo está vacío o es demasiado grande")
+            raise Refused(413, "app.refused.empty_or_big")
         target = app.uploads.new_path(suffix)
         self._body_read = True  # from here on, a failure closes the connection
         try:
@@ -342,17 +379,20 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 while left:
                     chunk = self.rfile.read(min(CHUNK, left))
                     if not chunk:
-                        raise Refused(400, "el archivo llegó cortado")
+                        raise Refused(400, "app.refused.cut")
                     handle.write(chunk)
                     left -= len(chunk)
             if kind == "template":
                 app.set_template(target, app.data_dir, name=name)
                 return self._json({"template": Path(name).name})
+            if kind == "logo":
+                company.set_logo(app.data_dir, target.read_bytes(), name)
+                return self._json({"logo": True})
         except BaseException:
             target.unlink(missing_ok=True)
             raise
         finally:
-            if kind == "template":
+            if kind in SETTING_UPLOADS.values():
                 target.unlink(missing_ok=True)
         return self._json({"upload": target.name})
 
@@ -370,7 +410,7 @@ class Server(http.server.ThreadingHTTPServer):
         super().server_bind()
 
 
-class DataFolderInUse(Exception):
+class DataFolderInUse(texts.Failure):
     """Another MeetingTool application holds this data folder."""
 
 
@@ -400,7 +440,7 @@ class DataFolderLock:
                 fcntl.flock(handle.fileno(), fcntl.LOCK_EX | fcntl.LOCK_NB)
         except OSError:
             handle.close()
-            raise DataFolderInUse(f"MeetingTool ya está abierto sobre {self.path.parent}: usá esa ventana") from None
+            raise DataFolderInUse("app.data_folder_in_use", folder=str(self.path.parent)) from None
         self.handle = handle
         return self
 
@@ -424,7 +464,6 @@ class App:
         self.read_key = read_key or credentials.read_key
         self.save_key = save_key or credentials.save_key
         self.delete_key = delete_key or credentials.delete_key
-        self.credential_error = credentials.CredentialError
         self.report_error = document.ReportError
         self.template_info, self.set_template = document.template_info, document.set_template
         self.remove_template, self.example_template = document.remove_template, document.example_template
@@ -459,7 +498,7 @@ class App:
 
 def open_with_the_system(path):
     if not hasattr(os, "startfile"):
-        raise jobs.JobError("abrir el Word desde acá sólo funciona en Windows: descargalo")
+        raise jobs.JobError("app.open.windows_only")
     os.startfile(str(path))  # nosec: a report of the data folder, found by identifiers
 
 
@@ -468,24 +507,33 @@ def serve(data_dir=None, port=0, open_browser=True):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
     data_dir = Path(data_dir or store.default_data_dir())
+    language = company.language(data_dir)  # the application's window speaks the application's language
+
+    def say(key, **params):
+        return texts.Message(key, **params).text(language)
+
+    def fail(error):
+        text, details = texts.said(texts.outside(error), language)
+        print(say("app.console.error", error=text), file=sys.stderr)
+        for detail in details:
+            print(say("app.detail", detail=detail), file=sys.stderr)
+        return 2
+
     try:
         store.check_data_dir(data_dir)
         lock = DataFolderLock(data_dir).acquire()
     except (store.ProjectError, DataFolderInUse, OSError) as error:
-        print(f"error: {error}", file=sys.stderr)
-        return 2
+        return fail(error)
     try:
         # What a session closed during a run, or its unused uploads, left.
         jobs.clear_leftovers(data_dir)
         app = App(data_dir, port=port)
     except (store.ProjectError, OSError) as error:
         lock.release()
-        print(f"error: {error}", file=sys.stderr)
-        return 2
-    print(f"MeetingTool está abierto en tu navegador ({app.url}); sólo esta máquina puede entrar.")
-    print(f"Si no se abrió, pegá esta dirección en el navegador: {app.launch_url}")
-    print("Dejá esta ventana abierta mientras lo uses; para cerrarlo, cerrá esta ventana o apretá Ctrl+C.",
-          flush=True)  # a console that is not a terminal would keep them
+        return fail(error)
+    print(say("app.console.open", url=app.url))
+    print(say("app.console.paste", url=app.launch_url))
+    print(say("app.console.keep"), flush=True)  # a console that is not a terminal would keep them
     if open_browser:
         webbrowser.open(app.launch_url)
     try:

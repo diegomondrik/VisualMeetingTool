@@ -34,7 +34,7 @@ def _project(data_dir, project_id):
     for project in store.list_projects(data_dir or store.default_data_dir()):
         if project["id"] == project_id:
             return project
-    raise document.ReportError(f"there is no project {project_id!r}; list them with python -m meetingtool.projects")
+    raise document.ReportError("report.no_project", project=project_id)
 
 
 def _describe(info):
@@ -83,7 +83,7 @@ def main(argv=None):
             elif args.action == "example":
                 target = Path(args.file)
                 if target.exists():
-                    raise document.ReportError(f"{target.resolve()} already exists; name another file")
+                    raise document.ReportError("report.example_exists", path=str(target.resolve()))
                 target.write_bytes(document.example_template())
                 print(f"example template written: {target.resolve()}")
             else:

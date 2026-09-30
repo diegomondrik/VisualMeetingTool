@@ -17,12 +17,14 @@ import re
 import unicodedata
 from pathlib import Path
 
+from meetingtool import texts
+
 SCHEMA_VERSION = 1
 DATA_DIR_ENV = "MEETINGTOOL_DATA_DIR"
 DEFAULT_DATA_DIR_NAME = "VisualMeetingTool-data"
 
 
-class ProjectError(Exception):
+class ProjectError(texts.Failure):
     """A project or meeting operation that cannot be carried out."""
 
 
@@ -49,10 +51,8 @@ def check_data_dir(data_dir):
     data and must never sit where a repository could track it."""
     work_tree = enclosing_git_work_tree(data_dir)
     if work_tree is not None:
-        raise ProjectError(
-            f"data folder {Path(data_dir).resolve()} is inside the git work tree {work_tree}; "
-            "meeting data must live outside any repository"
-        )
+        raise ProjectError("projects.inside_repository", folder=str(Path(data_dir).resolve()),
+                           work_tree=str(work_tree))
     return Path(data_dir)
 
 
@@ -83,11 +83,11 @@ def _project_dir(data_dir, project_id):
     # would write outside the data folder. The final folder is checked too,
     # in case a link inside the data folder points into a repository.
     if project_id != slugify(project_id, fallback=""):
-        raise ProjectError(f"{project_id!r} is not a project identifier")
+        raise ProjectError("projects.bad_identifier", project=project_id)
     folder = Path(data_dir) / project_id
     check_data_dir(folder)
     if not (folder / "project.json").is_file():
-        raise ProjectError(f"project {project_id} does not exist in {Path(data_dir).resolve()}")
+        raise ProjectError("projects.missing", project=project_id, folder=str(Path(data_dir).resolve()))
     return folder
 
 
@@ -95,11 +95,11 @@ def create_project(data_dir, name, client, context=""):
     """Create a project and return its record."""
     data_dir = check_data_dir(data_dir)
     if not name.strip():
-        raise ProjectError("a project needs a name")
+        raise ProjectError("projects.needs_name")
     project_id = slugify(name, fallback="project")
     folder = data_dir / project_id
     if folder.exists():
-        raise ProjectError(f"project {project_id} already exists in {data_dir.resolve()}")
+        raise ProjectError("projects.exists", project=project_id, folder=str(data_dir.resolve()))
     record = {
         "schema_version": SCHEMA_VERSION,
         "id": project_id,
@@ -142,9 +142,9 @@ def add_meeting(data_dir, project_id, title, date, meeting_type="", recording=""
     folder = _project_dir(data_dir, project_id)
     iso_date = _parse_date(date)
     if iso_date is None:
-        raise ProjectError(f"meeting date {date!r} is not a valid YYYY-MM-DD date")
+        raise ProjectError("meeting.bad_date", date=date)
     if not title.strip():
-        raise ProjectError("a meeting needs a title")
+        raise ProjectError("projects.needs_title")
     meetings = folder / "meetings"
     base_id = f"{iso_date}-{slugify(title, fallback='meeting')}"
     meeting_id, counter = base_id, 2

@@ -1,0 +1,71 @@
+schema_version: "1"
+work_item: 01M3T40A8C7JPW6PPP7N5EVVQE
+status: approved
+next_gate: implement-then-independent-review-then-real-run-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3T40A8C7JPW6PPP7N5EVVQE-brand-language
+steps:
+  - company-name-and-logo-in-settings-and-every-screen-wi17-ac01
+  - refuse-a-logo-that-is-not-a-real-png-or-jpg-wi17-ac02
+  - every-screen-in-the-chosen-language-wi17-ac03
+  - every-message-in-both-languages-wi17-ac04
+  - each-stage-fails-in-the-chosen-language-wi17-ac05
+  - no-error-outside-the-list-of-messages-wi17-ac06
+  - outside-messages-as-a-detail-wi17-ac07
+  - real-run-in-english-at-no-cost-wi17-ac08
+  - terminal-unchanged-and-the-suite-in-a-fresh-clone-wi17-ac09
+evaluations:
+  - criterion: WI17-AC01
+    method: deterministic
+    control: >-
+      tests/test_app.py CompanyTest saves a name and a logo through the page,
+      reads every screen and its title, changes and removes them, and compares
+      the screens without them to the screens of a folder that never had them.
+  - criterion: WI17-AC02
+    method: adversarial
+    control: >-
+      tests/test_app.py CompanyTest uploads text named .png, a cut PNG, an SVG
+      named .svg and named .png, an image of more than 1 MB and a name with a
+      script tag, and checks each refusal and that nothing was kept.
+  - criterion: WI17-AC03
+    method: adversarial
+    control: >-
+      tests/test_texts.py ScreensLanguageTest renders every screen in each
+      language and in a test-only language whose every text is a marker, and
+      finds no text outside the markers and the data; a text written in a
+      page and one in app.js are caught, recorded in mutations.txt.
+  - criterion: WI17-AC04
+    method: deterministic
+    control: >-
+      tests/test_texts.py CatalogTest compares every entry's named values and
+      detail segments across the languages.
+  - criterion: WI17-AC05
+    method: deterministic
+    control: >-
+      tests/test_texts.py StageLanguageTest makes each stage fail through the
+      application, with Gemini faked, in each language.
+  - criterion: WI17-AC06
+    method: adversarial
+    control: >-
+      tests/test_texts.py SourceTest reads every raise of the program and
+      checks its message is an entry with the entry's named values; a raise
+      with written text and one with a missing value are caught, recorded in
+      mutations.txt.
+  - criterion: WI17-AC07
+    method: deterministic
+    control: >-
+      tests/test_texts.py OutsideTest has Gemini refuse with its own reason
+      and a stage fail unexpectedly, and reads the sentence and the detail.
+  - criterion: WI17-AC08
+    method: external-evidence
+    control: >-
+      A meeting processed by the application in English with a ceiling that
+      stops before the first request; numbers and the error committed; the
+      owner goes through the screens.
+  - criterion: WI17-AC09
+    method: deterministic
+    control: >-
+      python -m unittest discover -s tests -v in a fresh clone of the tested
+      commit; complete output committed; the tests of the commands' messages
+      are those of main.

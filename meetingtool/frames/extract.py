@@ -34,6 +34,7 @@ import av
 import numpy as np
 from PIL import Image
 
+from meetingtool import texts
 from meetingtool.frames.signals import composite_score, is_camera_view, to_gray
 from meetingtool.frames.similarity import ssim
 from meetingtool.frames.transcript import TranscriptError, VisualReferences
@@ -46,7 +47,7 @@ DISCARD_LOG = "frames_discarded.log"
 TRANSCRIPT_TAIL = 120.0
 
 
-class FramesError(Exception):
+class FramesError(texts.Failure):
     """An extraction that cannot be carried out."""
 
 
@@ -140,25 +141,22 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     output_dir = Path(output_dir)
     work_tree = enclosing_git_work_tree(output_dir)
     if work_tree is not None:
-        raise FramesError(
-            f"output folder {output_dir.resolve()} is inside the git work tree {work_tree}; "
-            "frames of a meeting must live outside any repository"
-        )
+        raise FramesError("frames.inside_repository", folder=str(output_dir.resolve()), work_tree=str(work_tree))
     if budget < 1:
-        raise FramesError("the frame budget must be at least 1")
+        raise FramesError("frames.budget_too_small")
     references = None
     if transcript is not None:
         try:
             references = VisualReferences.from_file(transcript)
         except TranscriptError as error:
-            raise FramesError(str(error)) from error
+            raise FramesError(error.message) from error
     if not Path(video_path).is_file():
         # a local file only: av.open would also accept a URL and open a connection
-        raise FramesError(f"recording {video_path} is not a local file")
+        raise FramesError("frames.not_local", path=str(video_path))
     try:
         container = av.open(str(video_path))
     except (av.error.FFmpegError, OSError) as error:
-        raise FramesError(f"cannot open recording {video_path}: {error}") from error
+        raise FramesError("frames.cannot_open", path=str(video_path), detail=texts.External(str(error))) from error
 
     discards = collections.Counter()
     log_lines = []
@@ -236,7 +234,7 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
                 heapq.heappush(pool, entry)
             max_pool = max(max_pool, len(pool))
     except av.error.FFmpegError as error:
-        raise FramesError(f"cannot decode recording {video_path}: {error}") from error
+        raise FramesError("frames.cannot_decode", path=str(video_path), detail=texts.External(str(error))) from error
     finally:
         container.close()
 

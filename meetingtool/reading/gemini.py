@@ -33,6 +33,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
+from meetingtool import texts
 from meetingtool.frames.extract import enclosing_git_work_tree
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
@@ -84,7 +85,7 @@ Rules:
 _BLOCK = re.compile(r"^[\s*_#>-]*\[FRAME (\d+)\]", re.MULTILINE | re.IGNORECASE)
 
 
-class ReadingError(Exception):
+class ReadingError(texts.Failure):
     """A reading that could not be completed; nothing was written."""
 
 
@@ -142,22 +143,23 @@ def check_answer(answer, first, count):
         text = "".join(part.get("text", "") for part in candidate["content"]["parts"])
         finish = candidate.get("finishReason")
     except (KeyError, IndexError, TypeError, AttributeError) as error:
-        raise ReadingError(f"Gemini's answer has no text ({type(error).__name__})") from None
+        raise ReadingError("gemini.no_text", kind=type(error).__name__) from None
     if finish != "STOP":
-        raise ReadingError(f"Gemini's answer did not finish normally (finishReason {finish})")
+        raise ReadingError("gemini.unfinished", finish=finish)
     numbers = [int(n) for n in _BLOCK.findall(text)]
     expected = list(range(first, first + count))
     if numbers != expected:
         missing = sorted(set(expected) - set(numbers))
         extra = sorted(set(numbers) - set(expected))
         repeated = sorted({n for n in numbers if numbers.count(n) > 1})
-        raise ReadingError(f"Gemini's answer does not hold one block per frame {first}-{first + count - 1}: "
-                           f"missing {missing}, repeated {repeated}, not sent {extra}")
+        raise ReadingError("gemini.blocks", first=first, last=first + count - 1, missing=missing,
+                           repeated=repeated, extra=extra)
     return text
 
 
 def post_generate(url, key, payload):
-    """One request: (status, parsed JSON or None, short reason)."""
+    """One request: (status, parsed JSON or None, short reason). The reason
+    is a message of the program, or Google's own words (External)."""
     request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), method="POST",
                                      headers={"Content-Type": "application/json", "x-goog-api-key": key})
     try:
@@ -167,16 +169,16 @@ def post_generate(url, key, payload):
         try:
             return status, json.loads(raw.decode("utf-8")), ""
         except ValueError:
-            return status, None, "the answer is not JSON"
+            return status, None, texts.Message("gemini.reason.not_json")
     except urllib.error.HTTPError as error:
         body = error.read().decode("utf-8", "replace")
         try:
             reason = json.loads(body)["error"]["message"]
         except (ValueError, KeyError, TypeError):
             reason = body
-        return error.code, None, " ".join(reason.split())[:200]
+        return error.code, None, texts.External(" ".join(reason.split())[:200])
     except (urllib.error.URLError, TimeoutError, OSError, http.client.HTTPException) as error:
-        return None, None, f"no answer ({type(error).__name__})"
+        return None, None, texts.Message("gemini.reason.no_answer", kind=type(error).__name__)
 
 
 def new_counters():
@@ -192,17 +194,17 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
     instead, so the request can say what was refused; `worst` must cover it."""
     incomplete_retried = False
     refused = ""  # why the answer before was refused, so a stop by the budget says it (INGOL D-181's run)
+    what = what if isinstance(what, texts.Message) else texts.External(what)
     delays = list(retry_delays)
     while True:
         if counters["spent"] + worst > max_cost_usd:
-            raise ReadingError(f"stopped before sending {what}: that request could cost up to US${worst:.2f}, and with "
-                               f"about US${counters['spent']:.2f} already spent it could go over the budget of "
-                               f"US${max_cost_usd:.2f}; nothing was written{refused}")
+            raise ReadingError("gemini.over_budget", what=what, worst=float(worst), spent=float(counters["spent"]),
+                               budget=float(max_cost_usd), refused=refused)
         counters["attempts"] += 1
         status, answer, reason = post_generate(url, key, payload)
         if status is None:
             counters["spent"] += worst  # no answer: it may have been billed in full
-            refused = f" (the attempt before got no answer: {reason})"
+            refused = texts.Message("gemini.before.no_answer", reason=reason)
         if status == 200:
             usage = answer.get("usageMetadata") if isinstance(answer, dict) else None
             if isinstance(usage, dict) and "promptTokenCount" in usage:
@@ -221,29 +223,27 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                 if incomplete_retried:
                     raise
                 incomplete_retried = True
-                refused = f" (the answer before was refused: {error})"
+                refused = texts.Message("gemini.before.refused", error=error.message)
                 if revise is not None:
                     payload = revise(payload, error)
                 continue
         if status is not None and status not in RETRYABLE_STATUS:
-            raise ReadingError(f"Gemini refused the request (HTTP {status}): {reason}")
+            raise ReadingError("gemini.refused", status=status, reason=reason)
         if not delays:
             label = f"HTTP {status}" if status is not None else reason
-            raise ReadingError(f"Gemini did not answer {what} after {len(retry_delays)} retries "
-                               f"({label}: {reason}); nothing was written")
+            raise ReadingError("gemini.no_answer", what=what, retries=len(retry_delays), label=label, reason=reason)
         sleep(delays.pop(0))
 
 
 def check_key(key):
     if not key.isascii() or not key.isprintable():
-        raise ReadingError("the saved key has characters a Gemini key never has; save it again")
+        raise ReadingError("gemini.bad_key")
 
 
 def check_outside_repository(folder):
     work_tree = enclosing_git_work_tree(folder)
     if work_tree is not None:
-        raise ReadingError(f"folder {Path(folder).resolve()} is inside the git work tree {work_tree}; "
-                           "frames and what they show must live outside any repository")
+        raise ReadingError("gemini.inside_repository", folder=str(Path(folder).resolve()), work_tree=str(work_tree))
 
 
 def model_url(endpoint, model):
@@ -255,7 +255,8 @@ def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost
     """The checked text for one chunk, after the allowed retries and within the budget."""
     return call_checked(url, key, _payload(frames, first, max_output_tokens),
                         lambda answer: check_answer(answer, first, len(frames)),
-                        worst_attempt_cost(len(frames), max_output_tokens), f"frames {first}-{first + len(frames) - 1}",
+                        worst_attempt_cost(len(frames), max_output_tokens),
+                        texts.Message("gemini.what.frames", first=first, last=first + len(frames) - 1),
                         retry_delays, sleep, counters, max_cost_usd)
 
 
@@ -288,9 +289,9 @@ def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUN
     check_outside_repository(frames_dir)
     frames = frame_files(frames_dir)
     if not frames:
-        raise ReadingError(f"no frame_*.jpg in {frames_dir.resolve()}")
+        raise ReadingError("gemini.no_frames", folder=str(frames_dir.resolve()))
     if chunk_size < 1:
-        raise ReadingError("the chunk size must be at least 1")
+        raise ReadingError("gemini.chunk_too_small")
     url = model_url(endpoint, model)
     counters = new_counters() if counters is None else counters
     started = time.monotonic()

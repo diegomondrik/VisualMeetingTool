@@ -9,19 +9,21 @@ printed: callers get it as a string and show at most its length.
 import ctypes
 import sys
 
+from meetingtool import texts
+
 TARGET = "VisualMeetingTool/gemini"
 _GENERIC = 1
 _PERSIST_LOCAL_MACHINE = 2
 _ERROR_NOT_FOUND = 1168
 
 
-class CredentialError(Exception):
+class CredentialError(texts.Failure):
     """The credential store cannot be used or refused an operation."""
 
 
 def _api():
     if sys.platform != "win32":
-        raise CredentialError("the Gemini key is kept in the Windows Credential Manager; this system is not Windows")
+        raise CredentialError("credentials.not_windows")
     from ctypes import wintypes
 
     class Credential(ctypes.Structure):
@@ -54,7 +56,7 @@ def read_key(target=TARGET):
         error = ctypes.get_last_error()
         if error == _ERROR_NOT_FOUND:
             return None
-        raise CredentialError(f"the Windows Credential Manager could not be read (error {error})")
+        raise CredentialError("credentials.unreadable", code=error)
     try:
         credential = pointer.contents
         size = credential.CredentialBlobSize
@@ -69,7 +71,7 @@ def save_key(key, target=TARGET):
     """Save the key, replacing any saved before."""
     key = key.strip()
     if not key:
-        raise CredentialError("the key is empty; nothing was saved")
+        raise CredentialError("credentials.empty")
     advapi, Credential = _api()
     blob = ctypes.create_unicode_buffer(key, len(key))
     credential = Credential()
@@ -80,7 +82,7 @@ def save_key(key, target=TARGET):
     credential.CredentialBlob = ctypes.cast(blob, ctypes.c_void_p)
     credential.Persist = _PERSIST_LOCAL_MACHINE
     if not advapi.CredWriteW(ctypes.byref(credential), 0):
-        raise CredentialError(f"the Windows Credential Manager refused to save the key (error {ctypes.get_last_error()})")
+        raise CredentialError("credentials.refused", code=ctypes.get_last_error())
 
 
 def delete_key(target=TARGET):
@@ -91,4 +93,4 @@ def delete_key(target=TARGET):
     error = ctypes.get_last_error()
     if error == _ERROR_NOT_FOUND:
         return False
-    raise CredentialError(f"the Windows Credential Manager could not delete the key (error {error})")
+    raise CredentialError("credentials.cannot_delete", code=error)

@@ -15,7 +15,13 @@
 body { margin: 0; line-height: 1.5; }
 header { display: flex; align-items: center; gap: 24px; padding: 12px 24px; background: var(--paper);
   border-bottom: 1px solid var(--line); }
-header .brand { font-weight: 700; color: var(--ink); text-decoration: none; font-size: 1.1rem; }
+header .brand { font-weight: 700; color: var(--ink); text-decoration: none; font-size: 1.1rem; display: flex;
+  align-items: center; gap: 10px; }
+header .brand .logo { max-height: 32px; max-width: 160px; }
+header .brand .product { font-weight: 400; color: var(--muted); font-size: 0.95rem; }
+.logo-preview { max-height: 48px; max-width: 240px; vertical-align: middle; border: 1px solid var(--line);
+  padding: 4px; background: var(--paper); }
+.detail { font-size: 0.85rem; overflow-wrap: anywhere; }
 header nav a { margin-right: 16px; color: var(--muted); text-decoration: none; }
 header nav a.active { color: var(--accent); font-weight: 600; }
 main { max-width: 980px; margin: 0 auto; padding: 16px 24px 48px; }

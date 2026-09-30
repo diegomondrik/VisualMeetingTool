@@ -28,12 +28,13 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm
 
+from meetingtool import texts
+
 FIELDS = {"cliente": "client", "client": "client", "proyecto": "project", "project": "project",
           "reunion": "meeting", "reunión": "meeting", "meeting": "meeting", "fecha": "date", "date": "date",
           "tipo": "type", "type": "type"}
 REPORT_START = frozenset({"informe", "report"})
 FIELD = re.compile(r"\{\s*([^\W\d_]+)\s*\}")
-KNOWN = "{cliente} {proyecto} {reunion} {fecha} {tipo} (or {client} {project} {meeting} {date} {type})"
 
 MONTHS = {"es": ["enero", "febrero", "marzo", "abril", "mayo", "junio", "julio", "agosto", "septiembre",
                  "octubre", "noviembre", "diciembre"],
@@ -50,7 +51,7 @@ BOOKMARK_PREFIX = "_TocMeetingTool"
 INDENT = Cm(0.63)
 
 
-class LayoutError(Exception):
+class LayoutError(texts.Failure):
     """A template whose fields or report start cannot be used."""
 
 
@@ -143,7 +144,7 @@ def read_layout(document):
             names = [match.group(1).lower() for match in FIELD.finditer(paragraph_text(child))]
             if any(name in REPORT_START for name in names):
                 if FIELD.fullmatch(paragraph_text(child).strip()) is None:
-                    raise LayoutError("{informe} must be alone on its line, with nothing else on it")
+                    raise LayoutError("layout.marker_not_alone")
                 start, start_kind = number, "marker"
                 break
     tocs = _tocs(document)
@@ -156,8 +157,7 @@ def read_layout(document):
     for begin, end, _ in tocs:
         separate = [char for char in begin.iter(qn("w:fldChar")) if char.get(qn("w:fldCharType")) == "separate"]
         if begin.getparent() is not end.getparent() or not separate:
-            raise LayoutError("the table of contents cannot be read: insert it again in Word "
-                              "(References, Table of Contents) and save the template")
+            raise LayoutError("layout.toc_unreadable")
     fields, unknown, misplaced = [], [], False
     for element in list(paragraphs(kept)) + [p for part in header_footer_parts(document) for p in paragraphs([part])]:
         for match in FIELD.finditer(paragraph_text(element)):
@@ -170,10 +170,9 @@ def read_layout(document):
             elif match.group(0) not in unknown:
                 unknown.append(match.group(0))
     if misplaced:
-        raise LayoutError("{informe} must be alone on its line in the body, not in a table, header or footer")
+        raise LayoutError("layout.marker_misplaced")
     if unknown:
-        raise LayoutError(f"the template has {', '.join(unknown)}, which is not a field it knows; the fields are "
-                          f"{KNOWN}")
+        raise LayoutError("layout.unknown_fields", unknown=", ".join(unknown))
     model = dropped[1:] if start_kind == "marker" else dropped  # the marker's own line is not model
     dropped_text = sum(1 for p in paragraphs(model) if paragraph_text(p).strip())
     return Layout(start, start_kind, tocs, fields, dropped_text)
@@ -372,7 +371,7 @@ def fill_toc(document, toc, headings, bookmarks):
                 state = "result"
                 break
     if state != "result":
-        raise LayoutError("the table of contents cannot be read: its field has no result part")
+        raise LayoutError("layout.toc_no_result")
     for char in opening[0].findall(qn("w:fldChar")):
         char.attrib.pop(qn("w:dirty"), None)
     after = []

@@ -34,6 +34,7 @@ import time
 import unicodedata
 from pathlib import Path
 
+from meetingtool import texts
 from meetingtool.frames.transcript import TranscriptError, read_text, read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
@@ -369,33 +370,33 @@ def parse_json(answer, what):
         text = "".join(part.get("text", "") for part in candidate["content"]["parts"])
         finish = candidate.get("finishReason")
     except (KeyError, IndexError, TypeError, AttributeError) as error:
-        raise QAError(f"Gemini's answer has no text ({type(error).__name__})") from None
+        raise QAError("gemini.no_text", kind=type(error).__name__) from None
     if finish != "STOP":
-        raise QAError(f"Gemini's {what} did not finish normally (finishReason {finish})")
+        raise QAError("qa.unfinished", what=what, finish=finish)
     text = re.sub(r"^\s*```(?:json)?\s*|\s*```\s*$", "", text)
     try:
         data = json.loads(text)
     except ValueError:
-        raise QAError(f"Gemini's {what} is not JSON") from None
+        raise QAError("qa.not_json", what=what) from None
     if not isinstance(data, dict):
-        raise QAError(f"Gemini's {what} is not a JSON object")
+        raise QAError("qa.not_object", what=what)
     return data
 
 
 def _string(item, key, where):
     value = item.get(key, "")
     if not isinstance(value, str):
-        raise QAError(f"{where}: '{key}' is not text")
+        raise QAError("qa.not_text", where=where, key=key)
     return " ".join(value.split())
 
 
 def _check_text(text, where, transcript):
     if writer.FRAME_LIKE.search(text):
-        raise QAError(f"{where} mentions a frame")
+        raise QAError("qa.mentions_frame", where=where)
     invented = sorted(written_dates(text) - transcript.dates)
     if invented:
         dates = ", ".join(f"{day}/{month}" for day, month in invented)
-        raise QAError(f"{where} writes a date the transcript does not say ({dates})")
+        raise QAError("qa.invented_date", where=where, dates=dates)
 
 
 def _check_language(text, what, language):
@@ -404,9 +405,9 @@ def _check_language(text, what, language):
     if not (writer._SPANISH.search(text) or writer._ENGLISH.search(text)):
         return  # labels and figures only ("Tabla: SKU, Planta, Kg."): no language to judge (WI14's review)
     try:
-        writer.check_language(text, [], language)
+        writer.check_language(text, [], language, subject=what)
     except writer.SummaryError as error:
-        raise QAError(str(error).replace("the summary", what, 1)) from None
+        raise QAError(error.message) from None
 
 
 def check_question(item, number, transcript, window):
@@ -414,9 +415,9 @@ def check_question(item, number, transcript, window):
     the meeting asked for (the other batch registers it: a batch may carry a
     question raised before it and taken up again in it, WI14's review), or
     QAError naming the first check it fails."""
-    where = f"question {number}"
+    where = texts.Message("qa.where.question", number=number)
     if not isinstance(item, dict):
-        raise QAError(f"{where} is not a JSON object")
+        raise QAError("qa.question_not_object", where=where)
     fields = {key: _string(item, key, where) for key in ("question", "asked_by", "start", "end", "quote",
                                                          "agreement", "pending", "deadline", "status",
                                                          "screen_quote")}
@@ -424,23 +425,23 @@ def check_question(item, number, transcript, window):
     if raised is not None and not window[0] <= raised < window[1]:
         return None
     if not fields["question"]:
-        raise QAError(f"{where} has no question")
+        raise QAError("qa.no_question", where=where)
     if fields["status"] not in STATUSES:
-        raise QAError(f"{where}: status {fields['status'][:40]!r} is not one of {', '.join(STATUSES)}")
+        raise QAError("qa.bad_status", where=where, status=fields["status"][:40], options=", ".join(STATUSES))
     start, end = parse_clock(fields["start"]), parse_clock(fields["end"])
     if start is None or end is None:
-        raise QAError(f"{where}: its minutes are not H:MM:SS")
+        raise QAError("qa.bad_minutes", where=where)
     if end < start:
-        raise QAError(f"{where}: its answer ends ({minute(end)}) before it starts ({minute(start)})")
+        raise QAError("qa.ends_before", where=where, end=minute(end), start=minute(start))
     if end > transcript.last + END_SLACK:
-        raise QAError(f"{where}: minute {minute(end)} is after the meeting's last turn ({minute(transcript.last)})")
+        raise QAError("qa.after_end", where=where, end=minute(end), last=minute(transcript.last))
     answers = item.get("answers")
     if not isinstance(answers, list):
-        raise QAError(f"{where}: 'answers' is not a list")
+        raise QAError("qa.answers_not_list", where=where)
     points = []
     for point in answers:
         if not isinstance(point, dict):
-            raise QAError(f"{where}: an answer is not a JSON object")
+            raise QAError("qa.answer_not_object", where=where)
         speaker, text = _string(point, "speaker", where), _string(point, "text", where)
         name, colon, said = speaker.partition(":")
         if colon and not transcript.spoke(speaker) and transcript.spoke(name):
@@ -449,24 +450,22 @@ def check_question(item, number, transcript, window):
             # only if the point has no text of its own.
             speaker, text = name.strip(), text or said.strip()
         if not text:
-            raise QAError(f"{where}: an answer has no text")
+            raise QAError("qa.answer_no_text", where=where)
         if not transcript.spoke(speaker):
-            raise QAError(f"{where}: the answer is given to {speaker[:60]!r}, who did not speak in the meeting")
+            raise QAError("qa.answer_stranger", where=where, speaker=speaker[:60])
         points.append((speaker, text))
     if not points and fields["status"] != "pending":
-        raise QAError(f"{where}: no answer, and yet its status is {fields['status']}")
+        raise QAError("qa.no_answer_status", where=where, status=fields["status"])
     if fields["asked_by"] and not transcript.spoke(fields["asked_by"]):
-        raise QAError(f"{where}: raised by {fields['asked_by'][:60]!r}, who did not speak in the meeting")
+        raise QAError("qa.asker_stranger", where=where, speaker=fields["asked_by"][:60])
     if len(plain_words(fields["quote"])) < QUOTE_WORDS or not transcript.says(fields["quote"], start, end):
-        raise QAError(f"{where}: its verbatim fragment is not in the transcript between {minute(start)} and "
-                      f"{minute(end)} (or has fewer than {QUOTE_WORDS} words)")
+        raise QAError("qa.quote_missing", where=where, start=minute(start), end=minute(end), words=QUOTE_WORDS)
     screen = item.get("screen")
     if not isinstance(screen, bool):
-        raise QAError(f"{where}: 'screen' is not true or false")
+        raise QAError("qa.screen_not_bool", where=where)
     if screen and (len(plain_words(fields["screen_quote"])) < SCREEN_QUOTE_WORDS
                    or not transcript.says(fields["screen_quote"], start, end, exact=True)):
-        raise QAError(f"{where} is marked on screen, but the words that show it are not in the transcript "
-                      f"between {minute(start)} and {minute(end)}")
+        raise QAError("qa.screen_quote_missing", where=where, start=minute(start), end=minute(end))
     for key in ("question", "agreement", "pending", "deadline"):
         _check_text(fields[key], where, transcript)
     for _, text in points:
@@ -480,7 +479,7 @@ def check_register(data, transcript, window, language, with_knowledge):
     """([Question], {group: [item]} or None) from a batch's JSON, or QAError."""
     questions = data.get("questions")
     if not isinstance(questions, list):
-        raise QAError("the register has no list of questions")
+        raise QAError("qa.no_questions_list")
     # Every question is checked and every refusal named, so that the retry can
     # fix them all (the second real run: the retry fixed the one it was told
     # of, and another one failed).
@@ -489,29 +488,29 @@ def check_register(data, transcript, window, language, with_knowledge):
         try:
             checked.append(check_question(item, number, transcript, window))
         except QAError as error:
-            refused.append(str(error))
+            refused.append(error.message)
     if refused:
-        raise QAError(f"{len(refused)} question(s) refused: " + "; ".join(refused[:REFUSALS_NAMED])
-                      + ("; ..." if len(refused) > REFUSALS_NAMED else ""))
+        raise QAError("qa.refused", count=len(refused), refusals=texts.Joined(refused[:REFUSALS_NAMED], "; "),
+                      more="; ..." if len(refused) > REFUSALS_NAMED else "")
     found = [question for question in checked if question is not None]
     knowledge = None
     if with_knowledge:
         grouped = data.get("knowledge")
         if not isinstance(grouped, dict):
-            raise QAError("the register has no 'knowledge'")
+            raise QAError("qa.no_knowledge")
         knowledge = {}
         for group in KNOWLEDGE:
             items = grouped.get(group, [])
             if not isinstance(items, list) or not all(isinstance(entry, str) for entry in items):
-                raise QAError(f"the register's knowledge '{group}' is not a list of text")
+                raise QAError("qa.knowledge_not_list", group=group)
             knowledge[group] = [" ".join(entry.split()) for entry in items if entry.strip()]
             for entry in knowledge[group]:
-                _check_text(entry, f"the knowledge '{group}'", transcript)
+                _check_text(entry, texts.Message("qa.where.knowledge", group=group), transcript)
     said = [q.question for q in found] + [text for q in found for _, text in q.answers]
     said += [text for q in found for text in (q.agreement, q.pending, q.deadline) if text]
     said += [entry for items in (knowledge or {}).values() for entry in items]
     if said:
-        _check_language("\n".join(said), "the register", language)
+        _check_language("\n".join(said), texts.Message("qa.subject.register"), language)
     return found, knowledge
 
 
@@ -520,33 +519,32 @@ def check_seen(data, needing, language):
     frame names}), or QAError."""
     answers = data.get("answers")
     if not isinstance(answers, list):
-        raise QAError("what was seen on screen has no list of answers")
+        raise QAError("qa.seen_no_list")
     seen = {}
     for entry in answers:
         if not isinstance(entry, dict):
-            raise QAError("what was seen on screen: an answer is not a JSON object")
-        identifier = _string(entry, "id", "what was seen on screen")
+            raise QAError("qa.seen_not_object")
+        identifier = _string(entry, "id", texts.Message("qa.where.seen"))
         if identifier not in needing:
-            raise QAError(f"what was seen on screen is given to {identifier[:20]!r}, which is not an answer on screen "
-                          "with frames")
+            raise QAError("qa.seen_stranger", identifier=identifier[:20])
         if identifier in seen:
-            raise QAError(f"what was seen on screen is given to {identifier} twice")
+            raise QAError("qa.seen_twice", identifier=identifier)
         text = _string(entry, "seen", identifier)
         if not text:
-            raise QAError(f"{identifier}: nothing is said of what was seen")
+            raise QAError("qa.seen_empty", identifier=identifier)
         if writer.FRAME_LIKE.search(text):
-            raise QAError(f"{identifier}: what was seen names a frame in its text")
+            raise QAError("qa.seen_names_frame", identifier=identifier)
         frames = entry.get("frames", [])
         if not isinstance(frames, list) or not all(isinstance(name, str) for name in frames):
-            raise QAError(f"{identifier}: 'frames' is not a list of file names")
+            raise QAError("qa.seen_frames_not_list", identifier=identifier)
         outside = [name for name in frames if name not in needing[identifier]]
         if outside:
-            raise QAError(f"{identifier}: frame(s) outside its span or not read: {', '.join(outside)}")
+            raise QAError("qa.seen_frames_outside", identifier=identifier, names=", ".join(outside))
         seen[identifier] = {"seen": text, "frames": list(dict.fromkeys(frames))}
     missing = [identifier for identifier in needing if identifier not in seen]
     if missing:
-        raise QAError(f"what was seen on screen is missing for {', '.join(missing)}")
-    _check_language("\n".join(entry["seen"] for entry in seen.values()), "what was seen on screen", language)
+        raise QAError("qa.seen_missing", identifiers=", ".join(missing))
+    _check_language("\n".join(entry["seen"] for entry in seen.values()), texts.Message("qa.where.seen"), language)
     return seen
 
 
@@ -690,11 +688,12 @@ def _stage(stages, counters, name, call, refusals=()):
     try:
         result = call()
     except gemini.ReadingError as error:
-        done = "; ".join(f"{stage.name} US${stage.cost_usd:.3f}" for stage in stages)
-        before = f"; the answer before was refused too: {refusals[-1]}" if len(refusals) > refused else ""
-        raise QAError(f"{error}{before} [stopped at {name} after {counters['attempts'] - attempts} attempt(s) of it; "
-                      f"about US${counters['spent']:.3f} spent in all" + (f", of which {done}" if done else "")
-                      + "; the register was not written]") from None
+        done = texts.Joined([texts.Message("qa.stage_cost", stage=stage.name, cost=float(stage.cost_usd))
+                             for stage in stages], "; ")
+        before = texts.Message("qa.stopped.before", refusal=refusals[-1]) if len(refusals) > refused else ""
+        raise QAError("qa.stopped", error=error.message, before=before, stage=name,
+                      attempts=counters["attempts"] - attempts, spent=float(counters["spent"]),
+                      done=texts.Message("qa.stopped.done", stages=done) if stages else "") from None
     stages.append(Stage(name, counters["attempts"] - attempts, counters["spent"] - spent))
     return result
 
@@ -724,7 +723,7 @@ def _kept_part(path, digest, check):
         if record.get("digest") != digest:
             return None
         answer = {"candidates": [{"content": {"parts": [{"text": record["answer"]}]}, "finishReason": "STOP"}]}
-        return check(parse_json(answer, "register"))
+        return check(parse_json(answer, texts.Message("qa.what.register")))
     except (OSError, ValueError, KeyError, TypeError, AttributeError, QAError):
         return None
 
@@ -745,36 +744,36 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     gemini.check_key(key)
     frames_dir = Path(frames_dir)
     if not frames_dir.is_dir():
-        raise QAError(f"the folder {frames_dir.resolve()} does not exist")
+        raise QAError("qa.no_folder", folder=str(frames_dir.resolve()))
     gemini.check_outside_repository(frames_dir)
     if meeting_type in writer.RETIRED_TYPES:
-        raise QAError(f"meeting type {meeting_type!r} is no longer used: it covered "
-                      f"{writer.RETIRED_TYPES[meeting_type][0]}; use {writer.RETIRED_TYPES[meeting_type][1]}")
+        raise QAError("summary.retired_type", meeting_type=meeting_type, covered=writer.RETIRED_TYPES[meeting_type][0],
+                      use=writer.RETIRED_TYPES[meeting_type][1])
     if meeting_type is not None and meeting_type not in writer.MEETING_TYPES:
-        raise QAError(f"unknown meeting type {meeting_type!r}; one of {', '.join(writer.MEETING_TYPES)}")
+        raise QAError("summary.unknown_type", meeting_type=meeting_type, options=", ".join(writer.MEETING_TYPES))
     if language is not None and language not in LABELS:
-        raise QAError(f"unknown language {language!r}; one of {', '.join(LABELS)}")
+        raise QAError("summary.unknown_language", language=language, options=", ".join(LABELS))
     if date is not None:
         try:
             if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
                 raise ValueError(date)
             datetime.date.fromisoformat(date)
         except ValueError:
-            raise QAError(f"meeting date {date!r} is not a valid YYYY-MM-DD date") from None
+            raise QAError("meeting.bad_date", date=date) from None
     try:
         turns = read_turns(transcript)
         text = read_text(transcript)
     except TranscriptError as error:
-        raise QAError(str(error)) from error
+        raise QAError(error.message) from error
     knowledge = ""
     if project:
         if not title or not title.strip() or not date:
-            raise QAError("a meeting added to a project needs --title and --date")
+            raise QAError("summary.needs_title_and_date")
         data_dir = Path(data_dir) if data_dir else store.default_data_dir()
         try:
             knowledge = store.knowledge_context(data_dir, project)
         except (store.ProjectError, OSError) as error:
-            raise QAError(f"project {project}: {error}") from error
+            raise QAError("summary.project", project=project, error=texts.outside(error)) from error
     language = language or writer.detect_language(" ".join(said for _, _, said in turns))
     checked = Transcript.read(turns, text, date)
     url = gemini.model_url(endpoint, model)
@@ -784,7 +783,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     refusals = []
 
     def revising(payload, error):
-        refusals.append(str(error)[:300])
+        refusals.append(error.message)
         return revise(payload, error)
 
     questions, grouped = [], None
@@ -796,18 +795,19 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": MAX_OUTPUT_TOKENS,
                                         "responseMimeType": "application/json"}}
         worst = gemini.token_cost((len(prompt) + RETRY_NOTE_CHARS) / writer.CHARS_PER_TOKEN, MAX_OUTPUT_TOKENS)
-        name = f"register {part}/{len(windows)}"
+        name = texts.Message("qa.stage.register", part=part, parts=len(windows))
         kept = frames_dir / PARTS_DIR / f"part-{part}-of-{len(windows)}.json"
         digest = hashlib.sha256(prompt.encode("utf-8")).hexdigest()
         found = _kept_part(kept, digest, lambda data, window=window, last=last: check_register(
             data, checked, window, language, last))
         if found is not None:
-            stages.append(Stage(f"{name} (kept from an earlier run)", 0, 0.0))
+            stages.append(Stage(texts.Message("qa.stage.kept", stage=name), 0, 0.0))
         else:
             def check(answer, window=window, last=last, part=part, kept=kept, digest=digest):
                 text = _answer_text(answer)
                 try:
-                    result = check_register(parse_json(answer, "register"), checked, window, language, last)
+                    result = check_register(parse_json(answer, texts.Message("qa.what.register")), checked, window,
+                                            language, last)
                 except QAError as error:
                     _keep(frames_dir / PARTS_DIR / f"refused-part-{part}-attempt-{counters['attempts']}.json",
                           {"refused": str(error), "answer": text})
@@ -816,7 +816,8 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
                 return result
 
             found = _stage(stages, counters, name, lambda: gemini.call_checked(
-                url, key, payload, check, worst, f"the register (part {part} of {len(windows)})", retry_delays,
+                url, key, payload, check, worst, texts.Message("qa.what.register_part", part=part, parts=len(windows)),
+                retry_delays,
                 sleep, counters, max_cost_usd, revising), refusals)
         found, found_knowledge = found
         questions += found
@@ -830,7 +831,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     wanted = sorted({path for paths in spans.values() for path in paths})
     readings = {}
     if wanted:
-        readings = _stage(stages, counters, "frames", lambda: gemini.read_listed(
+        readings = _stage(stages, counters, texts.Message("qa.stage.frames"), lambda: gemini.read_listed(
             url, key, wanted, retry_delays, sleep, counters, max_cost_usd), refusals)
     needing = {identifier: [path.name for path in paths] for identifier, paths in spans.items() if paths}
     seen = {}
@@ -840,10 +841,10 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
                    "generationConfig": {"temperature": 0.3, "maxOutputTokens": SEEN_OUTPUT_TOKENS,
                                         "responseMimeType": "application/json"}}
         worst = gemini.token_cost((len(prompt) + RETRY_NOTE_CHARS) / writer.CHARS_PER_TOKEN, SEEN_OUTPUT_TOKENS)
-        seen = _stage(stages, counters, "seen on screen", lambda: gemini.call_checked(
-            url, key, payload, lambda answer: check_seen(parse_json(answer, "reading of the screen"), needing,
-                                                        language),
-            worst, "what was seen on screen", retry_delays, sleep, counters, max_cost_usd, revising), refusals)
+        seen = _stage(stages, counters, texts.Message("qa.stage.seen"), lambda: gemini.call_checked(
+            url, key, payload, lambda answer: check_seen(parse_json(answer, texts.Message("qa.what.screen_reading")),
+                                                        needing, language),
+            worst, texts.Message("qa.where.seen"), retry_delays, sleep, counters, max_cost_usd, revising), refusals)
 
     markdown = render(questions, grouped, seen, language)
     writer.check_frames(markdown, {path.name for path in frames})
@@ -870,8 +871,8 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
                 data_dir, project, title, date, meeting_type=meeting_type or "", recording=recording or "",
                 transcript=str(transcript), summary=summary, key_points=points)
         except (store.ProjectError, OSError) as error:
-            raise QAError(f"{output} was written, but the meeting could not be added to project {project}: "
-                          f"{error}") from error
+            raise QAError("summary.not_added", output=str(output), project=project,
+                          error=texts.outside(error)) from error
         meeting_id = added["id"]
     return QAResult(output, language, len(questions), tuple((q.id, minute(q.start)) for q in questions if q.screen),
                     len(frames), len(readings), tuple(stages), time.monotonic() - started, counters["input"],

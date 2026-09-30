@@ -716,7 +716,7 @@ class FailureTest(Processing):
     def test_a_recording_that_cannot_be_read_stops_at_the_frames(self):
         self.video.write_bytes(b"this is not a video")
         job = self.process()
-        self.assertEqual(job["failed_stage"], jobs.LABELS["frames"])
+        self.assertEqual(job["failed_stage_name"], "frames")
         self.assertEqual(job["spent_usd"], 0)
         self.assertEqual(self.fake.requests, [])
         self.assertNothingLeft(job)
@@ -724,7 +724,7 @@ class FailureTest(Processing):
     def test_a_reading_gemini_refuses_stops_at_the_reading(self):
         self.fake.script[:] = [400]
         job = self.process()
-        self.assertEqual(job["failed_stage"], jobs.LABELS["reading"])
+        self.assertEqual(job["failed_stage_name"], "reading")
         self.assertIn("HTTP 400", job["error"])
         self.assertNothingLeft(job)
 
@@ -732,7 +732,7 @@ class FailureTest(Processing):
         broken = test_summary.returning(test_summary.summary_text("es", drop="Decisiones"))
         self.fake.script[:] = [lambda first, count: answer_for(first, count), broken, broken]
         job = self.process()
-        self.assertEqual(job["failed_stage"], jobs.LABELS["summary"])
+        self.assertEqual(job["failed_stage_name"], "summary")
         self.assertEqual(self.states(job)[:3], [("frames", "done"), ("reading", "done"), ("summary", "failed")])
         self.assertGreater(job["spent_usd"], 0)
         self.assertAlmostEqual(job["spent_usd"], sum(s["cost_usd"] for s in job["stages"]), places=3)
@@ -746,7 +746,7 @@ class FailureTest(Processing):
         with mock.patch("meetingtool.report.document.build_report",
                         side_effect=document.ReportError("the report could not be opened again")):
             job = self.process(meeting_type="")
-        self.assertEqual(job["failed_stage"], jobs.LABELS["report"])
+        self.assertEqual(job["failed_stage_name"], "report")
         self.assertIn("could not be opened again", job["error"])
         self.assertGreater(job["spent_usd"], 0)
         self.assertNothingLeft(job)
@@ -756,7 +756,7 @@ class FailureTest(Processing):
                                test_summary.returning(test_summary.summary_text("es"))]
         with mock.patch.object(store, "add_meeting", side_effect=store.ProjectError("the disk is full")):
             job = self.process(meeting_type="")
-        self.assertEqual(job["failed_stage"], jobs.LABELS["saving"])
+        self.assertEqual(job["failed_stage_name"], "saving")
         self.assertNothingLeft(job)
 
     def test_one_ceiling_covers_every_stage(self):
@@ -767,8 +767,8 @@ class FailureTest(Processing):
         ceiling = round(gemini.worst_attempt_cost(3) + 0.05, 2)
         self.assertGreater(ceiling, gemini.token_cost(20000 / writer.CHARS_PER_TOKEN, writer.MAX_OUTPUT_TOKENS))
         job = self.process(meeting_type="", max_cost=ceiling)
-        self.assertEqual(job["failed_stage"], jobs.LABELS["summary"], job["error"])
-        self.assertIn("stopped before sending the summary", job["error"])
+        self.assertEqual(job["failed_stage_name"], "summary", job["error"])
+        self.assertIn("se frenó antes de mandar el resumen", job["error"])  # the application speaks Spanish (WI17)
         self.assertEqual(self.summary_requests(), [])
         self.assertLessEqual(job["spent_usd"], ceiling)
         self.assertNothingLeft(job)
@@ -784,7 +784,7 @@ class ReviewFixesTest(Processing):
         # add_meeting writes the record, then the knowledge (P2-1).
         with mock.patch.object(store, "rebuild_knowledge", side_effect=OSError("knowledge.md is locked")):
             job = self.process(meeting_type="")
-        self.assertEqual(job["failed_stage"], jobs.LABELS["saving"])
+        self.assertEqual(job["failed_stage_name"], "saving")
         self.assertEqual(list((self.data / self.project / "meetings").glob("*/meeting.json")), [])
         self.assertNothingLeft(job)
         self.assertNotIn("Sesión de dudas", (self.data / self.project / "knowledge.md").read_text(encoding="utf-8"))

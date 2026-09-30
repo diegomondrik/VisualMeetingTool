@@ -1,22 +1,35 @@
 """The screens, as HTML. Everything that comes from a file (a summary written
-by Gemini from a client's meeting, a project's name) is escaped before it is
-placed; the pages carry no inline script, and the actions are done by
-static/app.js."""
+by Gemini from a client's meeting, a project's name, the company's name) is
+escaped before it is placed; the pages carry no inline script, and the
+actions are done by static/app.js.
+
+Every text of a screen is an entry of meetingtool.texts, in the language the
+application is set to (INGOL D-188, WI17): a View says them. The texts the
+page's script needs (those whose key starts with "js.") travel with the page,
+in the data-texts attribute of its body."""
 
 import html
+import json
 import re
 from urllib.parse import quote
 
+from meetingtool import texts
+from meetingtool.app.jobs import STAGE_KEYS
 from meetingtool.summary import writer
 
-STATE_NAMES = {"pending": "en espera", "running": "en curso", "done": "listo", "skipped": "no hace falta",
-               "failed": "falló"}
-FORMAT_NAMES = {"summary": "Resumen", "qa": "Preguntas y respuestas", "": "—"}
-TYPE_NAMES = {"presale": "Preventa", "negotiation": "Venta o negociación", "requirements": "Relevamiento",
-              "kickoff": "Inicio de proyecto", "status": "Seguimiento", "technical": "Técnica",
-              "training": "Capacitación", "discovery": "Descubrimiento (tipo anterior)"}
-LANGUAGE_NAMES = {"es": "Castellano", "en": "Inglés"}
 EXAMPLE_NAME = "plantilla-de-ejemplo.docx"
+BRAND = "MeetingTool"
+FIELD_KEYS = {"client": "app.field.client", "project": "app.field.project", "meeting": "app.field.meeting",
+              "date": "app.field.date", "type": "app.field.type"}
+TYPE_KEYS = {"presale": "app.type.presale", "negotiation": "app.type.negotiation",
+             "requirements": "app.type.requirements", "kickoff": "app.type.kickoff", "status": "app.type.status",
+             "technical": "app.type.technical", "training": "app.type.training", "discovery": "app.type.discovery"}
+FORMAT_KEYS = {"summary": "app.format.summary", "qa": "app.format.qa"}
+STATE_KEYS = {"pending": "app.state.pending", "running": "app.state.running", "done": "app.state.done",
+              "skipped": "app.state.skipped", "failed": "app.state.failed"}
+LANGUAGE_KEYS = {"es": "app.language.es", "en": "app.language.en"}
+DROPPED_KEYS = {("index", True): "app.template.dropped_index_one", ("index", False): "app.template.dropped_index",
+                ("marker", True): "app.template.dropped_marker_one", ("marker", False): "app.template.dropped_marker"}
 
 _HEADING = re.compile(r"^(#{1,6})\s*(\S.*?)\s*#*\s*$")
 _BULLET = re.compile(r"^(\s*)[-*+]\s+(.*)$")
@@ -30,8 +43,56 @@ def e(value):
     return html.escape(str(value), quote=True)
 
 
-def money(value):
-    return f"US${value:,.3f}".replace(",", "_").replace(".", ",").replace("_", ".")
+class View:
+    """What every screen needs: the language it speaks and the company it
+    shows (a name, and whether there is a logo)."""
+
+    def __init__(self, language=texts.DEFAULT_LANGUAGE, company_name="", has_logo=False):
+        self.language = language if language in texts.LANGUAGES else texts.DEFAULT_LANGUAGE
+        self.company_name = company_name or ""
+        self.has_logo = has_logo
+
+    def say(self, key, **params):
+        """An entry as plain text, not escaped."""
+        return texts.Message(key, **params).text(self.language)
+
+    def t(self, key, **params):
+        """An entry, escaped for a page."""
+        return e(self.say(key, **params))
+
+    def markup(self, key, **params):
+        """An entry that holds markup of its own: the data is escaped, the
+        entry is not."""
+        return self.say(key, **{name: _Markup(e(value)) for name, value in params.items()})
+
+    def name(self, keys, value, fallback="—"):
+        """The name of a known value (a type, a format...), or the fallback."""
+        return self.say(keys[value]) if value in keys else fallback
+
+    def money(self, value):
+        text = f"US${value:,.3f}"
+        if self.language == "es":
+            text = text.replace(",", "_").replace(".", ",").replace("_", ".")
+        return text
+
+    def day(self, utc):
+        """'2026-09-30T12:57:00Z' as its language writes a day; '?' for a
+        record edited by hand."""
+        try:
+            year, month, day = (int(part) for part in utc[:10].split("-"))
+        except ValueError:
+            return "?"
+        return self.say("app.day", day=day, month=month, year=year)
+
+    def script_texts(self):
+        """The entries the page's script says, as they are written: it puts
+        their data in ({percent}...) itself."""
+        return json.dumps({key: text for key, text in texts.catalog(self.language).items() if key.startswith("js.")},
+                          ensure_ascii=False)
+
+
+class _Markup(texts.External):
+    """Escaped data for an entry that holds markup: placed as it is."""
 
 
 def clock(hours, minutes, seconds):
@@ -39,7 +100,7 @@ def clock(hours, minutes, seconds):
     return f"{hours}:{minutes}:{seconds}" if hours else f"{int(minutes)}:{seconds}"
 
 
-def _inline(text, frame_url, seen):
+def _inline(view, text, frame_url, seen):
     escaped = e(text)
     escaped = re.sub(r"\*\*(.+?)\*\*|__(.+?)__", lambda m: f"<strong>{m.group(1) or m.group(2)}</strong>", escaped)
     escaped = re.sub(r"(?<![\w*])\*(?!\s)([^*]+?)\*(?!\w)", r"<em>\1</em>", escaped)
@@ -51,12 +112,12 @@ def _inline(text, frame_url, seen):
             return match.group(0)
         if name not in seen:
             seen.append(name)
-        return f'<span class="frame-ref">[imagen {clock(*match.groups()[1:])}]</span>'
+        return f'<span class="frame-ref">[{view.t("app.frame.mention", clock=clock(*match.groups()[1:]))}]</span>'
 
     return _FRAME.sub(frame, escaped)
 
 
-def markdown(text, frame_url=None):
+def markdown(view, text, frame_url=None):
     """A summary's Markdown as HTML: headings, lists, tables, rules and
     paragraphs, with each named frame after the block that first names it
     (as in the Word report). `frame_url` maps a frame's name to its address;
@@ -69,13 +130,14 @@ def markdown(text, frame_url=None):
             if name not in shown:
                 shown.append(name)
                 minute = clock(*_FRAME.fullmatch(f"[{name}]").groups()[1:])
-                placed.append(f'<figure><img src="{e(frame_url[name])}" alt="imagen {minute}" loading="lazy">'
-                              f"<figcaption>Minuto {minute}</figcaption></figure>")
+                placed.append(f'<figure><img src="{e(frame_url[name])}" '
+                              f'alt="{view.t("app.frame.mention", clock=minute)}" loading="lazy">'
+                              f"<figcaption>{view.t('app.frame.caption', clock=minute)}</figcaption></figure>")
         return "".join(placed)
 
     def block(open_tag, inner_lines, close_tag, joiner="<br>"):
         seen = []
-        inner = joiner.join(_inline(line, frame_url, seen) for line in inner_lines)
+        inner = joiner.join(_inline(view, line, frame_url, seen) for line in inner_lines)
         return f"{open_tag}{inner}{close_tag}", figures(seen)
 
     def close_paragraph():
@@ -97,7 +159,7 @@ def markdown(text, frame_url=None):
         for number, row in enumerate(rows):
             tag = "th" if number == 0 and header else "td"
             cells = [cell.strip() for cell in row.strip().strip("|").split("|")]
-            cells_html.append("<tr>" + "".join(f"<{tag}>{_inline(c, frame_url, seen)}</{tag}>" for c in cells)
+            cells_html.append("<tr>" + "".join(f"<{tag}>{_inline(view, c, frame_url, seen)}</{tag}>" for c in cells)
                               + "</tr>")
         out.append('<div class="table"><table>' + "".join(cells_html) + "</table></div>" + figures(seen))
         table.clear()
@@ -144,223 +206,257 @@ def markdown(text, frame_url=None):
     return "\n".join(out)
 
 
-def layout(title, body, active=""):
-    nav = "".join(f'<a href="{href}"{" class=active" if active == key else ""}>{label}</a>'
-                  for key, href, label in (("projects", "/", "Proyectos"), ("settings", "/settings", "Ajustes")))
-    return ("<!doctype html>\n<html lang=\"es\"><head><meta charset=\"utf-8\">"
+def layout_page(view, title, body, active=""):
+    nav = "".join(f'<a href="{href}"{" class=active" if active == key else ""}>{view.t(label)}</a>'
+                  for key, href, label in (("projects", "/", "app.nav.projects"),
+                                           ("settings", "/settings", "app.nav.settings")))
+    company = ""
+    if view.has_logo:
+        company += '<img class="logo" src="/company/logo" alt="">'
+    if view.company_name:
+        company += f'<span class="company">{e(view.company_name)}</span>'
+    brand = f'<span class="product">{BRAND}</span>' if company else BRAND
+    tab = " · ".join(part for part in (title, view.company_name, BRAND) if part)
+    return (f"<!doctype html>\n<html lang=\"{view.language}\"><head><meta charset=\"utf-8\">"
             "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">"
-            f"<title>{e(title)} · MeetingTool</title><link rel=\"stylesheet\" href=\"/static/style.css\">"
-            "<script src=\"/static/app.js\" defer></script></head><body>"
-            f"<header><a class=\"brand\" href=\"/\">MeetingTool</a><nav>{nav}</nav></header>"
+            f"<title>{e(tab)}</title><link rel=\"stylesheet\" href=\"/static/style.css\">"
+            "<script src=\"/static/app.js\" defer></script></head>"
+            f"<body data-texts=\"{e(view.script_texts())}\">"
+            f"<header><a class=\"brand\" href=\"/\">{company}{brand}</a><nav>{nav}</nav></header>"
             "<div id=\"running\" class=\"banner\" hidden></div>"
-            f"<main>{body}</main><footer>Esta página la sirve tu propia máquina: nada de lo que ves sale de ella, "
-            "salvo lo que se manda a Gemini al procesar.</footer></body></html>")
+            f"<main>{body}</main><footer>{view.t('app.footer')}</footer></body></html>")
 
 
-def _result_cells(result):
+def _result_cells(view, result):
     if not result:
         return "<td>—</td><td>—</td>"
     run = result.get("run") or {}
-    cost = money(run["cost_usd"]) if isinstance(run.get("cost_usd"), (int, float)) else "—"
-    return f"<td>{e(FORMAT_NAMES.get(result['format'], '—'))}</td><td>{cost}</td>"
+    cost = view.money(run["cost_usd"]) if isinstance(run.get("cost_usd"), (int, float)) else "—"
+    return f"<td>{e(view.name(FORMAT_KEYS, result['format']))}</td><td>{cost}</td>"
 
 
-def projects_page(projects, loose):
+def projects_page(view, projects, loose):
     rows = "".join(
         f'<tr><td><a href="/p/{quote(p["id"])}">{e(p["name"])}</a></td><td>{e(p.get("client") or "—")}</td></tr>'
-        for p in projects) or '<tr><td colspan="2" class="empty">Todavía no hay proyectos.</td></tr>'
-    body = (f"<h1>Proyectos</h1><table class=\"list\"><tr><th>Proyecto</th><th>Cliente</th></tr>{rows}</table>"
-            "<section class=\"card\"><h2>Proyecto nuevo</h2>"
+        for p in projects) or f'<tr><td colspan="2" class="empty">{view.t("app.projects.none")}</td></tr>'
+    body = (f"<h1>{view.t('app.projects.title')}</h1><table class=\"list\"><tr><th>{view.t('app.col.project')}</th>"
+            f"<th>{view.t('app.col.client')}</th></tr>{rows}</table>"
+            f"<section class=\"card\"><h2>{view.t('app.projects.new')}</h2>"
             "<form data-api=\"/api/projects\" data-then=\"project\">"
-            "<label>Nombre <input name=\"name\" required maxlength=\"120\"></label>"
-            "<label>Cliente <input name=\"client\" maxlength=\"120\"></label>"
-            "<button type=\"submit\">Crear el proyecto</button><p class=\"message\" role=\"status\"></p></form>"
-            "</section>")
+            f"<label>{view.t('app.projects.name')} <input name=\"name\" required maxlength=\"120\"></label>"
+            f"<label>{view.t('app.projects.client')} <input name=\"client\" maxlength=\"120\"></label>"
+            f"<button type=\"submit\">{view.t('app.projects.create')}</button>"
+            "<p class=\"message\" role=\"status\"></p></form></section>")
     if loose:
         items = "".join(
-            f'<tr><td><a href="/r/{quote(item["name"])}">{e(item["name"])}</a></td>{_result_cells(item["result"])}'
-            "</tr>" for item in loose)
-        body += ("<section><h2>Resultados sin proyecto</h2><p class=\"hint\">Carpetas de tu carpeta de datos con un "
-                 "resumen hecho desde la terminal, fuera de un proyecto. Se muestran como están; la aplicación no las "
-                 "cambia.</p><table class=\"list\"><tr><th>Carpeta</th><th>Formato</th><th>Costo</th></tr>"
-                 f"{items}</table></section>")
-    return layout("Proyectos", body, "projects")
+            f'<tr><td><a href="/r/{quote(item["name"])}">{e(item["name"])}</a></td>'
+            f'{_result_cells(view, item["result"])}</tr>' for item in loose)
+        body += (f"<section><h2>{view.t('app.loose.title')}</h2><p class=\"hint\">{view.t('app.loose.hint')}</p>"
+                 f"<table class=\"list\"><tr><th>{view.t('app.col.folder')}</th><th>{view.t('app.col.format')}</th>"
+                 f"<th>{view.t('app.col.cost')}</th></tr>{items}</table></section>")
+    return layout_page(view, view.say("app.projects.title"), body, "projects")
 
 
-def project_page(project, meetings, knowledge):
+def project_page(view, project, meetings, knowledge):
     pid = quote(project["id"])
     rows = "".join(
         f'<tr><td>{e(m["record"]["date"])}</td><td><a href="/p/{pid}/m/{quote(m["record"]["id"])}">'
-        f'{e(m["record"]["title"])}</a></td><td>{e(TYPE_NAMES.get(m["record"].get("meeting_type"), "—"))}</td>'
-        f'{_result_cells(m["result"])}</tr>' for m in meetings) \
-        or '<tr><td colspan="5" class="empty">Todavía no hay reuniones.</td></tr>'
-    body = (f"<p class=\"crumbs\"><a href=\"/\">Proyectos</a> ›</p><h1>{e(project['name'])}</h1>"
-            f"<p class=\"hint\">Cliente: {e(project.get('client') or '—')}</p>"
-            f"<p><a class=\"button\" href=\"/p/{pid}/new\">Reunión nueva</a></p>"
-            "<h2>Reuniones</h2><table class=\"list\"><tr><th>Fecha</th><th>Reunión</th><th>Tipo</th><th>Formato</th>"
-            f"<th>Costo</th></tr>{rows}</table>"
-            "<section><h2>Lo que el proyecto ya sabe</h2><p class=\"hint\">Lo que cada reunión deja y la próxima lee. "
-            f"</p><div class=\"summary knowledge\">{markdown(knowledge)}</div></section>")
-    return layout(project["name"], body, "projects")
+        f'{e(m["record"]["title"])}</a></td><td>{e(view.name(TYPE_KEYS, m["record"].get("meeting_type")))}</td>'
+        f'{_result_cells(view, m["result"])}</tr>' for m in meetings) \
+        or f'<tr><td colspan="5" class="empty">{view.t("app.project.no_meetings")}</td></tr>'
+    body = (f"<p class=\"crumbs\"><a href=\"/\">{view.t('app.nav.projects')}</a> ›</p><h1>{e(project['name'])}</h1>"
+            f"<p class=\"hint\">{view.t('app.project.client', client=project.get('client') or '—')}</p>"
+            f"<p><a class=\"button\" href=\"/p/{pid}/new\">{view.t('app.project.new_meeting')}</a></p>"
+            f"<h2>{view.t('app.project.meetings')}</h2><table class=\"list\"><tr><th>{view.t('app.col.date')}</th>"
+            f"<th>{view.t('app.col.meeting')}</th><th>{view.t('app.col.type')}</th>"
+            f"<th>{view.t('app.col.format')}</th><th>{view.t('app.col.cost')}</th></tr>{rows}</table>"
+            f"<section><h2>{view.t('app.project.knowledge')}</h2>"
+            f"<p class=\"hint\">{view.t('app.project.knowledge_hint')}</p>"
+            f"<div class=\"summary knowledge\">{markdown(view, knowledge)}</div></section>")
+    return layout_page(view, project["name"], body, "projects")
 
 
-def _cost_block(run):
+def stage_label(view, stage):
+    """A stage's name in the page's language; a stage the application does not
+    know keeps the label its record has."""
+    name = stage.get("name")
+    return view.say(STAGE_KEYS[name]) if name in STAGE_KEYS else str(stage.get("label", name or ""))
+
+
+def _cost_block(view, run):
     if not run:
         return ""
     stages = "".join(
-        f"<tr><td>{e(stage.get('label', stage.get('name', '')))}</td><td>{e(STATE_NAMES.get(stage.get('state'), ''))}"
-        f"</td><td>{float(stage.get('seconds', 0)):.0f} s</td><td>{money(float(stage.get('cost_usd', 0)))}</td></tr>"
+        f"<tr><td>{e(stage_label(view, stage))}</td><td>{e(view.name(STATE_KEYS, stage.get('state'), ''))}</td>"
+        f"<td>{float(stage.get('seconds', 0)):.0f} s</td><td>{view.money(float(stage.get('cost_usd', 0)))}</td></tr>"
         for stage in run.get("stages", []) if isinstance(stage, dict))
-    return (f"<section class=\"card\"><h2>Lo que costó</h2><p><strong>{money(float(run.get('cost_usd', 0)))}</strong>"
-            f" de un techo de {money(float(run.get('max_cost_usd', 0)))}, en {float(run.get('seconds', 0)):.0f} s."
-            "</p><table class=\"list\"><tr><th>Etapa</th><th>Estado</th><th>Tiempo</th><th>Costo</th></tr>"
-            f"{stages}</table></section>")
+    total = view.markup("app.cost.total_html", spent=view.money(float(run.get("cost_usd", 0))),
+                        ceiling=view.money(float(run.get("max_cost_usd", 0))),
+                        seconds=f"{float(run.get('seconds', 0)):.0f}")
+    return (f"<section class=\"card\"><h2>{view.t('app.cost.title')}</h2><p>{total}</p>"
+            f"<table class=\"list\"><tr><th>{view.t('app.col.stage')}</th><th>{view.t('app.col.state')}</th>"
+            f"<th>{view.t('app.col.time')}</th><th>{view.t('app.col.cost')}</th></tr>{stages}</table></section>")
 
 
-def result_page(title, crumbs, record, result, file_base, open_target):
+def project_crumbs(view, project):
+    return (f"<a href=\"/\">{view.t('app.nav.projects')}</a> › <a href=\"/p/{quote(project['id'])}\">"
+            f"{e(project['name'])}</a> ›")
+
+
+def loose_crumbs(view):
+    return f"<a href=\"/\">{view.t('app.nav.projects')}</a> › {view.t('app.loose.title')} ›"
+
+
+def result_page(view, title, crumbs, record, result, file_base, open_target):
     """A meeting's screen: `record` is its project record (None for a loose
     result), `result` what its folder holds (None when it has no folder)."""
     parts = [f"<p class=\"crumbs\">{crumbs}</p><h1>{e(title)}</h1>"]
     if record is not None:
-        facts = [record.get("date", ""), TYPE_NAMES.get(record.get("meeting_type"), "")]
+        facts = [record.get("date", ""), view.name(TYPE_KEYS, record.get("meeting_type"), "")]
         if result:
-            facts.append(FORMAT_NAMES.get(result["format"], ""))
+            facts.append(view.name(FORMAT_KEYS, result["format"], ""))
         parts.append(f"<p class=\"hint\">{e(' · '.join(fact for fact in facts if fact))}</p>")
     if result and result["report"]:
         parts.append(
-            f"<p class=\"actions\"><button type=\"button\" data-open=\"{e(open_target)}\">Abrir el Word</button> "
-            f"<a class=\"button secondary\" href=\"{e(file_base)}summary.docx\" download>Descargar el Word</a>"
-            "<span class=\"message\" role=\"status\"></span></p>")
+            f"<p class=\"actions\"><button type=\"button\" data-open=\"{e(open_target)}\">"
+            f"{view.t('app.result.open_word')}</button> "
+            f"<a class=\"button secondary\" href=\"{e(file_base)}summary.docx\" download>"
+            f"{view.t('app.result.download_word')}</a><span class=\"message\" role=\"status\"></span></p>")
     if result:
-        parts.append(_cost_block(result.get("run")))
+        parts.append(_cost_block(view, result.get("run")))
         frame_url = {name: f"{file_base}{name}" for name in result["frames"]}
         if result["summary"]:
-            parts.append(f"<section class=\"summary\">{markdown(result['summary'], frame_url)}</section>")
-        parts.append(f"<p class=\"hint\">{len(result['frames'])} imágenes en el informe, de "
-                     f"{result['frames_total']} que quedaron del video.</p>")
+            parts.append(f"<section class=\"summary\">{markdown(view, result['summary'], frame_url)}</section>")
+        parts.append(f"<p class=\"hint\">{view.t('app.result.images', shown=len(result['frames']), total=result['frames_total'])}</p>")
     elif record is not None:
         points = "".join(f"<li>{e(point)}</li>" for point in record.get("key_points", []))
-        parts.append("<p class=\"hint\">Esta reunión se cargó desde la terminal: su carpeta no quedó registrada en el "
-                     "proyecto, así que acá se ve lo que el proyecto guardó de ella.</p>"
-                     f"<section class=\"summary\"><p>{e(record.get('summary') or '(sin resumen)')}</p>"
-                     + (f"<h3>Puntos clave</h3><ul>{points}</ul>" if points else "") + "</section>")
-    return layout(title, "".join(parts), "projects")
+        parts.append(f"<p class=\"hint\">{view.t('app.result.from_terminal')}</p>"
+                     f"<section class=\"summary\"><p>{e(record.get('summary') or view.say('app.result.no_summary'))}"
+                     "</p>" + (f"<h3>{view.t('app.result.key_points')}</h3><ul>{points}</ul>" if points else "")
+                     + "</section>")
+    return layout_page(view, title, "".join(parts), "projects")
 
 
-def new_meeting_page(project, meeting_types, languages, max_cost):
+def new_meeting_page(view, project, meeting_types, languages, max_cost):
     pid = e(project["id"])
-    types = "".join(f'<option value="{e(t)}">{e(TYPE_NAMES.get(t, t))}</option>' for t in meeting_types)
-    langs = "".join(f'<option value="{e(code)}">{e(LANGUAGE_NAMES.get(code, code))}</option>' for code in languages)
-    body = (f"<p class=\"crumbs\"><a href=\"/\">Proyectos</a> › <a href=\"/p/{quote(project['id'])}\">"
-            f"{e(project['name'])}</a> ›</p><h1>Reunión nueva</h1>"
+    types = "".join(f'<option value="{e(t)}">{e(view.name(TYPE_KEYS, t, t))}</option>' for t in meeting_types)
+    langs = "".join(f'<option value="{e(code)}">{e(view.name(LANGUAGE_KEYS, code, code))}</option>'
+                    for code in languages)
+    body = (f"<p class=\"crumbs\">{project_crumbs(view, project)}</p><h1>{view.t('app.new.title')}</h1>"
             f"<form id=\"process\" class=\"card\" data-project=\"{pid}\">"
-            "<label>Título <input name=\"title\" required maxlength=\"160\"></label>"
-            "<label>Fecha <input name=\"date\" type=\"date\" required></label>"
-            "<label>Transcripción <small>(el .docx de Teams, o un .txt con líneas [HH:MM:SS])</small>"
+            f"<label>{view.t('app.new.meeting_title')} <input name=\"title\" required maxlength=\"160\"></label>"
+            f"<label>{view.t('app.new.date')} <input name=\"date\" type=\"date\" required></label>"
+            f"<label>{view.t('app.new.transcript')} <small>{view.t('app.new.transcript_hint')}</small>"
             "<input name=\"transcript\" type=\"file\" accept=\".docx,.txt\" required></label>"
-            "<label>Video <small>(opcional: sin video sólo se puede hacer preguntas y respuestas)</small>"
+            f"<label>{view.t('app.new.recording')} <small>{view.t('app.new.recording_hint')}</small>"
             "<input name=\"recording\" type=\"file\" accept=\"video/*,.mp4,.mov,.mkv,.webm,.avi,.wmv,.m4v\"></label>"
-            f"<label>Tipo de reunión <select name=\"meeting_type\"><option value=\"\">Sin tipo</option>{types}"
-            "</select></label>"
-            f"<label>Idioma del resultado <select name=\"language\"><option value=\"\">El de la reunión</option>"
-            f"{langs}</select></label>"
-            "<fieldset><legend>Formato</legend>"
-            "<label class=\"inline\"><input type=\"radio\" name=\"format\" value=\"summary\" checked> Resumen</label>"
-            "<label class=\"inline\"><input type=\"radio\" name=\"format\" value=\"qa\"> Preguntas y respuestas "
-            "<small>(cada pregunta con su respuesta completa)</small></label></fieldset>"
-            f"<label>Techo de gasto en dólares <input name=\"max_cost\" type=\"number\" min=\"0.01\" max=\"5\" "
-            f"step=\"0.01\" value=\"{max_cost:.2f}\" required> <small>(si una etapa pudiera pasarlo, no se "
-            "manda)</small></label>"
-            "<button type=\"submit\">Procesar</button><p class=\"message\" role=\"status\"></p></form>")
-    return layout("Reunión nueva", body, "projects")
+            f"<label>{view.t('app.new.type')} <select name=\"meeting_type\"><option value=\"\">"
+            f"{view.t('app.new.no_type')}</option>{types}</select></label>"
+            f"<label>{view.t('app.new.language')} <select name=\"language\"><option value=\"\">"
+            f"{view.t('app.new.meeting_language')}</option>{langs}</select></label>"
+            f"<fieldset><legend>{view.t('app.col.format')}</legend>"
+            "<label class=\"inline\"><input type=\"radio\" name=\"format\" value=\"summary\" checked> "
+            f"{view.t('app.format.summary')}</label>"
+            "<label class=\"inline\"><input type=\"radio\" name=\"format\" value=\"qa\"> "
+            f"{view.t('app.format.qa')} <small>{view.t('app.new.qa_hint')}</small></label></fieldset>"
+            f"<label>{view.t('app.new.ceiling')} <input name=\"max_cost\" type=\"number\" min=\"0.01\" max=\"5\" "
+            f"step=\"0.01\" value=\"{max_cost:.2f}\" required> <small>{view.t('app.new.ceiling_hint')}</small></label>"
+            f"<button type=\"submit\">{view.t('app.new.process')}</button><p class=\"message\" role=\"status\"></p>"
+            "</form>")
+    return layout_page(view, view.say("app.new.title"), body, "projects")
 
 
-def job_page(job_id):
-    body = ("<h1>Procesando</h1>"
-            f"<div id=\"job\" data-job=\"{e(job_id)}\" class=\"card\"><p class=\"hint\">Cargando…</p></div>"
-            "<p class=\"hint\">Podés dejar esta página abierta; si la cerrás, el trabajo sigue mientras la ventana de "
-            "MeetingTool siga abierta.</p>")
-    return layout("Procesando", body, "projects")
+def job_page(view, job_id):
+    body = (f"<h1>{view.t('app.job.title')}</h1>"
+            f"<div id=\"job\" data-job=\"{e(job_id)}\" class=\"card\"><p class=\"hint\">{view.t('app.job.loading')}</p>"
+            f"</div><p class=\"hint\">{view.t('app.job.hint')}</p>")
+    return layout_page(view, view.say("app.job.title"), body, "projects")
 
 
-def _day(utc):
-    """'2026-09-30T12:57:00Z' as 30/9/2026; '?' for a record edited by hand."""
-    try:
-        year, month, day = utc[:10].split("-")
-        return f"{int(day)}/{int(month)}/{int(year)}"
-    except ValueError:
-        return "?"
-
-
-def _template_block(info, problem):
+def _template_block(view, info, problem):
     if problem:
-        return (f"<p>La plantilla guardada ya no se puede usar: {e(problem)}</p><p class=\"hint\">Cargá otra, o dejá "
-                "de usarla para que los informes salgan con el diseño neutro.</p>")
+        return (f"<p>{view.t('app.template.unusable', problem=problem)}</p>"
+                f"<p class=\"hint\">{view.t('app.template.unusable_hint')}</p>")
     if info is None:
-        return "<p>Sin plantilla: los informes salen con un diseño neutro.</p>"
+        return f"<p>{view.t('app.template.none')}</p>"
     if info.name:
-        named = f"La empresa usa la plantilla <strong>{e(info.name)}</strong>, cargada el {e(_day(info.set_utc or ''))}."
+        named = view.markup("app.template.named_html", name=info.name, day=view.day(info.set_utc or ""))
     else:
-        named = ("La empresa usa una plantilla cargada antes de que se guardara su nombre: para verlo acá, cargala de "
-                 "nuevo.")
-    fields = ", ".join(FIELD_NAMES[kind] for kind in info.fields)
-    understood = [f"En la portada va a poner: {e(fields)}." if fields
-                  else "No tiene datos para llenar en la portada (se escriben entre llaves, por ejemplo {cliente})."]
-    if info.tables_of_contents:
-        understood.append("Tiene índice: cada informe pone ahí sus secciones, sin números de página (en Word, clic "
-                          "derecho sobre el índice y «Actualizar campos» los agrega).")
-    else:
-        understood.append("No tiene índice.")
+        named = view.t("app.template.unnamed")
+    fields = texts.Joined([texts.Message(FIELD_KEYS[kind]) for kind in info.fields], ", ")
+    understood = [view.t("app.template.fields", fields=fields) if info.fields else view.t("app.template.no_fields")]
+    understood.append(view.t("app.template.toc" if info.tables_of_contents else "app.template.no_toc"))
     if info.start and info.dropped:
-        where = "después del índice" if info.start == "index" else "después de {informe}"
-        understood.append(f"Lo que tiene {where} es un modelo y no entra en los informes: "
-                          f"{info.dropped} {'párrafo' if info.dropped == 1 else 'párrafos'} con texto.")
+        where = "index" if info.start == "index" else "marker"
+        understood.append(view.t(DROPPED_KEYS[where, info.dropped == 1], count=info.dropped))
     elif not info.start:
-        understood.append("Todo lo que tiene escrito en la hoja sale como portada de cada informe.")
+        understood.append(view.t("app.template.all_cover"))
     return f"<p>{named}</p><ul class=\"understood\">" + "".join(f"<li>{item}</li>" for item in understood) + "</ul>"
 
 
-FIELD_NAMES = {"client": "el cliente", "project": "el proyecto", "meeting": "el título de la reunión",
-               "date": "la fecha", "type": "el tipo de reunión"}
+def _company_block(view, company):
+    logo = (f"<p>{view.t('app.company.logo_current')} <img class=\"logo-preview\" src=\"/company/logo\" alt=\"\"></p>"
+            if company.logo else f"<p>{view.t('app.company.no_logo')}</p>")
+    return (f"<section class=\"card\"><h2>{view.t('app.company.title')}</h2>"
+            f"<p class=\"hint\">{view.t('app.company.hint')}</p>"
+            "<form data-api=\"/api/company\" data-then=\"reload\"><label>"
+            f"{view.t('app.company.name')} <input name=\"name\" maxlength=\"{company.NAME_LIMIT}\" "
+            f"value=\"{e(company.name)}\"> <small>{view.t('app.company.name_hint')}</small></label>"
+            f"<button type=\"submit\">{view.t('app.company.save_name')}</button>"
+            "<p class=\"message\" role=\"status\"></p></form>"
+            f"{logo}<form id=\"logo\"><label>{view.t('app.company.logo')} "
+            "<input name=\"logo\" type=\"file\" accept=\".png,.jpg,.jpeg\" required></label>"
+            f"<button type=\"submit\">{view.t('app.company.use_logo')}</button>"
+            "<p class=\"message\" role=\"status\"></p></form>"
+            + ("<form data-api=\"/api/logo/remove\" data-then=\"reload\"><button type=\"submit\" class=\"secondary\">"
+               f"{view.t('app.company.remove_logo')}</button><p class=\"message\" role=\"status\"></p></form>"
+               if company.logo else "")
+            + "</section>")
 
 
-def settings_page(key_length, template_info=None, template_problem=""):
-    key = (f"Hay una clave guardada ({key_length} caracteres). No se muestra nunca." if key_length
-           else "No hay una clave guardada: sin ella no se puede procesar.")
-    template = _template_block(template_info, template_problem)
+def _language_block(view):
+    options = "".join(f'<option value="{code}"{" selected" if code == view.language else ""}>'
+                      f'{e(view.name(LANGUAGE_KEYS, code, code))}</option>' for code in texts.LANGUAGES)
+    return (f"<section class=\"card\"><h2>{view.t('app.settings.language')}</h2>"
+            f"<p class=\"hint\">{view.t('app.settings.language_hint')}</p>"
+            f"<form data-api=\"/api/language\" data-then=\"reload\"><label>{view.t('app.settings.language')} "
+            f"<select name=\"language\">{options}</select></label>"
+            f"<button type=\"submit\">{view.t('app.settings.language_save')}</button>"
+            "<p class=\"message\" role=\"status\"></p></form></section>")
+
+
+def settings_page(view, key_length, company, template_info=None, template_problem=""):
+    key = (view.t("app.key.saved", length=key_length) if key_length else view.t("app.key.none"))
+    template = _template_block(view, template_info, template_problem)
     kept = template_info is not None or bool(template_problem)
-    body = ("<h1>Ajustes</h1>"
-            "<section class=\"card\"><h2>Clave de Gemini</h2>"
-            f"<p id=\"key-status\">{e(key)}</p>"
-            "<p class=\"hint\">Tiene que ser de un proyecto de Google Cloud con facturación activa: en el nivel gratuito "
-            "Google puede usar lo que se le manda, y las reuniones son datos del cliente. Se guarda en el Administrador "
-            "de credenciales de Windows.</p>"
-            "<form data-api=\"/api/key\" data-then=\"reload\"><label>Clave nueva "
+    body = (f"<h1>{view.t('app.settings.title')}</h1>"
+            + _language_block(view) + _company_block(view, company)
+            + f"<section class=\"card\"><h2>{view.t('app.key.title')}</h2>"
+            f"<p id=\"key-status\">{key}</p><p class=\"hint\">{view.t('app.key.hint')}</p>"
+            f"<form data-api=\"/api/key\" data-then=\"reload\"><label>{view.t('app.key.new')} "
             "<input name=\"key\" type=\"password\" autocomplete=\"off\" required></label>"
-            "<button type=\"submit\">Guardar la clave</button><p class=\"message\" role=\"status\"></p></form>"
-            + ("<form data-api=\"/api/key/delete\" data-then=\"reload\" data-confirm=\"¿Borrar la clave guardada?\">"
-               "<button type=\"submit\" class=\"secondary\">Borrar la clave</button>"
+            f"<button type=\"submit\">{view.t('app.key.save')}</button><p class=\"message\" role=\"status\"></p></form>"
+            + (f"<form data-api=\"/api/key/delete\" data-then=\"reload\" data-confirm=\"{view.t('app.key.delete_confirm')}\">"
+               f"<button type=\"submit\" class=\"secondary\">{view.t('app.key.delete')}</button>"
                "<p class=\"message\" role=\"status\"></p></form>" if key_length else "")
-            + "</section><section class=\"card\"><h2>Plantilla de Word de la empresa</h2>"
-            f"{template}<p class=\"hint\">Un .docx o .dotx (nunca uno con macros) con el logo, el encabezado, "
-            "los colores y las letras de la empresa. Lo que tenga escrito en su hoja es la portada de cada informe; "
-            "donde escriba {cliente}, {proyecto}, {reunion}, {fecha} o {tipo}, entre llaves, va ese dato de la "
-            "reunión. Si tiene un índice de Word, se llena con las secciones de cada informe, y lo que esté después "
-            "del índice (o de {informe}, sola en su línea) es un modelo que no entra. "
-            f"<a href=\"/{e(EXAMPLE_NAME)}\" download>Bajar una plantilla de ejemplo</a> para empezar.</p>"
-            "<form id=\"template\"><label>Plantilla <input name=\"template\" type=\"file\" accept=\".docx,.dotx\" "
-            "required></label><button type=\"submit\">Usar esta plantilla</button>"
+            + f"</section><section class=\"card\"><h2>{view.t('app.template.title')}</h2>"
+            f"{template}<p class=\"hint\">{view.t('app.template.hint')} "
+            f"<a href=\"/{e(EXAMPLE_NAME)}\" download>{view.t('app.template.example')}</a>"
+            f"{view.t('app.template.example_after')}</p>"
+            f"<form id=\"template\"><label>{view.t('app.template.file')} <input name=\"template\" type=\"file\" "
+            f"accept=\".docx,.dotx\" required></label><button type=\"submit\">{view.t('app.template.use')}</button>"
             "<p class=\"message\" role=\"status\"></p></form>"
             + ("<form data-api=\"/api/template/remove\" data-then=\"reload\"><button type=\"submit\" "
-               "class=\"secondary\">Dejar de usar la plantilla</button><p class=\"message\" role=\"status\"></p>"
+               f"class=\"secondary\">{view.t('app.template.remove')}</button><p class=\"message\" role=\"status\"></p>"
                "</form>" if kept else "")
             + "</section>")
-    return layout("Ajustes", body, "settings")
+    return layout_page(view, view.say("app.settings.title"), body, "settings")
 
 
-def message_page(title, text, status_hint=""):
-    body = f"<h1>{e(title)}</h1><p>{e(text)}</p>" + (f"<p class=\"hint\">{e(status_hint)}</p>" if status_hint else "")
-    return layout(title, body)
+def message_page(view, title, text, details=()):
+    body = (f"<h1>{e(title)}</h1><p>{e(text)}</p>"
+            + "".join(f"<p class=\"hint detail\">{view.t('app.detail', detail=detail)}</p>" for detail in details))
+    return layout_page(view, title, body)
 
 
 def meeting_types():
