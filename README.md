@@ -122,7 +122,7 @@ the summary is edited by hand:
 
 ```
 python -m meetingtool.report build --frames <frames folder> [--title "<meeting title>"] \
-    [--date YYYY-MM-DD] [--project <project id>]
+    [--date YYYY-MM-DD] [--project <project id>] [--type <meeting type>]
 ```
 
 It is written to `summary.docx` next to `summary.md`. Only the frames the
@@ -143,7 +143,20 @@ data folder; without one, reports use a neutral design:
 python -m meetingtool.report template set <company template.dotx>
 python -m meetingtool.report template show
 python -m meetingtool.report template remove
+python -m meetingtool.report template example <new file.docx>
 ```
+
+Where the template has a field name in braces, in its body, header or
+footer, the report puts that meeting's data with the template's format:
+`{cliente}`, `{proyecto}`, `{reunion}`, `{fecha}` (written in the report's
+language) or `{tipo}`, or their English names `{client}`, `{project}`,
+`{meeting}`, `{date}`, `{type}`. The client comes from `--project`. A name in
+braces that is not a field is refused when the template is set. If the
+template has a Word table of contents, it lists the report's sections, each a
+link to it, without page numbers (Word adds them when the table is updated);
+what comes after it, or after `{informe}` alone on a line, is a model and is
+left out of every report. `template show` says the file's name and what was
+understood of it; `template example` writes a template to start from.
 
 ## The application
 

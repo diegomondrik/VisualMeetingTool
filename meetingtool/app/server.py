@@ -42,6 +42,8 @@ COOKIE = "meetingtool_session"
 STATIC = Path(__file__).resolve().parent / "static"
 STATIC_TYPES = {"app.js": "text/javascript; charset=utf-8", "style.css": "text/css; charset=utf-8"}
 JSON_LIMIT = 1_000_000
+DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+EXAMPLE_NAME = pages.EXAMPLE_NAME
 UPLOAD_LIMITS = {"transcript": 50_000_000, "recording": 16_000_000_000, "template": 50_000_000}
 UPLOAD_SUFFIXES = {"transcript": jobs.TRANSCRIPT_SUFFIXES, "recording": jobs.RECORDING_SUFFIXES,
                    "template": (".docx", ".dotx")}
@@ -146,7 +148,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
 
     def _file(self, path):
         if path.suffix == ".docx":
-            self._send(200, path.read_bytes(), "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+            self._send(200, path.read_bytes(), DOCX_TYPE,
                        [("Content-Disposition", "attachment; filename=\"summary.docx\"")])
         else:
             self._send(200, path.read_bytes(), "image/jpeg")
@@ -232,8 +234,14 @@ class Handler(http.server.BaseHTTPRequestHandler):
             return self._send(200, (STATIC / parts[1]).read_bytes(), STATIC_TYPES[parts[1]])
         if head == "settings" and len(parts) == 1:
             saved = app.read_key()
-            template = app.stored_template(data_dir)
-            return self._html(pages.settings_page(len(saved) if saved else 0, template.name if template else ""))
+            try:
+                template, problem = app.template_info(data_dir), ""
+            except app.report_error as error:
+                template, problem = None, str(error)
+            return self._html(pages.settings_page(len(saved) if saved else 0, template, problem))
+        if path == "/" + EXAMPLE_NAME:
+            return self._send(200, app.example_template(), DOCX_TYPE,
+                              [("Content-Disposition", f"attachment; filename=\"{EXAMPLE_NAME}\"")])
         if head == "job" and len(parts) == 2 and parts[1] in app.runner.jobs:
             return self._html(pages.job_page(parts[1]))
         if head == "api" and parts[1:2] == ["jobs"] and len(parts) == 3 and parts[2] in app.runner.jobs:
@@ -338,8 +346,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
                     handle.write(chunk)
                     left -= len(chunk)
             if kind == "template":
-                kept = app.set_template(target, app.data_dir)
-                return self._json({"template": kept.name})
+                app.set_template(target, app.data_dir, name=name)
+                return self._json({"template": Path(name).name})
         except BaseException:
             target.unlink(missing_ok=True)
             raise
@@ -418,8 +426,8 @@ class App:
         self.delete_key = delete_key or credentials.delete_key
         self.credential_error = credentials.CredentialError
         self.report_error = document.ReportError
-        self.stored_template, self.set_template = document.stored_template, document.set_template
-        self.remove_template = document.remove_template
+        self.template_info, self.set_template = document.template_info, document.set_template
+        self.remove_template, self.example_template = document.remove_template, document.example_template
         self.opener = opener or open_with_the_system
         self.uploads = jobs.Uploads(self.data_dir)
         self.runner = jobs.Runner(self.data_dir, self.read_key, endpoint=endpoint, sleep=sleep,

@@ -30,7 +30,7 @@ from meetingtool.reading import gemini
 from meetingtool.report import document
 from meetingtool.summary import qa, writer
 from meetingtool.summary.__main__ import main as summary_main
-from tests import test_qa, test_summary
+from tests import test_qa, test_report, test_summary
 from tests.test_frames import SLIDES, write_teams_docx, write_video
 from tests.test_reading import KEY, FakeGemini, answer_for
 
@@ -289,7 +289,7 @@ class SettingsTest(Running):
                                        RAW)
         self.assertEqual(status, 200, body)
         self.assertEqual(document.stored_template(self.data), self.data / document.TEMPLATE_NAME)
-        self.assertIn(document.TEMPLATE_NAME, self.page("/settings"))
+        self.assertIn("empresa.docx", self.page("/settings"))  # WI16-AC07: the file's name, not the copy's
         self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
         status, _, body = self.request("PUT", "/api/template?name=macros.docm", b"PK", RAW)
         self.assertEqual(status, 415)
@@ -298,6 +298,44 @@ class SettingsTest(Running):
         self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
         self.api("/api/template/remove")
         self.assertIsNone(document.stored_template(self.data))
+
+    def test_the_settings_say_the_templates_real_name_and_what_was_understood(self):
+        """WI16-AC07."""
+        template = test_report.owner_shaped(self.tmp / "Plantilla G7.dotx")
+        status, _, body = self.request("PUT", "/api/template?name=" + quote("Plantilla G7.dotx"),
+                                       template.read_bytes(), RAW)
+        self.assertEqual((status, json.loads(body)), (200, {"template": "Plantilla G7.dotx"}))
+        page = self.page("/settings")
+        self.assertIn("<strong>Plantilla G7.dotx</strong>, cargada el ", page)
+        self.assertNotIn(document.TEMPLATE_NAME, page)
+        for said in ("En la portada va a poner: el cliente, el proyecto, la fecha.", "Tiene índice",
+                     "Lo que tiene después del índice es un modelo y no entra en los informes: 4 párrafos con texto."):
+            self.assertIn(said, page)
+        status, _, body = self.request("PUT", "/api/template?name=mala.docx", test_report.fields_template(
+            self.tmp / "mala.docx", ["{clinte}"]).read_bytes(), RAW)
+        self.assertEqual(status, 400)
+        self.assertIn("{clinte}", json.loads(body)["error"])
+        self.assertIn("Plantilla G7.dotx", self.page("/settings"))
+
+    def test_a_kept_template_that_can_no_longer_be_used_is_said_and_can_be_removed(self):
+        (self.data / document.TEMPLATE_NAME).write_bytes(b"not a word file")
+        page = self.page("/settings")
+        self.assertIn("La plantilla guardada ya no se puede usar", page)
+        self.assertIn("Dejar de usar la plantilla", page)
+        self.api("/api/template/remove")
+        self.assertIn("Sin plantilla", self.page("/settings"))
+
+    def test_the_example_template_downloads_and_can_be_set(self):
+        """WI16-AC08."""
+        self.assertIn(f'href="/{pages.EXAMPLE_NAME}" download', self.page("/settings"))
+        status, headers, body = self.request("GET", "/" + pages.EXAMPLE_NAME)
+        self.assertEqual((status, headers["content-type"]), (200, DOCX_TYPE))
+        self.assertIn(pages.EXAMPLE_NAME, headers["content-disposition"])
+        status, _, _ = self.request("GET", "/" + pages.EXAMPLE_NAME, cookie=None)
+        self.assertEqual(status, 403)
+        status, _, answer = self.request("PUT", "/api/template?name=" + pages.EXAMPLE_NAME, body, RAW)
+        self.assertEqual(status, 200, answer)
+        self.assertEqual(document.template_info(self.data).fields, ["project", "client", "meeting", "type", "date"])
 
 
 # ── WI15-AC02: only this machine, and no other site ───────────────────────────
@@ -572,6 +610,17 @@ class ProcessTest(Processing):
             self.assertEqual(self.summary_requests(command)[0]["body"], self.summary_requests()[-1]["body"])
         self.assertEqual(store.list_meetings(twin, "cermaq-sprint-3")[0]["summary"], record["summary"])
         self.assertEqual(store.list_meetings(twin, "cermaq-sprint-3")[0]["key_points"], record["key_points"])
+
+    def test_the_report_cover_gets_the_projects_client_and_the_meetings_type(self):
+        """WI16-AC01, from the application."""
+        document.set_template(test_report.fields_template(self.tmp / "portada.docx", [
+            "{cliente} · {proyecto}", "{reunion} · {tipo} · {fecha}"]), self.data)
+        job = self.process()
+        self.assertEqual(job["state"], "done", job["error"])
+        (record,) = store.list_meetings(self.data, self.project)
+        report = docx.Document(str(self.data / self.project / record["folder"] / library.REPORT_NAME))
+        self.assertEqual([p.text for p in report.paragraphs[:2]],
+                         ["Cermaq · Cermaq Sprint 3", "Sesión de dudas · Relevamiento · 25 de septiembre de 2026"])
 
     def test_the_summary_needs_the_recording(self):
         answer = self.process(with_recording=False, expect=400)

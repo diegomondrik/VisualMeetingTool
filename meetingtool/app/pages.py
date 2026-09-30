@@ -16,6 +16,7 @@ TYPE_NAMES = {"presale": "Preventa", "negotiation": "Venta o negociación", "req
               "kickoff": "Inicio de proyecto", "status": "Seguimiento", "technical": "Técnica",
               "training": "Capacitación", "discovery": "Descubrimiento (tipo anterior)"}
 LANGUAGE_NAMES = {"es": "Castellano", "en": "Inglés"}
+EXAMPLE_NAME = "plantilla-de-ejemplo.docx"
 
 _HEADING = re.compile(r"^(#{1,6})\s*(\S.*?)\s*#*\s*$")
 _BULLET = re.compile(r"^(\s*)[-*+]\s+(.*)$")
@@ -282,11 +283,49 @@ def job_page(job_id):
     return layout("Procesando", body, "projects")
 
 
-def settings_page(key_length, template_name):
+def _day(utc):
+    """'2026-09-30T12:57:00Z' as 30/9/2026."""
+    year, month, day = utc[:10].split("-")
+    return f"{int(day)}/{int(month)}/{year}"
+
+
+def _template_block(info, problem):
+    if problem:
+        return (f"<p>La plantilla guardada ya no se puede usar: {e(problem)}</p><p class=\"hint\">Cargá otra, o dejá "
+                "de usarla para que los informes salgan con el diseño neutro.</p>")
+    if info is None:
+        return "<p>Sin plantilla: los informes salen con un diseño neutro.</p>"
+    if info.name:
+        named = f"La empresa usa la plantilla <strong>{e(info.name)}</strong>, cargada el {e(_day(info.set_utc or ''))}."
+    else:
+        named = ("La empresa usa una plantilla cargada antes de que se guardara su nombre: para verlo acá, cargala de "
+                 "nuevo.")
+    fields = ", ".join(FIELD_NAMES[kind] for kind in info.fields)
+    understood = [f"En la portada va a poner: {e(fields)}." if fields
+                  else "No tiene datos para llenar en la portada (se escriben entre llaves, por ejemplo {cliente})."]
+    if info.tables_of_contents:
+        understood.append("Tiene índice: cada informe pone ahí sus secciones, sin números de página (en Word, clic "
+                          "derecho sobre el índice y «Actualizar campos» los agrega).")
+    else:
+        understood.append("No tiene índice.")
+    if info.start and info.dropped:
+        where = "después del índice" if info.start == "index" else "después de {informe}"
+        understood.append(f"Lo que tiene {where} es un modelo y no entra en los informes: "
+                          f"{info.dropped} {'párrafo' if info.dropped == 1 else 'párrafos'} con texto.")
+    elif not info.start:
+        understood.append("Todo lo que tiene escrito en la hoja sale como portada de cada informe.")
+    return f"<p>{named}</p><ul class=\"understood\">" + "".join(f"<li>{item}</li>" for item in understood) + "</ul>"
+
+
+FIELD_NAMES = {"client": "el cliente", "project": "el proyecto", "meeting": "el título de la reunión",
+               "date": "la fecha", "type": "el tipo de reunión"}
+
+
+def settings_page(key_length, template_info=None, template_problem=""):
     key = (f"Hay una clave guardada ({key_length} caracteres). No se muestra nunca." if key_length
            else "No hay una clave guardada: sin ella no se puede procesar.")
-    template = (f"La empresa usa la plantilla <strong>{e(template_name)}</strong>." if template_name
-                else "Sin plantilla: los informes salen con un diseño neutro.")
+    template = _template_block(template_info, template_problem)
+    kept = template_info is not None or bool(template_problem)
     body = ("<h1>Ajustes</h1>"
             "<section class=\"card\"><h2>Clave de Gemini</h2>"
             f"<p id=\"key-status\">{e(key)}</p>"
@@ -300,14 +339,18 @@ def settings_page(key_length, template_name):
                "<button type=\"submit\" class=\"secondary\">Borrar la clave</button>"
                "<p class=\"message\" role=\"status\"></p></form>" if key_length else "")
             + "</section><section class=\"card\"><h2>Plantilla de Word de la empresa</h2>"
-            f"<p>{template}</p><p class=\"hint\">Un .docx o .dotx (nunca uno con macros) con el logo, el encabezado, "
-            "los colores y las letras de la empresa; lo que tenga escrito en su hoja es la portada de cada informe."
-            "</p><form id=\"template\"><label>Plantilla <input name=\"template\" type=\"file\" accept=\".docx,.dotx\" "
+            f"{template}<p class=\"hint\">Un .docx o .dotx (nunca uno con macros) con el logo, el encabezado, "
+            "los colores y las letras de la empresa. Lo que tenga escrito en su hoja es la portada de cada informe; "
+            "donde escriba {cliente}, {proyecto}, {reunion}, {fecha} o {tipo}, entre llaves, va ese dato de la "
+            "reunión. Si tiene un índice de Word, se llena con las secciones de cada informe, y lo que esté después "
+            "del índice (o de {informe}, sola en su línea) es un modelo que no entra. "
+            f"<a href=\"/{e(EXAMPLE_NAME)}\" download>Bajar una plantilla de ejemplo</a> para empezar.</p>"
+            "<form id=\"template\"><label>Plantilla <input name=\"template\" type=\"file\" accept=\".docx,.dotx\" "
             "required></label><button type=\"submit\">Usar esta plantilla</button>"
             "<p class=\"message\" role=\"status\"></p></form>"
             + ("<form data-api=\"/api/template/remove\" data-then=\"reload\"><button type=\"submit\" "
                "class=\"secondary\">Dejar de usar la plantilla</button><p class=\"message\" role=\"status\"></p>"
-               "</form>" if template_name else "")
+               "</form>" if kept else "")
             + "</section>")
     return layout("Ajustes", body, "settings")
 
