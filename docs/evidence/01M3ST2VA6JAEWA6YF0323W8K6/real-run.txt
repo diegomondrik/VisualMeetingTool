@@ -30,3 +30,5 @@ the client, the project, the meeting's title and its date ("September 22,
 2026": the summary is in English, so the date is written in English).
 
 The owner opens the report and says whether it is fit to send.
+
+The owner opened it: "revisado. esta bien".
