@@ -215,13 +215,15 @@ def drop_model(document, layout):
 
 
 def ends_on_a_new_page(document):
-    """Whether the body ends with a section break that starts a new page."""
+    """Whether the body ends with a section break after which the report's
+    section starts on a new page. A section's w:type says how that section
+    starts, and the report goes in the body's last section."""
     children = body_children(document)
-    section = section_break(children[-1]) if children else None
-    if section is None:
+    if not children or section_break(children[-1]) is None:
         return False
-    kind = section.find(qn("w:type"))
-    return kind is None or kind.get(qn("w:val")) != "continuous"
+    last = document.element.body.find(qn("w:sectPr"))
+    kind = last.find(qn("w:type")) if last is not None else None
+    return kind is None or kind.get(qn("w:val")) not in ("continuous", "nextColumn")
 
 
 def field_values(language, *, client=None, project=None, meeting=None, date=None, meeting_type=None):

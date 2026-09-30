@@ -210,3 +210,45 @@ fórmula de nivel), P2-3 y P3.
 - Pruebas: portada en sección propia con un dato en el pie (dos variantes), tres
   secciones, salto continuo; las cuatro fallan sobre 24de6a7. Tres mutaciones
   nuevas.
+
+---
+
+# Segunda re-verificación, commit f178975 (sobre 24de6a7)
+
+Mismo subagente, acotada al último cambio. Transcripta en resumen por el
+implementador; las sondas y el veredicto, tal como los devolvió.
+
+**Veredicto: LISTO PARA INTEGRAR, con dos limitaciones P2/P3 anotadas.** P1-A
+corregido; sin regresiones en lo que ya había dado por bueno.
+
+Ejecutado en un clon descartable de f178975 con `--no-hardlinks`, borrado. Suite
+completa: 336 pruebas OK en 190 s. Sondas: P1-A en sus dos variantes (pies
+"Portada 22 de septiembre de 2026" / "Cuerpo Planta Norte", sin salto de página
+extra), P1-A con `fill_fields` anulado (rechazado: el control ve el pie de la
+portada), tres secciones (H1/F1, H2/F2, H3/F3 conservados y llenados), índices de
+1, 12 y 20 renglones, dos índices, índice + campo + `{informe}` con
+`fill_fields` anulado (rechazado), plantilla de WI11 (igual que antes),
+`{informe}` en la primera línea con salto de sección en el modelo (sin portada,
+sin error), párrafo vacío + `{informe}` + salto de sección (sin error).
+
+**P2-C: `ends_on_a_new_page` lee el tipo de salto de la sección equivocada.** En
+OOXML el `w:type` de un `sectPr` dice cómo empieza la sección que ese `sectPr`
+cierra. Caso 1: salto continuo después del índice → el tipo continuo queda en la
+sección final → no se agregaba salto de página y el informe arrancaba en la misma
+hoja que el índice. Caso 2: portada marcada como continua y el salto siguiente de
+página nueva → se agregaba un salto de página: probable hoja en blanco. Es
+formato; no afecta contenido ni controles.
+
+**P3:** `nextColumn` se trataba como hoja nueva.
+
+**Nota:** `mutations.py` tenía un cambio sin commitear (la corrida de mutaciones
+del implementador); confirmar el commit a integrar.
+
+## Qué hizo el implementador (commit siguiente)
+
+P2-C y P3: `ends_on_a_new_page` lee el tipo del `sectPr` final del cuerpo (la
+sección donde va el informe); `continuous` y `nextColumn` no son hoja nueva. La
+prueba anterior del salto continuo marcaba la sección de la portada, es decir
+validaba la lectura equivocada: se corrigió, y se agregó el caso 2. Las dos fallan
+sobre f178975. Una mutación nueva reproduce la lectura vieja. El cambio de
+`mutations.py` va en el mismo commit.

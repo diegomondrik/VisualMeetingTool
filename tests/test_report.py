@@ -16,6 +16,7 @@ from unittest import mock
 
 import docx
 import docx.text.paragraph
+from docx.enum.section import WD_SECTION
 from docx.enum.style import WD_STYLE_TYPE
 from docx.enum.text import WD_BREAK
 from docx.oxml import OxmlElement
@@ -1122,10 +1123,12 @@ class WI16ReviewCorrectionsTest(Workspace):
                 self.assertNotIn("Modelo que no va", every_text(self.output()))
                 self.assertEqual(self.entries(), [self.headings()])
 
-    def sectioned(self, headers, *, break_on_last_line=False, continuous=False):
+    def sectioned(self, headers, *, break_on_last_line=False, continuous=None):
         """A template whose cover, table of contents (if there are three
         headers) and model are sections of their own, each with its header,
-        and a footer with a field in each section."""
+        and a footer with a field in each section; continuous names the
+        section ("cover" or "report", the last one) that starts on the same
+        page as the one before it, as Word writes a continuous break."""
         template = docx.Document()
         template.sections[0].header.paragraphs[0].text = headers[0]
         template.sections[0].footer.paragraphs[0].text = "Portada {fecha}"
@@ -1138,16 +1141,14 @@ class WI16ReviewCorrectionsTest(Workspace):
                 part.is_linked_to_previous = False
                 part.paragraphs[0].text = text
             breaker = layout.body_children(template)[-1]
-            if continuous and header == headers[1]:
-                kind = OxmlElement("w:type")
-                kind.set(qn("w:val"), "continuous")
-                breaker.find(qn("w:pPr")).find(qn("w:sectPr")).insert(0, kind)
             if break_on_last_line and header == headers[-1]:
                 made[-1].find(qn("w:pPr")).append(breaker.find(qn("w:pPr")).find(qn("w:sectPr")))
                 breaker.getparent().remove(breaker)
             if header != headers[-1]:
                 template.add_paragraph(f"Página de {header}")
         template.add_heading("Modelo que no va", 1)
+        if continuous:
+            template.sections[0 if continuous == "cover" else -1].start_type = WD_SECTION.CONTINUOUS
         template.save(str(self.tmp / "secciones.docx"))
         document.set_template(self.tmp / "secciones.docx", self.data)
         self.build(**MEETING)
@@ -1173,9 +1174,13 @@ class WI16ReviewCorrectionsTest(Workspace):
         self.assertIn("Página de Índice", every_text(self.output()))
         self.assertNotIn("Modelo que no va", every_text(self.output()))
 
-    def test_reverification_p2_b_a_cover_ending_on_a_continuous_section_break_still_gets_a_page_break(self):
-        report = self.sectioned(["Portada", "Cuerpo"], continuous=True)
+    def test_reverification_p2_b_a_continuous_break_after_the_cover_still_gets_a_page_break(self):
+        report = self.sectioned(["Portada", "Cuerpo"], continuous="report")
         self.assertEqual(len(self.page_breaks_before_the_title(report)), 1)
+
+    def test_second_reverification_p2_c_the_type_is_read_from_the_reports_section(self):
+        report = self.sectioned(["Portada", "Cuerpo"], continuous="cover")
+        self.assertEqual(self.page_breaks_before_the_title(report), [])
 
     def test_p2_3_text_before_the_field_on_its_line_is_not_an_entry(self):
         template = owner_shaped(self.tmp / "antes.docx")
