@@ -21,6 +21,7 @@ import collections
 import dataclasses
 import hashlib
 import io
+import json
 import os
 import re
 import time
@@ -36,11 +37,13 @@ from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
 
 from meetingtool.projects import store
+from meetingtool.report import layout
 from meetingtool.summary import qa, writer
 
 SUMMARY_NAME = writer.OUTPUT_NAME
 OUTPUT_NAME = "summary.docx"
 TEMPLATE_NAME = "report-template.docx"
+TEMPLATE_RECORD = "report-template.json"
 TEMPLATE_EXTENSIONS = {".docx", ".dotx"}
 MACRO_EXTENSIONS = {".docm", ".dotm"}
 DOCUMENT_TYPE = b"application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"
@@ -89,6 +92,9 @@ class ReportResult:
     seconds: float
     template: Path | None
     cover: bool
+    fields: list = dataclasses.field(default_factory=list)  # the template's fields that were filled
+    contents: int = 0    # entries written in the template's tables of contents
+    dropped: int = 0     # paragraphs with text of the template's model, left out
 
 
 # ── The company's template ───────────────────────────────────────────────────
@@ -160,10 +166,26 @@ def template_bytes(path):
     else:
         data = path.read_bytes()
     try:
-        docx.Document(io.BytesIO(data))
+        opened = docx.Document(io.BytesIO(data))
     except Exception as error:  # python-docx raises several kinds for a broken package
         raise ReportError(f"the template {path.name} cannot be opened as a Word document: {error}") from None
+    try:
+        layout.read_layout(opened)
+    except layout.LayoutError as error:
+        raise ReportError(f"the template {path.name} cannot be used: {error}") from None
     return data
+
+
+@dataclasses.dataclass
+class TemplateInfo:
+    """What the installation's template is, and what was understood of it."""
+    path: Path
+    name: str | None      # the file's name when it was set; None if it was set before that was recorded
+    set_utc: str | None
+    fields: list
+    tables_of_contents: int
+    start: str | None     # "index", "marker" or None
+    dropped: int          # paragraphs with text of the template's model, dropped from every report
 
 
 def stored_template(data_dir=None):
@@ -172,25 +194,53 @@ def stored_template(data_dir=None):
     return path if path.is_file() else None
 
 
-def set_template(path, data_dir=None):
-    """Check the template and keep a copy of it in the data folder."""
+def template_info(data_dir=None):
+    """The installation's template as TemplateInfo, or None when there is
+    none; ReportError if it can no longer be used."""
+    path = stored_template(data_dir)
+    if path is None:
+        return None
+    found = layout.read_layout(docx.Document(io.BytesIO(template_bytes(path))))
+    try:
+        record = json.loads((path.parent / TEMPLATE_RECORD).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        record = {}
+    name = record.get("name") if isinstance(record, dict) and isinstance(record.get("name"), str) else None
+    set_utc = record.get("set_utc") if name and isinstance(record.get("set_utc"), str) else None
+    return TemplateInfo(path, name, set_utc, found.fields, len(found.tocs), found.start_kind, found.dropped)
+
+
+def set_template(path, data_dir=None, name=None):
+    """Check the template and keep a copy of it in the data folder, with the
+    name it was given (by default, its own file name)."""
     data = template_bytes(path)
     folder = store.check_data_dir(data_dir or store.default_data_dir())
     folder.mkdir(parents=True, exist_ok=True)
     target = folder / TEMPLATE_NAME
     partial = folder / (TEMPLATE_NAME + ".partial")
     partial.write_bytes(data)
+    record = {"name": Path(name or Path(path).name).name[:200], "set_utc": store._now_utc()}
+    (folder / (TEMPLATE_RECORD + ".partial")).write_text(json.dumps(record, ensure_ascii=False) + "\n",
+                                                          encoding="utf-8")
     os.replace(partial, target)
+    os.replace(folder / (TEMPLATE_RECORD + ".partial"), folder / TEMPLATE_RECORD)
     return target
 
 
 def remove_template(data_dir=None):
-    """Remove the installation's template; True if there was one."""
+    """Remove the installation's template and its record; True if there was
+    one."""
     path = stored_template(data_dir)
     if path is None:
         return False
     path.unlink()
+    (path.parent / TEMPLATE_RECORD).unlink(missing_ok=True)
     return True
+
+
+def example_template():
+    """The bytes of a template to start from (see layout.example_template)."""
+    return layout.example_template()
 
 
 # ── Reading the summary ──────────────────────────────────────────────────────
@@ -269,12 +319,14 @@ def _add_text(paragraph, text):
 
 
 def _heading(document, text, level):
+    """Add a heading; return its paragraph element."""
     if _has_style(document, f"Heading {level}"):
-        document.add_heading(text, level=level)
-        return
-    run = document.add_paragraph().add_run(text)
+        return document.add_heading(text, level=level)._p
+    paragraph = document.add_paragraph()
+    run = paragraph.add_run(text)
     run.bold = True
     run.font.size = Pt({1: 16, 2: 13}.get(level, 12))
+    return paragraph._p
 
 
 def _list_item(document, marker, text, depth):
@@ -386,14 +438,28 @@ def _body_images(document):
     return digests
 
 
-def check_report(path, headings, cover_images, frames):
+def check_report(path, headings, cover_images, frames, *, start=0, contents=()):
     """ReportError unless the document at path has every summary heading, in
-    order, and exactly the cover's images plus one of each cited frame."""
+    order, after its first `start` body elements (the cover, whose table of
+    contents repeats the headings); exactly the cover's images plus one of
+    each cited frame; each table of contents of the cover listing exactly
+    what `contents` says, in order; and no known field left unfilled."""
     document = docx.Document(str(path))
-    texts = iter(paragraph.text.strip() for paragraph in document.paragraphs)
+    children = layout.body_children(document)
+    texts = iter(layout.paragraph_text(child).strip() for child in children[start:] if child.tag == qn("w:p"))
     missing = [heading for heading in headings if not any(text == heading for text in texts)]
     if missing:
         raise ReportError(f"the Word document is missing the section(s) {missing}; it was not delivered")
+    cover_ids = {id(child) for child in children[:start]}
+    body = document.element.body
+    found_contents = [layout.toc_entries(document, toc) for toc in layout._tocs(document)
+                      if id(layout._top(toc[0], body)) in cover_ids]
+    if found_contents != [list(entries) for entries in contents]:
+        raise ReportError("the Word document's table of contents does not list exactly its sections; "
+                          "it was not delivered")
+    left = layout.leftover_fields(document, children[:start])
+    if left:
+        raise ReportError(f"the Word document still has {', '.join(left)} unfilled; it was not delivered")
     expected = collections.Counter(cover_images)
     expected.update(hashlib.sha256(Path(frame).read_bytes()).hexdigest() for frame in frames)
     found = collections.Counter(_body_images(document))
@@ -405,9 +471,10 @@ def check_report(path, headings, cover_images, frames):
 
 
 def build_report(frames_dir, *, title=None, date=None, project_name=None, data_dir=None, neutral=False,
-                 template=None):
+                 template=None, client=None, meeting_type=None):
     """Write OUTPUT_NAME next to the summary in frames_dir and return what was
-    built. `template` overrides the installation's; `neutral` uses none."""
+    built. `template` overrides the installation's; `neutral` uses none. The
+    title, date, project, client and type fill the template's fields."""
     started = time.monotonic()
     frames_dir = Path(frames_dir)
     work_tree = store.enclosing_git_work_tree(frames_dir)
@@ -434,9 +501,16 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     labels = LABELS[language]
 
     template = None if neutral else (Path(template) if template else stored_template(data_dir))
+    found = None
     if template is not None:
         document = docx.Document(io.BytesIO(template_bytes(template)))
-        cover = not _body_is_empty(document)
+        found = layout.read_layout(document)
+        layout.drop_model(document, found)
+        layout.fill_fields(document, layout.field_values(
+            language, client=client, project=project_name, meeting=title.strip() if title else None, date=date,
+            meeting_type=meeting_type))
+        layout.no_update_on_open(document)
+        cover = bool(found.tocs) or not _body_is_empty(document)
         if not cover:
             _clear_body(document)
     else:
@@ -448,7 +522,8 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
             section.left_margin = section.right_margin = Cm(2.5)
         cover = False
     cover_images = _body_images(document)
-    if cover:
+    if cover and not layout.ends_on_a_new_page(document):
+        # A cover ending with its own section break already starts the report on a new page.
         document.add_paragraph().add_run().add_break(WD_BREAK.PAGE)
 
     section = document.sections[-1]
@@ -459,16 +534,17 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
 
     heading_title = title.strip() if title and title.strip() else labels["title"]
     if _has_style(document, "Title"):
-        document.add_paragraph(heading_title, style="Title")
+        first = document.add_paragraph(heading_title, style="Title")
     else:
-        run = document.add_paragraph().add_run(heading_title)
+        first = document.add_paragraph()
+        run = first.add_run(heading_title)
         run.bold = True
         run.font.size = Pt(20)
     facts = [f"{labels['date']}: {date}" if date else "", f"{labels['project']}: {project_name}" if project_name else ""]
     if any(facts):
         document.add_paragraph(" · ".join(fact for fact in facts if fact))
 
-    embedded = set()
+    embedded, placed = set(), []
 
     def mention(line):
         found = [match.group(1) for match in FRAME_REF.finditer(line)]
@@ -478,7 +554,8 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     for kind, payload in _blocks(text):
         pending = []
         if kind == "heading":
-            _heading(document, mention(payload[1]), payload[0])
+            shown = mention(payload[1])
+            placed.append((payload[0], shown, _heading(document, shown, payload[0])))
         elif kind == "table":
             _table(document, payload, mention)
         elif kind == "bullet":
@@ -496,13 +573,32 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
                                   "the report was not built") from None
             embedded.add(name)
 
-    output = frames_dir / OUTPUT_NAME
-    partial = frames_dir / (OUTPUT_NAME + ".partial")
     expected = [FRAME_REF.sub(lambda m: labels["mention"].format(clock=clock(*m.groups()[1:])), heading)
                 for heading in headings]
+    contents = []
+    if found is not None and found.tocs:
+        bookmarks = layout.bookmark_headings(document, placed)
+        try:
+            for toc in found.tocs:
+                layout.fill_toc(document, toc, placed, bookmarks)
+        except layout.LayoutError as error:
+            raise ReportError(f"the template {Path(template).name} cannot be used: {error}") from None
+        # What each table of contents must list, from the summary's headings
+        # and the field's levels, not from what was written in it.
+        depth = [max(1, min(len(HEADING.match(line).group(1)) - 1, 3)) for line in text.splitlines()
+                 if HEADING.match(line)]
+        for _, _, instruction in found.tocs:
+            low, high = layout.levels(instruction)
+            contents.append([heading for level, heading in zip(depth, expected) if low <= level <= high])
+    # Where the report starts, counted after the tables of contents were
+    # rewritten: they may have changed how many paragraphs the cover has.
+    start = layout.body_children(document).index(first._p)
+
+    output = frames_dir / OUTPUT_NAME
+    partial = frames_dir / (OUTPUT_NAME + ".partial")
     try:
         document.save(str(partial))
-        check_report(partial, expected, cover_images, frames.values())
+        check_report(partial, expected, cover_images, frames.values(), start=start, contents=contents)
     except OSError as error:
         partial.unlink(missing_ok=True)
         raise ReportError(f"the report could not be written in {frames_dir.resolve()}: {error}") from None
@@ -516,4 +612,5 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
         hint = "; if it is open in Word, close it and try again" if isinstance(error, PermissionError) else ""
         raise ReportError(f"{output.resolve()} could not be replaced ({error.strerror}){hint}") from None
     return ReportResult(output, language, len(frames), len(headings), output.stat().st_size,
-                        time.monotonic() - started, template, cover)
+                        time.monotonic() - started, template, cover, found.fields if found else [],
+                        sum(len(entries) for entries in contents), found.dropped if found else 0)

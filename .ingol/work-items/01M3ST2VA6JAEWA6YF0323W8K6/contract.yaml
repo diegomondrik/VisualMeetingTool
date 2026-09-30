@@ -1,0 +1,180 @@
+schema_version: "1"
+id: 01M3ST2VA6JAEWA6YF0323W8K6
+objective: >
+  The company's Word template, done properly (INGOL D-188, approving
+  docs/work-items/f8-owner-project/brand-language-word-proposal.md of INGOL;
+  it widens D-177). WI16 of the sequence that finishes MeetingTool; the
+  installer becomes WI18 and the guide WI19.
+
+  What was found on the owner's own template, set from the application on
+  2026-09-30, and on the report built with it: the cover came out unfilled
+  ("Cliente", "Nombre del proyecto", "Para: Fecha:"); the table of contents
+  was the one Word last saved inside the template, listing the template's
+  example pages; and those example pages ("RESUMEN EJECUTIVO", "Subtitulo",
+  "Texto Normal", "Caso 1...") went into the report before the real summary,
+  because D-177 made everything on the template's page the cover. The
+  settings screen named the kept copy (report-template.docx), not the file
+  the owner gave (a .dotx).
+
+  Cover data. Where the company writes a field name in braces, in its
+  template's body or in a header or footer, the report puts the meeting's
+  data, keeping that text's font, size and colour: {cliente} or {client},
+  the project's client; {proyecto} or {project}, the project's name;
+  {reunion}, {reunión} or {meeting}, the meeting's title; {fecha} or {date},
+  the meeting's date written in the report's language ("22 de septiembre de
+  2026", "September 22, 2026"); {tipo} or {type}, the meeting's type. A
+  field Word split across several runs while it was edited is filled all the
+  same. Data the meeting does not have (a meeting with no project) leaves the
+  field empty. A name in braces that is not one of these is refused when the
+  template is set, naming it and the known ones, not on the day a report is
+  built. If a known field is left in the finished document, it is not
+  delivered.
+
+  Where the report starts. What the template has after its table of contents
+  (a Word TOC field, plain or inside a content control) is a model, not part
+  of every report, and is dropped. A template with no table of contents can
+  mark the place with {informe} or {report} alone on a line; that line and
+  what follows are dropped. With neither, everything on the page is the cover,
+  as today.
+
+  The table of contents. Each table of contents in the cover gets, in place of
+  what Word saved, the headings of this report, in order and within the
+  levels the field asks for (\o), each a link to its section (a bookmark on the
+  heading). No page numbers: they need the document laid out, which Word
+  does, not this program. The field stays a field, so Word's "Update field"
+  adds them in one click. The document does not ask Word to update fields on
+  opening: Word would ask the reader for permission every time. The
+  completeness check reads only the report's part of the body, so the table
+  of contents, which repeats the headings, cannot stand in for a missing
+  section; and the table of contents must list exactly the report's headings.
+
+  What the settings screen says. The file's real name (.docx or .dotx) and
+  the date it was set are kept next to the copy (report-template.json) and
+  shown; so is what the program understood of it: which fields it will fill,
+  whether it has a table of contents, and how many paragraphs of model are
+  dropped. A template kept before this work item, with no record of its
+  name, says so. The command line's template show and set print the same.
+
+  An example template to download from the settings screen (and `template
+  example FILE` from the command line), built by the program at the time it
+  is asked for: a cover with the five fields, a table of contents and a line
+  saying what comes after it is dropped. It passes its own checks.
+
+  The application passes the project's client and the meeting's type to the
+  report; the command line's build takes --type and takes the client from
+  --project. Reports already built do not change; building one again, from
+  the command line, uses the template as it is now, at no cost.
+
+  Not done (D-188): page numbers put by the program; a template per client or
+  per project; the company's name and logo in the application and the
+  application's language (WI17); the installer (WI18) and the guide (WI19).
+
+  Corrected after the independent review of d0cce57 and its two
+  re-verifications (docs/evidence/01M3ST2VA6JAEWA6YF0323W8K6/independent-review.md):
+  where the report starts is counted after the tables of contents are
+  rewritten (P1-1: a long table or two tables refused good reports, and a
+  field left unfilled could pass); each table of contents is checked against
+  the summary's headings and the field's levels, not against what was written
+  in it (P2-2); text before the field on its first line is not an entry
+  (P2-3); a cover that is a section of its own keeps it, with its header and
+  footer filled, and with three sections the table of contents keeps its own
+  (P2-1, P1-A, P2-A); no page break is added when the cover already ends with
+  a section break whose next section starts on a new page, read from the
+  section where the report goes (P2-B, P2-C); an unreadable table of contents
+  is a template error, a page holding only an empty table of contents is
+  filled, and a template record edited by hand does not break the settings
+  screen (P3).
+
+  Known limitations (independent review): a table of figures (\c) keeps what
+  Word saved in it and does not mark where the report starts; a brace pair
+  split by a tab ({cli<tab>ente}) is read as a field and the tab stays after
+  the value; a field inside the result of a Word field is filled but its code
+  keeps the name, so Word would restore it on updating that field; text before
+  the table of contents on its first line stays before the first entry; when
+  Word updates the table of contents it also lists the cover's paragraphs in
+  heading styles, as the template has them; the blank-page and same-page
+  cases of section breaks were checked in the document's XML, not rendered in
+  Word.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3ST2VA6JAEWA6YF0323W8K6/**
+  - docs/evidence/01M3ST2VA6JAEWA6YF0323W8K6/**
+  - meetingtool/report/**
+  - meetingtool/app/**
+  - tests/test_report.py
+  - tests/test_app.py
+  - README.md
+acceptance:
+  - id: WI16-AC01
+    description: >
+      With a template whose cover has the five fields (Spanish and English
+      names), the report's cover has the meeting's client, project, title,
+      date and type, the date written in the report's language, in Spanish
+      and in English; fields in a header or footer are filled too; a meeting
+      with no project leaves client and project empty; the fields keep the
+      template's formatting.
+  - id: WI16-AC02
+    description: >
+      A field split by Word across runs (for example "{", "cli", "ente}", each
+      with its own formatting) is filled, and the paragraph's other text stays
+      as it was.
+  - id: WI16-AC03
+    description: >
+      A known field left in the finished document stops it: a build whose
+      filling is broken on purpose is not delivered and names the field; an
+      unknown field ({clinte}) is refused when the template is set, naming it
+      and the known ones.
+  - id: WI16-AC04
+    description: >
+      What the template has after its table of contents, or after {informe},
+      is not in the report; a copy of the owner's template's shape (cover, a
+      table of contents with its saved entries, a page of model with headings)
+      invented at test time gives cover, table of contents and the report, and
+      none of the model's text; a table of contents inside a content control
+      is found too.
+  - id: WI16-AC05
+    description: >
+      The table of contents lists exactly the report's headings, in order and
+      within the field's levels, each linking to a bookmark on its heading; it
+      remains a TOC field Word can update; the document does not ask Word to
+      update fields when it opens. The owner opens one in Word.
+  - id: WI16-AC06
+    description: >
+      The completeness check cannot be fooled by the table of contents: a
+      report whose body lacks a section that the table of contents still
+      lists is not delivered; a table of contents that does not list exactly
+      the report's headings is not delivered.
+  - id: WI16-AC07
+    description: >
+      The settings screen and template show give the real name (.docx or
+      .dotx) and the date it was set, the fields found, whether there is a
+      table of contents and how many paragraphs of model are dropped; a
+      template kept before this work item says its name was not recorded;
+      remove removes the record too.
+  - id: WI16-AC08
+    description: >
+      The example template downloads from the settings screen and is written
+      by template example; it can be set, and a report built with it has the
+      five fields filled and a table of contents.
+  - id: WI16-AC09
+    description: >
+      A template with no fields and no table of contents gives the report it
+      gave before (its page as the cover); with no template, or with
+      --neutral, the design is neutral as before; the WI11 template tests keep
+      passing unchanged.
+  - id: WI16-AC10
+    description: >
+      Real run, at no cost: the Word report of the BumbleBee meeting, built
+      again from the command line with the owner's template after he writes
+      the fields in it; recorded under
+      docs/evidence/01M3ST2VA6JAEWA6YF0323W8K6/ as numbers only (fields
+      filled, table of contents entries, paragraphs dropped, images, size,
+      seconds). The owner opens it and says whether it is fit to send.
+  - id: WI16-AC11
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, and its
+      complete output is committed under
+      docs/evidence/01M3ST2VA6JAEWA6YF0323W8K6/ before the pull request
+      (INGOL D-163). The one existing assertion changed is the settings
+      test's expectation of the kept copy's name, which is what AC07 fixes.

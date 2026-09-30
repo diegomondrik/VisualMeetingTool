@@ -126,7 +126,8 @@ def check_request(data, data_dir, uploads, meeting_types, languages):
     max_cost = data.get("max_cost", DEFAULT_MAX_COST_USD)
     if isinstance(max_cost, bool) or not isinstance(max_cost, (int, float)) or not 0 < max_cost <= 5:
         raise JobError("el techo de gasto tiene que ser un número de dólares mayor que 0 y hasta 5")
-    return {"project": project_id, "project_name": project["name"], "title": title, "date": date,
+    return {"project": project_id, "project_name": project["name"], "client": project.get("client") or "",
+            "title": title, "date": date,
             "meeting_type": meeting_type or None, "language": language or None, "format": kind,
             "transcript": transcript, "recording": recording, "max_cost": float(max_cost)}
 
@@ -292,7 +293,7 @@ class Runner:
                 sleep=self.sleep, counters=job.counters, add_meeting=record_later))
             report = self._stage(job, "report", lambda: document.build_report(
                 work, title=request["title"], date=request["date"], project_name=request["project_name"],
-                data_dir=self.data_dir))
+                client=request["client"], meeting_type=request["meeting_type"], data_dir=self.data_dir))
             phase = "saving"
             run = {"format": request["format"], "language": written.language,
                    "meeting_type": request["meeting_type"] or "", "max_cost_usd": request["max_cost"],

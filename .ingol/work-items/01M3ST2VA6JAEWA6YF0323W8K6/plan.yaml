@@ -1,0 +1,88 @@
+schema_version: "1"
+work_item: 01M3ST2VA6JAEWA6YF0323W8K6
+status: approved
+next_gate: implement-then-independent-review-then-real-run-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3ST2VA6JAEWA6YF0323W8K6-word-template
+steps:
+  - fill-the-cover-fields-wi16-ac01
+  - fill-a-field-split-across-runs-wi16-ac02
+  - refuse-a-field-left-or-unknown-wi16-ac03
+  - drop-the-template-model-wi16-ac04
+  - the-report-table-of-contents-wi16-ac05
+  - completeness-not-fooled-by-the-table-of-contents-wi16-ac06
+  - settings-show-what-the-template-is-wi16-ac07
+  - example-template-wi16-ac08
+  - templates-without-fields-as-before-wi16-ac09
+  - real-run-on-the-owners-template-wi16-ac10
+  - run-the-suite-in-a-fresh-clone-and-commit-its-output-wi16-ac11
+evaluations:
+  - criterion: WI16-AC01
+    method: deterministic
+    control: >-
+      tests/test_report.py CoverFieldsTest builds reports from templates
+      invented at test time with every field in the body and in the header
+      and footer, in Spanish and English summaries, and reads the cover back.
+  - criterion: WI16-AC02
+    method: adversarial
+    control: >-
+      tests/test_report.py CoverFieldsTest writes a field across three runs
+      with different formatting and checks the filled paragraph; a mutation
+      that only fills fields within one run is caught, recorded in
+      mutations.txt.
+  - criterion: WI16-AC03
+    method: adversarial
+    control: >-
+      tests/test_report.py FieldRefusalTest breaks the filling on purpose and
+      checks the report is not delivered; a template with an unknown field is
+      refused when set; a mutation that removes the leftover check is caught,
+      recorded in mutations.txt.
+  - criterion: WI16-AC04
+    method: adversarial
+    control: >-
+      tests/test_report.py ReportStartTest builds a template shaped like the
+      owner's (cover, TOC field with saved entries, a model page with
+      headings) and one with {informe} and one with the TOC in a content
+      control, and checks no model text reaches the report; a mutation that
+      keeps the model is caught, recorded in mutations.txt.
+  - criterion: WI16-AC05
+    method: deterministic
+    control: >-
+      tests/test_report.py TableOfContentsTest reads the TOC field's result
+      paragraphs, their hyperlinks and the headings' bookmarks, and checks
+      settings.xml has no updateFields; the owner opens the real run's report
+      in Word.
+  - criterion: WI16-AC06
+    method: adversarial
+    control: >-
+      tests/test_report.py TableOfContentsTest removes a section from the
+      body and, separately, an entry from the table of contents before the
+      check, and expects the refusal; mutations of the check are caught,
+      recorded in mutations.txt.
+  - criterion: WI16-AC07
+    method: deterministic
+    control: >-
+      tests/test_report.py TemplateInfoTest and tests/test_app.py
+      ScreensTest set .docx and .dotx templates through the command and the
+      page and read the settings screen and template show.
+  - criterion: WI16-AC08
+    method: deterministic
+    control: >-
+      tests/test_report.py and tests/test_app.py download or write the example,
+      set it and build a report with it.
+  - criterion: WI16-AC09
+    method: deterministic
+    control: >-
+      The WI11 tests in tests/test_report.py pass unchanged.
+  - criterion: WI16-AC10
+    method: external-evidence
+    control: >-
+      The report of the BumbleBee meeting built again from the command line
+      with the owner's template; numbers only committed; the owner judges the
+      document.
+  - criterion: WI16-AC11
+    method: deterministic
+    control: >-
+      python -m unittest discover -s tests -v in a fresh clone of the tested
+      commit; complete output committed.
