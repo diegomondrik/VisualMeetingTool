@@ -1,0 +1,32 @@
+WI16-AC10: real run, at no cost (INGOL D-188). Numbers only; the report and the
+template stay in the owner's data folder, outside any repository.
+
+2026-09-30, owner's machine, branch work-item/01M3ST2VA6JAEWA6YF0323W8K6-word-template.
+
+Template: the owner's company template (.dotx), edited by him with {cliente},
+{proyecto}, {reunion} and {fecha} on its cover. A first upload from the page
+took another file of the same name (his Downloads folder, without the fields);
+Ajustes showed it by its real name and "no field", which is how it was found.
+The edited one was set from the command line (template set), and its record
+keeps its real name.
+
+  template show: fills client, project, meeting, date; table of contents: no;
+  cover: everything on its page.
+
+The owner chose to use it as it is, without a table of contents or {informe}
+("olvidate del index y del informe"): the template's model pages stay in the
+report as part of its cover, as the contract says for a template with neither.
+
+python -m meetingtool.report build --frames <BumbleBee meeting folder>
+    --title <meeting title> --date 2026-09-22 --project <project id> --type requirements
+
+  report built in 0.2 s: 14 sections, 4 images, 1.7 MB, language en
+  fields filled: client, project, meeting, date (4 of 4 on the cover; none left)
+  table of contents entries: 0; model paragraphs left out: 0
+  cost: 0 (no network, no key)
+
+Opened by Word (Office 16, through COM, read-only): 12 pages; the cover reads
+the client, the project, the meeting's title and its date ("September 22,
+2026": the summary is in English, so the date is written in English).
+
+The owner opens the report and says whether it is fit to send.
