@@ -371,6 +371,7 @@ TEXTS = {
     "app.run.no_key": "no Gemini key is saved: save it in Settings",
     "app.run.busy": "a meeting is already being processed: wait until it ends",
     "app.run.folder_taken": "there is already a folder {folder} in the project",
+    "app.run.closed": "MeetingTool was closed while the meeting was being processed: it was not saved",
     "app.key.paste": "paste the key before saving it",
     "app.open.windows_only": "opening the Word report from here only works on Windows: download it",
     "app.data_folder_in_use": "MeetingTool is already open on {folder}: use that window",
@@ -388,6 +389,12 @@ TEXTS = {
     "app.console.paste": "If it did not open, paste this address in the browser: {url}",
     "app.console.keep": "Leave this window open while you use it; to close it, close this window or press Ctrl+C.",
     "app.console.error": "error: {error}",
+    "app.window.closing_title": "Close MeetingTool",
+    "app.window.closing_running": "A meeting is being processed. If you close now, it is dropped and nothing of it "
+                                  "is kept. Close anyway?",
+    "app.window.no_webview2": "The Windows component that shows the screens of MeetingTool (Microsoft Edge "
+                              "WebView2) is missing. Install it from Microsoft's page and open MeetingTool again.",
+    "app.window.failed": "MeetingTool could not open[[: {error}]]",
 
     # ── The page's script (static/app.js), which fills in the {names} itself
     "js.unreadable": "the answer could not be read",

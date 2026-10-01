@@ -374,6 +374,7 @@ TEXTS = {
     "app.run.no_key": "no hay una clave de Gemini guardada: guardala en Ajustes",
     "app.run.busy": "ya hay una reunión procesándose: esperá a que termine",
     "app.run.folder_taken": "ya hay una carpeta {folder} en el proyecto",
+    "app.run.closed": "MeetingTool se cerró mientras la reunión se procesaba: no se guardó",
     "app.key.paste": "pegá la clave antes de guardarla",
     "app.open.windows_only": "abrir el Word desde acá sólo funciona en Windows: descargalo",
     "app.data_folder_in_use": "MeetingTool ya está abierto sobre {folder}: usá esa ventana",
@@ -392,6 +393,13 @@ TEXTS = {
     "app.console.keep": "Dejá esta ventana abierta mientras lo uses; para cerrarlo, cerrá esta ventana o apretá "
                         "Ctrl+C.",
     "app.console.error": "error: {error}",
+    "app.window.closing_title": "Cerrar MeetingTool",
+    "app.window.closing_running": "Hay una reunión procesándose. Si cerrás ahora, se descarta y no queda nada de "
+                                  "ella. ¿Cerrar igual?",
+    "app.window.no_webview2": "Falta el componente de Windows que muestra las pantallas de MeetingTool "
+                              "(Microsoft Edge WebView2). Instalalo desde la página de Microsoft y volvé a abrir "
+                              "MeetingTool.",
+    "app.window.failed": "MeetingTool no pudo abrirse[[: {error}]]",
 
     # ── El script de la página (static/app.js), que pone él mismo los {datos}
     "js.unreadable": "la respuesta no se pudo leer",
