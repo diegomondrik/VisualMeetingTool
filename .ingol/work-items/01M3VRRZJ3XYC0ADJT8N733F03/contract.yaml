@@ -54,6 +54,34 @@ objective: >
   and publishing the first release with the installer attached on this
   public repository once integrated. One real run on the clean machine with
   the owner's key, ceiling US$1.00, only if the owner asks for it.
+
+  The clean machine (AC07). Windows Sandbox, named by the proposal, cannot
+  run WebView2 on Windows 11 24H2: it is registered there but cannot start,
+  and installing it inside fails as well (MicrosoftEdge/WebView2Feedback
+  #5697; docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/clean-machine-sandbox-attempt.txt).
+  The test is run, as the proposal's alternative, on the computer of a
+  member of the owner's team that never had VisualMeetingTool. Because of
+  the sandbox, the window now says at once when WebView2 cannot start, how
+  to repair it and where its log is (window.log).
+
+  Corrected after the independent review of 1a4bd76
+  (docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/independent-review.md): a % in
+  installation.ini no longer stops the application (P2-1); the build refuses
+  files git ignores inside what it packs, so that client data cannot be
+  published in the installer (P2-2); a test that the run itself holds the
+  saving the window waits for (P2-3); Internet Explorer's component instead
+  of WebView2 is said (P3-1); the token is hidden in a trace too (P3-2); the
+  closing question says that a meeting being saved is saved whole (P3-3);
+  tests of the build's refusals and of the window closing the runner (P3-4,
+  P3-5). Every new control is shown able to fail (mutations.txt).
+
+  Known limitations: the release of the saving lock in its nested finally
+  has no test; the versions of Inno Setup and Python are printed by the
+  build but not checked against a pin; installing over an older version
+  leaves the files it no longer has; window.log stays after uninstalling;
+  the program has no icon of its own (Windows shows pywebview's); the
+  behaviour of WebView2 itself (downloads, the save dialog, the closing
+  question) is shown only by the clean-machine run, not by the tests.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3VRRZJ3XYC0ADJT8N733F03/**
