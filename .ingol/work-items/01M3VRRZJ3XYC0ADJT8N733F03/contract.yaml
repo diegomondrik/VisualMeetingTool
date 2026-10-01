@@ -79,7 +79,8 @@ objective: >
   has no test; the versions of Inno Setup and Python are printed by the
   build but not checked against a pin; installing over an older version
   leaves the files it no longer has; window.log stays after uninstalling;
-  the program has no icon of its own (Windows shows pywebview's); the
+  the program has no icon of its own (the window and the shortcuts show
+  PyInstaller's default one); the
   behaviour of WebView2 itself (downloads, the save dialog, the closing
   question) is shown only by the clean-machine run, not by the tests.
 lane: standard
