@@ -1,10 +1,11 @@
 # WI18 — el instalador de Windows: propuesta de contrato
 
-2026-10-01. Para aprobación del owner. **Todavía no aprobada.** Sigue el plan
-de `D-185` (renumerado por `D-188`: instalador WI18, guía WI19) y la ventana
-propia de `D-187`. Cuando se apruebe, este texto pasa a ser el contrato del
-trabajo (`.ingol/work-items/<id>/contract.yaml`) y su evidencia va a
-`docs/evidence/<id>/`.
+2026-10-01. **Aprobada por el owner («dale», 2026-10-01)**, con el idioma del
+instalador agregado a su pedido antes de aprobar. Sigue el plan de `D-185`
+(renumerado por `D-188`: instalador WI18, guía WI19) y la ventana propia de
+`D-187`. Su contrato es
+`.ingol/work-items/01M3VRRZJ3XYC0ADJT8N733F03/contract.yaml` y su evidencia
+está en `docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/`.
 
 ## Qué se entrega
 

@@ -391,7 +391,7 @@ TEXTS = {
     "app.console.error": "error: {error}",
     "app.window.closing_title": "Close MeetingTool",
     "app.window.closing_running": "A meeting is being processed. If you close now, it is dropped and nothing of it "
-                                  "is kept. Close anyway?",
+                                  "is kept (if it was just being saved, it is saved whole). Close anyway?",
     "app.window.no_webview2": "The Windows component that shows the screens of MeetingTool (Microsoft Edge "
                               "WebView2) is missing. Install it from Microsoft's page and open MeetingTool again.",
     "app.window.failed": "MeetingTool could not open[[: {error}]]",

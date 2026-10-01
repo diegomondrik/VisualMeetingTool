@@ -3,11 +3,14 @@ writes is what the window reads, its languages are the application's, and the
 build refuses tools that are not the pinned ones. They read the recipes; the
 build itself is run by packaging/build.py and its output is evidence."""
 
+import contextlib
 import importlib.util
+import io
 import re
 import tempfile
 import unittest
 from pathlib import Path
+from unittest import mock
 
 from meetingtool import texts
 from meetingtool.app import window
@@ -104,6 +107,49 @@ class BuildTest(unittest.TestCase):
         pinned = self.build.pins(frozen)
         for name in ("pyinstaller", "pywebview", "av", "numpy", "pillow", "python-docx"):
             self.assertIn(name, pinned)
+
+    def test_files_git_ignores_inside_what_is_packed_are_named(self):
+        """Review P2-2: client data that .gitignore hides would be packed all the same."""
+        status = ("!! meetingtool/__pycache__/\n!! meetingtool/app/__pycache__/server.cpython-312.pyc\n"
+                  "!! meetingtool/app/static/frame_001.jpg\n!! \"packaging/reunión cliente.mp4\"\n"
+                  " M meetingtool/app/window.py\n")
+        self.assertEqual(self.build.stray_files(status),
+                         ["meetingtool/app/static/frame_001.jpg", "packaging/reunión cliente.mp4"])
+
+    def run_main(self, tools=(), changes="", ignored="", args=()):
+        """build.main with the machine replaced; it must stop before building anything."""
+        def git(*command):
+            return ignored if "--ignored" in command else changes
+
+        def never(*a, **k):
+            raise AssertionError("it built")
+
+        with mock.patch.object(self.build, "tool_problems", lambda pinned: list(tools)), \
+                mock.patch.object(self.build, "git", git), \
+                mock.patch.object(self.build, "find_iscc", lambda: None), \
+                mock.patch.object(self.build.subprocess, "run", never), \
+                contextlib.redirect_stderr(io.StringIO()) as said:
+            return self.build.main(list(args)), said.getvalue()
+
+    def test_the_build_refuses_tools_that_are_not_the_pinned_ones(self):
+        code, said = self.run_main(tools=["pyinstaller: pinned 6.0.0, installed 6.1.0"])
+        self.assertEqual(code, 2)
+        self.assertIn("pinned 6.0.0, installed 6.1.0", said)
+
+    def test_the_build_refuses_changes_not_committed(self):
+        code, said = self.run_main(changes=" M meetingtool/app/window.py")
+        self.assertEqual(code, 2)
+        self.assertIn("not committed", said)
+
+    def test_the_build_refuses_ignored_files_even_when_allowed_to_be_dirty(self):
+        code, said = self.run_main(ignored="!! meetingtool/app/static/frame_001.jpg", args=["--allow-dirty"])
+        self.assertEqual(code, 2)
+        self.assertIn("frame_001.jpg", said)
+
+    def test_with_everything_in_order_it_goes_on_to_look_for_inno_setup(self):
+        code, said = self.run_main(ignored="!! meetingtool/__pycache__/")
+        self.assertEqual(code, 2)
+        self.assertIn("ISCC.exe", said)
 
     def test_inno_setup_is_found_where_its_installer_puts_it(self):
         place = self.tmp / "Programs" / "Inno Setup 6"

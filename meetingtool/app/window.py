@@ -70,12 +70,12 @@ def installed_language(folder):
     file that does not name one of the application's languages)."""
     if folder is None:
         return None
-    parser = configparser.ConfigParser()
+    parser = configparser.ConfigParser(interpolation=None)  # a % in the file is text (review P2-1)
     try:
         parser.read(Path(folder) / INSTALLATION_FILE, encoding="utf-8")
+        value = parser.get("installation", "language", fallback="").strip().lower()
     except (OSError, configparser.Error, UnicodeDecodeError):
         return None
-    value = parser.get("installation", "language", fallback="").strip().lower()
     return value if value in texts.LANGUAGES else None
 
 
@@ -121,11 +121,12 @@ class Hidden(logging.Filter):
 
     def filter(self, record):
         message = record.getMessage()
-        hidden = message
+        if record.exc_info:  # the trace too, written here, so that it is hidden as well (review P3-2)
+            message += "\n" + logging.Formatter().formatException(record.exc_info)
+            record.exc_info, record.exc_text = None, None
         for secret in self.secrets:
-            hidden = hidden.replace(secret, "<hidden>")
-        if hidden != message:
-            record.msg, record.args = hidden, ()
+            message = message.replace(secret, "<hidden>")
+        record.msg, record.args = message, ()
         return True
 
 
@@ -198,7 +199,14 @@ class Window:
         self.settled.set()
 
     def on_shown(self, *args):
-        log.info("window shown, renderer %s", getattr(self.webview, "renderer", None))
+        renderer = getattr(self.webview, "renderer", None)
+        log.info("window shown, renderer %s", renderer)
+        if renderer != "edgechromium":
+            # pywebview falls back to Internet Explorer's component when its own check of WebView2 fails,
+            # whatever gui says (review P3-1): said as WebView2 failing.
+            log.error("not WebView2: %s", renderer)
+            self.webview2_failed.set()
+            self.settled.set()
         threading.Thread(target=self.watch_the_load, daemon=True).start()
 
     def watch_the_load(self):

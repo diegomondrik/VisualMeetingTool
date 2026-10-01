@@ -395,7 +395,7 @@ TEXTS = {
     "app.console.error": "error: {error}",
     "app.window.closing_title": "Cerrar MeetingTool",
     "app.window.closing_running": "Hay una reunión procesándose. Si cerrás ahora, se descarta y no queda nada de "
-                                  "ella. ¿Cerrar igual?",
+                                  "ella (si justo se estaba guardando, se guarda entera). ¿Cerrar igual?",
     "app.window.no_webview2": "Falta el componente de Windows que muestra las pantallas de MeetingTool "
                               "(Microsoft Edge WebView2). Instalalo desde la página de Microsoft y volvé a abrir "
                               "MeetingTool.",

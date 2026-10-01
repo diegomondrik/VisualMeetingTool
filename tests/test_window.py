@@ -277,6 +277,51 @@ class LogTest(Folders):
         self.assertIn(str(self.tmp / "log" / window.LOG_NAME), text)
         self.assertIn("Couldn't find a compatible", (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8"))
 
+    def test_the_token_is_hidden_in_a_trace_too(self):
+        """Review P3-2: the filter hid the message but not the trace of an exception."""
+        def while_shown(webview):
+            url = webview.windows[0].url
+            try:
+                raise RuntimeError(f"could not load {url}")
+            except RuntimeError:
+                logging.getLogger("pywebview").exception("navigation failed")
+
+        token = {}
+        app_window = self.window(FakeWebview(while_shown))
+        original = app_window.make_app
+
+        def make_app(*args, **kwargs):
+            app = original(*args, **kwargs)
+            token["value"] = app.token
+            return app
+
+        app_window.make_app = make_app
+        app_window.run()
+        written = (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8")
+        self.assertIn("RuntimeError: could not load http://127.0.0.1:", written)
+        self.assertNotIn(token["value"], written)
+
+    def test_internet_explorer_s_component_instead_of_webview2_is_said(self):
+        """Review P3-1: pywebview falls back to it when its own check fails."""
+        webview = FakeWebview(lambda w: time.sleep(1.0), loads=True)
+        webview.renderer = "mshtml"
+        self.load_wait = 20
+        started = time.monotonic()
+        self.window(webview).run()
+        self.assertLess(time.monotonic() - started, 10)
+        self.assertEqual(len(self.boxes.told), 1)
+        self.assertIn("no pudo arrancar", self.boxes.told[0][1])
+
+    def test_closed_however_it_closes_no_meeting_is_saved_after(self):
+        """The window closes the runner once pywebview returns, even when its
+        closing handler never ran (review P3-4)."""
+        made = []
+        app_window = self.window(FakeWebview())
+        original = app_window.make_app
+        app_window.make_app = lambda *a, **k: made.append(original(*a, **k)) or made[-1]
+        app_window.run()
+        self.assertTrue(made[0].runner.closed)
+
     def test_a_page_that_loads_says_nothing(self):
         self.window(FakeWebview(lambda webview: time.sleep(1.0))).run()
         self.assertEqual(self.boxes.told, [])
@@ -325,6 +370,12 @@ class LanguageTest(Folders):
             self.assertEqual(window.installed_language(self.program), read, written)
         (self.program / window.INSTALLATION_FILE).write_bytes(b"\xff\xfe not an ini")
         self.assertIsNone(window.installed_language(self.program))
+        # A % is text, not a reference to another value (review P2-1): the window opens all the same.
+        for written in ("en%", "%(x)s", "%"):
+            self.installed_in(written)
+            self.assertIsNone(window.installed_language(self.program), written)
+        self.installed_in("en%")
+        self.assertEqual(self.window(FakeWebview()).run(), 0)
 
     def test_installed_in_english_the_application_starts_in_english(self):
         self.installed_in("en")
@@ -425,6 +476,34 @@ class ClosingTest(Processing):
         self.app_window.closing()
         self.assertEqual(self.boxes.asked[0][0], "Close MeetingTool")
         self.assertIn("A meeting is being processed", self.boxes.asked[0][1])
+
+    def test_closed_while_the_run_saves_the_window_waits_and_the_meeting_is_saved_whole(self):
+        """The run itself holds the saving (review P2-3): closed between moving
+        the meeting into the project and recording it, the window waits."""
+        saving, finish = threading.Event(), threading.Event()
+        record = store.add_meeting
+
+        def held(*args, **kwargs):
+            saving.set()
+            finish.wait(60)
+            return record(*args, **kwargs)
+
+        with mock.patch.object(store, "add_meeting", held):
+            job = self.start_a_run()
+            self.go_on.set()
+            self.assertTrue(saving.wait(120), "the run did not reach its saving")
+            self.boxes.answer = True
+            closer = threading.Thread(target=self.app_window.closing)
+            closer.start()
+            time.sleep(0.5)
+            self.assertTrue(closer.is_alive(), "the window did not wait for the saving")
+            finish.set()
+            closer.join(30)
+            self.assertFalse(closer.is_alive())
+            done = self.wait(job)
+        self.assertEqual(done["state"], "done", done["error"])
+        self.assertEqual(len(store.list_meetings(self.data, self.project)), 1)
+        self.assertTrue(self.app.runner.closed)
 
 
 class CloseWhileSavingTest(unittest.TestCase):

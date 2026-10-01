@@ -85,6 +85,23 @@ def git(*args):
     return subprocess.run(["git", *args], cwd=ROOT, capture_output=True, text=True, check=True).stdout.strip()
 
 
+PACKED = ("meetingtool", "packaging")
+
+
+def stray_files(status):
+    """The files git ignores inside what is packed, from `git status --porcelain
+    --ignored`: PyInstaller would put them in the installer whatever git
+    says, and .gitignore ignores client data on purpose (review P2-2).
+    Python's own caches are not data."""
+    stray = []
+    for line in status.splitlines():
+        if line.startswith("!! "):
+            path = line[3:].strip().strip('"')
+            if "__pycache__" not in path.split("/") and not path.endswith((".pyc", ".pyo")):
+                stray.append(path)
+    return stray
+
+
 def sha256(path):
     digest = hashlib.sha256()
     with open(path, "rb") as handle:
@@ -121,6 +138,12 @@ def main(argv=None):
     if changes and not args.allow_dirty:
         print("The working tree has changes that are not committed; commit them first:", file=sys.stderr)
         print(changes, file=sys.stderr)
+        return 2
+    stray = stray_files(git("-c", "core.quotePath=false", "status", "--porcelain", "--ignored", "--", *PACKED))
+    if stray:  # even with --allow-dirty: they would be published
+        print("Files that git ignores are inside what is packed; move them out first:", file=sys.stderr)
+        for path in stray:
+            print(f"  {path}", file=sys.stderr)
         return 2
     iscc = find_iscc()
     if iscc is None:
