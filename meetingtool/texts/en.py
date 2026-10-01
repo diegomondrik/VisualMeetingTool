@@ -395,6 +395,8 @@ TEXTS = {
     "app.window.no_webview2": "The Windows component that shows the screens of MeetingTool (Microsoft Edge "
                               "WebView2) is missing. Install it from Microsoft's page and open MeetingTool again.",
     "app.window.failed": "MeetingTool could not open[[: {error}]]",
+    "app.window.not_shown": "The MeetingTool window could not show its screens. Close it and open it "
+                            "again; if it stays the same, what happened is written in {log}",
 
     # ── The page's script (static/app.js), which fills in the {names} itself
     "js.unreadable": "the answer could not be read",

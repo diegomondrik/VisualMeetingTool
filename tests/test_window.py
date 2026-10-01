@@ -6,6 +6,7 @@ way the window would. No test opens a real window, needs a key or reaches the
 network."""
 
 import http.client
+import logging
 import sys
 import tempfile
 import threading
@@ -41,17 +42,19 @@ class FakeWindow:
     def __init__(self, title, url, options):
         self.title, self.url, self.options = title, url, options
         self.events = type("Events", (), {})()
-        self.events.closing = Event()
+        self.events.closing, self.events.shown, self.events.loaded = Event(), Event(), Event()
 
 
 class FakeWebview:
     """`while_shown(webview)` runs inside start(), as the user would while the
     window is open."""
 
-    def __init__(self, while_shown=None, fail=None):
+    renderer = "edgechromium"
+
+    def __init__(self, while_shown=None, fail=None, loads=True):
         self.settings = {"ALLOW_DOWNLOADS": False}
         self.windows, self.started = [], None
-        self.while_shown, self.fail = while_shown, fail
+        self.while_shown, self.fail, self.loads = while_shown, fail, loads
 
     def create_window(self, title, url, **options):
         self.windows.append(FakeWindow(title, url, options))
@@ -61,6 +64,9 @@ class FakeWebview:
         self.started = options
         if self.fail:
             raise self.fail
+        self.windows[0].events.shown.set()
+        if self.loads:
+            self.windows[0].events.loaded.set()
         if self.while_shown:
             self.while_shown(self)
 
@@ -120,7 +126,10 @@ class Folders(unittest.TestCase):
 
     def window(self, webview, has_webview2=lambda: True):
         return window.Window(self.data, folder=self.program, webview=webview, ask=self.boxes.ask,
-                             tell=self.boxes.tell, has_webview2=has_webview2, make_app=self.make_app)
+                             tell=self.boxes.tell, has_webview2=has_webview2, make_app=self.make_app,
+                             log_folder=self.tmp / "log", load_wait=self.load_wait or window.LOAD_WAIT)
+
+    load_wait = None  # the window's own
 
 
 # ── WI18-AC01 and AC04: the window shows the application's own server ─────────
@@ -210,6 +219,50 @@ class OpenTest(Folders):
                 stream.close()
 
 
+class LogTest(Folders):
+    """WebView2 can fail to start and leave the window blank, saying it only to
+    pywebview's log (the first clean-machine run of WI18 met a blank window)."""
+
+    load_wait = 0.3
+
+    def test_the_log_says_what_the_start_found_and_never_the_session_token(self):
+        seen = {}
+
+        def while_shown(webview):
+            seen["token"] = webview.windows[0].url.split("token=")[1]
+            # pywebview writes the addresses it loads, its errors too.
+            logging.getLogger("pywebview").error("navigation to %s failed", webview.windows[0].url)
+
+        self.installed_in("en")
+        self.window(FakeWebview(while_shown), has_webview2=lambda: "141.0.3537.71").run()
+        written = (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8")
+        for fact in ("VisualMeetingTool", "WebView2 runtime 141.0.3537.71", "language en (installer's: en)",
+                     "server at http://127.0.0.1:", "window shown, renderer edgechromium", "page loaded",
+                     "navigation to http://127.0.0.1:", "window gone"):
+            self.assertIn(fact, written)
+        self.assertNotIn(seen["token"], written)
+        self.assertIn("token=<hidden>", written)
+
+    def test_each_start_replaces_the_last_log(self):
+        self.window(FakeWebview(), has_webview2=lambda: None).run()
+        self.window(FakeWebview()).run()
+        written = (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8")
+        self.assertEqual(written.count("VisualMeetingTool 0"), 1)
+        self.assertNotIn("WebView2 runtime None", written)
+
+    def test_a_page_that_does_not_load_is_said_in_a_box_with_the_log_s_place(self):
+        self.window(FakeWebview(lambda webview: time.sleep(1.5), loads=False)).run()
+        self.assertEqual(len(self.boxes.told), 1)
+        title, text = self.boxes.told[0]
+        self.assertIn("no pudo mostrar sus pantallas", text)
+        self.assertIn(str(self.tmp / "log" / window.LOG_NAME), text)
+        self.assertIn("the page did not load", (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8"))
+
+    def test_a_page_that_loads_says_nothing(self):
+        self.window(FakeWebview(lambda webview: time.sleep(1.0))).run()
+        self.assertEqual(self.boxes.told, [])
+
+
 # ── WI18-AC03: one application per data folder ─────────────────────────────────
 
 class SecondStartTest(Folders):
@@ -219,7 +272,7 @@ class SecondStartTest(Folders):
         def while_shown(webview):
             other_boxes, made = Boxes(), []
             other = window.Window(self.data, folder=self.program, webview=FakeWebview(), ask=other_boxes.ask,
-                                  tell=other_boxes.tell, has_webview2=lambda: True,
+                                  tell=other_boxes.tell, has_webview2=lambda: True, log_folder=self.tmp / "log2",
                                   make_app=lambda *a, **k: made.append(a))
             second.update(code=other.run(), told=other_boxes.told, made=made)
 
@@ -295,7 +348,8 @@ class ClosingTest(Processing):
         self.reading, self.go_on = threading.Event(), threading.Event()
         super().setUp()
         self.boxes = Boxes()
-        self.app_window = window.Window(self.data, ask=self.boxes.ask, tell=self.boxes.tell)
+        self.app_window = window.Window(self.data, ask=self.boxes.ask, tell=self.boxes.tell,
+                                        log_folder=self.tmp / "log")
         self.app_window.app = self.app
 
     def tearDown(self):

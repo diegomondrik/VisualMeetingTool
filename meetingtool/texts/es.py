@@ -400,6 +400,8 @@ TEXTS = {
                               "(Microsoft Edge WebView2). Instalalo desde la página de Microsoft y volvé a abrir "
                               "MeetingTool.",
     "app.window.failed": "MeetingTool no pudo abrirse[[: {error}]]",
+    "app.window.not_shown": "La ventana de MeetingTool no pudo mostrar sus pantallas. Cerrala y volvé a "
+                            "abrirla; si sigue igual, el detalle de lo que pasó está en {log}",
 
     # ── El script de la página (static/app.js), que pone él mismo los {datos}
     "js.unreadable": "la respuesta no se pudo leer",
