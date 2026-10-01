@@ -1,5 +1,5 @@
 WI18-AC07, first clean-machine attempt: Windows Sandbox on the owner's machine, 2026-10-01.
-Installer: the build of commit 147f87b (the one with the log; installer sha256 f7b5411a12fc098bf04557c37ef50c83c8e2680cb1a1afa2d58a28493640337a), installed in Spanish then English by the owner; the window stayed blank.
+Installer: the build of commit 147f87b (the one with the log; installer sha256 f7b5411a12fc098bf04557c37ef50c83c8e2680cb1a1afa2d58a28493640337a), installed by the owner (the last time in Spanish, as the log says); the window stayed blank.
 Cause (the log below, copied by the owner from the sandbox): WebView2 is registered in the sandbox (pv 153.0.4234.48) but cannot start:
 "Couldn't find a compatible Webview2 Runtime installation" / "package dependency criteria could not be resolved".
 Known limitation of Windows Sandbox on Windows 11 24H2, not of the program: https://github.com/MicrosoftEdge/WebView2Feedback/issues/5697
