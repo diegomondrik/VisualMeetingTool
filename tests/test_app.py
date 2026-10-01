@@ -452,6 +452,52 @@ class CompanyTest(Running):
         self.assertEqual(caught.exception.message.key, "app.logo.too_big")
         self.assertNoLogo()
 
+    def test_a_logo_of_more_than_1_mb_gets_its_reason_every_time(self):
+        """The body of a refused logo is read before the answer, so the page
+        gets the reason, not a cut connection (review of 5d4c63a, P1-1: 3 of 8
+        runs were cut on Windows)."""
+        big = b"\x89PNG" + bytes(company.LOGO_LIMIT + 400_000)
+        for _ in range(20):
+            status, _, body = self.logo(big)
+            self.assertEqual(status, 413)
+            self.assertIn("pesa más de 1 MB", json.loads(body)["error"])
+        self.assertNoLogo()
+
+    def test_a_refused_request_learns_nothing_of_the_company(self):
+        """A request without the session, or for another host, gets the refusal
+        in the application's language, without the company's name or logo
+        (review of 5d4c63a, P2-1)."""
+        self.api("/api/company", {"name": "Nexo Secreto"})
+        self.logo(png_bytes())
+        for cookie, host in ((False, None), (f"{server.COOKIE}=wrong", None), (True, "evil.example")):
+            status, _, body = self.request("GET", "/", cookie=cookie, host=host)
+            self.assertEqual(status, 403)
+            self.assertNotIn(b"Nexo", body)
+            self.assertNotIn(b"/company/logo", body)
+        status, _, body = self.request("GET", "/open?token=wrong", cookie=False)
+        self.assertEqual(status, 403)
+        self.assertNotIn(b"Nexo", body)
+
+    def test_only_the_pixels_of_the_logo_are_kept(self):
+        """A colour profile, text chunks or metadata of the file are not kept
+        (review of 5d4c63a, P2-4); a transparent colour is part of the image."""
+        from PIL import PngImagePlugin
+
+        info = PngImagePlugin.PngInfo()
+        info.add_text("Comment", "<script>alert(1)</script>")
+        image = Image.new("P", (20, 10), 1)
+        image.putpalette([0, 0, 0, 255, 0, 0] + [0] * 762)
+        buffer = io.BytesIO()
+        image.save(buffer, "PNG", pnginfo=info, icc_profile=b"CHOSEN-BYTES" * 40, transparency=1)
+        status, _, body = self.logo(buffer.getvalue())
+        self.assertEqual(status, 200, body)
+        kept = company.logo_path(self.data).read_bytes()
+        for chunk in (b"iCCP", b"tEXt", b"CHOSEN", b"<script>"):
+            self.assertNotIn(chunk, kept)
+        self.assertEqual(Image.open(io.BytesIO(kept)).info.get("transparency"), 1)
+        status, _, body = self.logo(b"just some text, not an image")
+        self.assertNotIn("object at 0x", json.dumps(json.loads(body)["detail"]))
+
     def test_what_is_kept_is_the_image_written_again(self):
         """Anything a file carries besides its image (here, a page appended to a
         PNG) is not kept or served."""

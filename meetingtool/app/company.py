@@ -14,6 +14,7 @@ import dataclasses
 import io
 import json
 import os
+import re
 import unicodedata
 from pathlib import Path
 
@@ -139,14 +140,21 @@ def check_logo(data, name=""):
         with Image.open(io.BytesIO(data)) as image:
             image.load()  # every pixel: a cut image fails here
             out = io.BytesIO()
+            # Only the pixels travel: no colour profile, text or metadata of the file (review P2-4).
+            transparency = image.info.get("transparency")
+            image.info.clear()
+            if transparency is not None:
+                image.info["transparency"] = transparency
             if kind == "PNG":
-                image.save(out, "PNG")
+                image.save(out, "PNG", icc_profile=None)
             else:
-                (image if image.mode in ("RGB", "L", "CMYK") else image.convert("RGB")).save(out, "JPEG", quality=92)
+                (image if image.mode in ("RGB", "L", "CMYK") else image.convert("RGB")).save(
+                    out, "JPEG", quality=92, icc_profile=None)
     except SettingsError:
         raise
     except (OSError, SyntaxError, ValueError, Image.DecompressionBombError) as error:
-        raise SettingsError("app.logo.not_image", detail=texts.External(str(error))) from None
+        said = re.sub(r"\s*<[^<>]* object at 0x[0-9A-Fa-f]+>", "", str(error))  # no memory address (review P3)
+        raise SettingsError("app.logo.not_image", detail=texts.External(said)) from None
     return LOGO_NAMES[kind], out.getvalue()
 
 

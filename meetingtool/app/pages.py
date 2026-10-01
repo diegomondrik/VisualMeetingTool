@@ -327,7 +327,8 @@ def result_page(view, title, crumbs, record, result, file_base, open_target):
         frame_url = {name: f"{file_base}{name}" for name in result["frames"]}
         if result["summary"]:
             parts.append(f"<section class=\"summary\">{markdown(view, result['summary'], frame_url)}</section>")
-        parts.append(f"<p class=\"hint\">{view.t('app.result.images', shown=len(result['frames']), total=result['frames_total'])}</p>")
+        shown = view.t("app.result.images", shown=len(result["frames"]), total=result["frames_total"])
+        parts.append(f"<p class=\"hint\">{shown}</p>")
     elif record is not None:
         points = "".join(f"<li>{e(point)}</li>" for point in record.get("key_points", []))
         parts.append(f"<p class=\"hint\">{view.t('app.result.from_terminal')}</p>"
@@ -436,7 +437,8 @@ def settings_page(view, key_length, company, template_info=None, template_proble
             f"<form data-api=\"/api/key\" data-then=\"reload\"><label>{view.t('app.key.new')} "
             "<input name=\"key\" type=\"password\" autocomplete=\"off\" required></label>"
             f"<button type=\"submit\">{view.t('app.key.save')}</button><p class=\"message\" role=\"status\"></p></form>"
-            + (f"<form data-api=\"/api/key/delete\" data-then=\"reload\" data-confirm=\"{view.t('app.key.delete_confirm')}\">"
+            + ("<form data-api=\"/api/key/delete\" data-then=\"reload\" "
+               f"data-confirm=\"{view.t('app.key.delete_confirm')}\">"
                f"<button type=\"submit\" class=\"secondary\">{view.t('app.key.delete')}</button>"
                "<p class=\"message\" role=\"status\"></p></form>" if key_length else "")
             + f"</section><section class=\"card\"><h2>{view.t('app.template.title')}</h2>"

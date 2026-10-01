@@ -54,6 +54,8 @@ UPLOAD_SUFFIXES = {"transcript": jobs.TRANSCRIPT_SUFFIXES, "recording": jobs.REC
 # Uploads of the settings, each to its own address; a meeting's go to /api/upload.
 SETTING_UPLOADS = {"/api/template": "template", "/api/logo": "logo"}
 CHUNK = 1 << 20
+# A logo refused for being over 1 MB is still read up to this, so that the page says why.
+LOGO_DROP_LIMIT = 32 * CHUNK
 SECURITY_HEADERS = {
     "Content-Security-Policy": "default-src 'none'; script-src 'self'; style-src 'self'; img-src 'self'; "
                                "connect-src 'self'; form-action 'self'; frame-ancestors 'none'; base-uri 'none'",
@@ -127,9 +129,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def app(self):
         return self.server.app
 
-    def view(self):
+    def view(self, session=True):
         """What every screen needs from the settings: the application's
-        language and the company."""
+        language and, for a request of the session, the company (a request
+        refused before the session is checked learns nothing of the data
+        folder but its language)."""
+        if not session:
+            return pages.View(company.language(self.app.data_dir))
         owner = company.company(self.app.data_dir)
         return pages.View(company.language(self.app.data_dir), owner.name, owner.logo is not None)
 
@@ -153,11 +159,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
     def _json(self, data, status=200):
         self._send(status, json.dumps(data, ensure_ascii=False).encode("utf-8"), "application/json; charset=utf-8")
 
-    def _error(self, status, message):
+    def _error(self, status, message, session=True):
         """Answer with what failed, in the application's language: `message`
         is a texts.Message (what came from outside it goes as `detail`), or
         text said as it is."""
-        view = self.view()
+        view = self.view(session)
         text, details = texts.said(message, view.language)
         if self.path.startswith("/api/"):
             self._json({"error": text, "detail": details}, status)
@@ -181,7 +187,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         refused = refusal(self.app, self.client_address[0], self.command, address.path, self.headers)
         if refused is not None:
             self._discard_body()
-            return self._error(refused[0], texts.Message(refused[1]))
+            return self._error(refused[0], texts.Message(refused[1]), session=False)
         try:
             if self.command in ("GET", "HEAD"):
                 self._get(address)
@@ -218,6 +224,18 @@ class Handler(http.server.BaseHTTPRequestHandler):
             self.rfile.read(length)
         self._body_read = True
 
+    def _drop(self, length):
+        """Read and drop a body that is refused for its size but not huge, so
+        that the page gets the reason instead of a cut connection (a reset on
+        Windows, the independent review of 5d4c63a, P1-1)."""
+        left = length
+        while left:
+            chunk = self.rfile.read(min(CHUNK, left))
+            if not chunk:
+                break
+            left -= len(chunk)
+        self._body_read = True
+
     def _read_json(self):
         self._body_read = True
         try:
@@ -242,7 +260,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/open":
             token = parse_qs(address.query).get("token", [""])[0]
             if not hmac.compare_digest(token.encode(), app.token.encode()):
-                return self._error(403, texts.Message("app.refused.stale_link"))
+                return self._error(403, texts.Message("app.refused.stale_link"), session=False)
             cookie = f"{COOKIE}={app.token}; Path=/; HttpOnly; SameSite=Strict"
             return self._send(303, b"", "text/plain", [("Location", "/"), ("Set-Cookie", cookie)])
         parts = _segments(path)
@@ -368,6 +386,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
         except ValueError:
             raise Refused(411, "app.refused.no_file_length") from None
         if kind == "logo" and length > UPLOAD_LIMITS[kind]:
+            if length <= LOGO_DROP_LIMIT:
+                self._drop(length)
             raise Refused(413, "app.logo.too_big")
         if not 0 < length <= UPLOAD_LIMITS[kind]:
             raise Refused(413, "app.refused.empty_or_big")

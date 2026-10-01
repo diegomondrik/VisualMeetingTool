@@ -204,7 +204,10 @@ def call_name(node):
     if isinstance(func, ast.Name):
         return func.id
     if isinstance(func, ast.Attribute):
-        prefix = call_name(ast.Call(func=func.value, args=[], keywords=[])) if isinstance(func.value, (ast.Name, ast.Attribute)) else ""
+        inner = func.value
+        prefix = ""
+        if isinstance(inner, (ast.Name, ast.Attribute)):
+            prefix = call_name(ast.Call(func=inner, args=[], keywords=[]))
         return f"{prefix}.{func.attr}" if prefix else func.attr
     return ""
 
@@ -249,15 +252,17 @@ def source_problems():
             where = f"{relative}:{getattr(node, 'lineno', '?')}"
             if isinstance(node, ast.Raise) and isinstance(node.exc, ast.Call):
                 name = call_name(node.exc)
-                simple = name.rsplit(".", 1)[-1]
-                if simple in failures:
-                    problems += check_key_call(node.exc, 1 if simple == "Refused" else 0, where)
-                    first = node.exc.args[1 if simple == "Refused" else 0] if node.exc.args else None
-                    if not (isinstance(first, ast.Constant) or (isinstance(first, ast.Attribute)
-                                                                and first.attr == "message")):
-                        problems.append(f"{where}: {simple} raised with text that is not a key")
-                elif (relative, name) not in OUTSIDE_RAISES:
+                if name.rsplit(".", 1)[-1] not in failures and (relative, name) not in OUTSIDE_RAISES:
                     problems.append(f"{where}: {name} is raised with text outside the list of messages")
+            elif isinstance(node, ast.Call) and call_name(node).rsplit(".", 1)[-1] in failures:
+                # Every error of the program made, raised at once or not (review of 5d4c63a, P2-3).
+                simple = call_name(node).rsplit(".", 1)[-1]
+                index = 1 if simple == "Refused" else 0
+                problems += check_key_call(node, index, where)
+                first = node.args[index] if len(node.args) > index else None
+                if not (isinstance(first, ast.Constant) or (isinstance(first, ast.Attribute)
+                                                            and first.attr == "message")):
+                    problems.append(f"{where}: {simple} made with text that is not a key")
             elif isinstance(node, ast.Call) and call_name(node).rsplit(".", 1)[-1] in SAYING:
                 problems += check_key_call(node, 0, where)
     return problems
@@ -288,7 +293,9 @@ FILE_SUFFIXES = {"docx", "dotx", "json", "md", "js", "css", "jpg", "png", "txt",
 def script_literals(source=None):
     source = SCRIPT.read_text(encoding="utf-8") if source is None else source
     source = re.sub(r"^\s*//.*$", "", source, flags=re.MULTILINE)
-    return re.findall(r'"((?:[^"\\\n]|\\.)*)"', source)
+    # Between double quotes, single quotes or backquotes (review of 5d4c63a, P2-2).
+    found = re.findall(r'"((?:[^"\\\n]|\\.)*)"|\'((?:[^\'\\\n]|\\.)*)\'|`((?:[^`\\]|\\.)*)`', source)
+    return [next((part for part in parts if part), "") for parts in found]
 
 
 def script_problems(source=None):
@@ -311,7 +318,8 @@ class SourceTest(unittest.TestCase):
         missing value, and one of a key that does not exist are caught."""
         planted = {
             "meetingtool/planted.py": "from meetingtool.frames.extract import FramesError\n"
-                                      "def f(path):\n    raise FramesError(f'recording {path} is broken')\n",
+                                      "def f(path):\n    error = FramesError(f'recording {path} is broken')\n"
+                                      "    raise error\n",
             "meetingtool/planted2.py": "from meetingtool.frames.extract import FramesError\n"
                                        "def f(path):\n    raise FramesError('frames.not_local')\n",
             "meetingtool/planted3.py": "from meetingtool.frames.extract import FramesError\n"
@@ -327,7 +335,7 @@ class SourceTest(unittest.TestCase):
         with mock.patch(f"{__name__}.sources", with_planted):
             problems = source_problems()
         self.assertEqual(len(problems), 3, problems)
-        self.assertIn("raised with text that is not a key", problems[0])
+        self.assertIn("made with text that is not a key", problems[0])
         self.assertIn("names ['path']", problems[1])
         self.assertIn("is not an entry of the list", problems[2])
 
@@ -342,10 +350,11 @@ class SourceTest(unittest.TestCase):
         self.assertEqual(script_problems(), [])
 
     def test_a_text_written_in_the_script_is_caught(self):
-        source = SCRIPT.read_text(encoding="utf-8").replace('say(form, text("js.wait"));',
-                                                           'say(form, "Un momento…");')
-        self.assertEqual(script_problems(source), ["app.js: 'Un momento…' is written in the script, not taken "
-                                                   "from the list"])
+        for written in ('"Un momento…"', "'Un momento…'", "`Un momento…`"):
+            source = SCRIPT.read_text(encoding="utf-8").replace('say(form, text("js.wait"));',
+                                                               f"say(form, {written});")
+            self.assertEqual(script_problems(source), ["app.js: 'Un momento…' is written in the script, not taken "
+                                                       "from the list"], written)
 
 
 # ── WI17-AC03: every screen in the language it is set to ──────────────────────
@@ -363,8 +372,10 @@ class _Visible(html.parser.HTMLParser):
     def handle_starttag(self, tag, attributes):
         if tag in ("script", "style"):
             self.skip += 1
+        # A button's text can be its value (review of 5d4c63a, P2-2).
+        button = tag == "input" and dict(attributes).get("type") in ("submit", "button", "reset")
         for name, value in attributes:
-            if name in self.SAID_ATTRIBUTES and value:
+            if (name in self.SAID_ATTRIBUTES or (button and name == "value")) and value:
                 self.parts.append(value)
             if name == "data-texts" and value:
                 self.script_texts = json.loads(value)
@@ -394,7 +405,7 @@ def visible(page):
 PROJECT, CLIENT, COMPANY = "Zeta 9", "Omega", "Nexo"
 PROCESSED, TERMINAL, LOOSE, TEMPLATE = "Kappa 3", "Sigma 2", "tanda-07", "G7.dotx"
 DATA = (PROJECT, CLIENT, COMPANY, PROCESSED, TERMINAL, LOOSE, TEMPLATE, "zeta-9", "MeetingTool", "US$", "HTTP",
-        "Gemini", "Word")
+        "Gemini", "Word", document.TEMPLATE_NAME)
 ALLOWED_WORDS = {"s", PSEUDO}  # the seconds' unit, next to a number; the made-up language's code
 NAMES = re.compile(r"\{[a-z_]+\}")  # the data an entry of the page's script names, which the script puts in
 
@@ -462,7 +473,18 @@ class ScreensLanguageTest(Running):
                      f"/r/{LOOSE}", "/settings", f"/job/{self.job}", "/no-such-page"):
             status, _, body = self.request("GET", path)
             said[path] = (status, body.decode("utf-8"))
-        return said
+        # The settings' other branches: no key and no template, then a template that can no longer be used
+        # (review of 5d4c63a, P2-2).
+        key, template = self.keys.key, (self.data / document.TEMPLATE_NAME).read_bytes()
+        self.keys.key = None
+        document.remove_template(self.data)
+        said["/settings (no key, no template)"] = self.request("GET", "/settings")[0:3:2]
+        (self.data / document.TEMPLATE_NAME).write_bytes(b"not a word file")
+        said["/settings (template no longer usable)"] = self.request("GET", "/settings")[0:3:2]
+        self.keys.key = key
+        (self.data / document.TEMPLATE_NAME).write_bytes(template)
+        return {path: (status, body if isinstance(body, str) else body.decode("utf-8"))
+                for path, (status, body) in said.items()}
 
     def answers(self):
         """What the page's script shows, from the server's answers: a job that

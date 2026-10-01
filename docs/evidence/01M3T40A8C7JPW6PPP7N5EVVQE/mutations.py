@@ -15,6 +15,7 @@ import sys
 from pathlib import Path
 
 PAGES = "meetingtool/app/pages.py"
+SERVER = "meetingtool/app/server.py"
 SCRIPT = "meetingtool/app/static/app.js"
 JOBS = "meetingtool/app/jobs.py"
 COMPANY = "meetingtool/app/company.py"
@@ -75,6 +76,22 @@ MUTATIONS = [
      "    tab = \" · \".join(part for part in (title, BRAND) if part)\n"),
     ("a terminal message changed (AC09)", EN,
      '"qa.stopped": "{error}{before} [stopped at {stage}', '"qa.stopped": "{error}{before} [halted at {stage}'),
+    # Added after the independent review of 5d4c63a.
+    ("a logo over 1 MB answered before its body is read (review P1-1)", SERVER,
+     "            if length <= LOGO_DROP_LIMIT:\n                self._drop(length)\n", ""),
+    ("a request refused before the session shown the company (review P2-1)", SERVER,
+     "            return self._error(refused[0], texts.Message(refused[1]), session=False)\n",
+     "            return self._error(refused[0], texts.Message(refused[1]))\n"),
+    ("the logo's colour profile kept (review P2-4)", COMPANY,
+     '            transparency = image.info.get("transparency")\n            image.info.clear()\n'
+     '            if transparency is not None:\n                image.info["transparency"] = transparency\n'
+     '            if kind == "PNG":\n                image.save(out, "PNG", icc_profile=None)\n',
+     '            if kind == "PNG":\n                image.save(out, "PNG")\n'),
+    ("an error made with written text and raised later (review P2-3)", GEMINI,
+     '        raise ReadingError("gemini.bad_key")\n',
+     '        error = ReadingError("the saved key has characters a Gemini key never has")\n        raise error\n'),
+    ("a text between single quotes in the page's script (review P2-2)", SCRIPT,
+     'say(form, text("js.wait"));', "say(form, 'Un momento…');"),
 ]
 
 

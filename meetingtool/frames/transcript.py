@@ -55,7 +55,8 @@ def _docx_lines(path):
         with zipfile.ZipFile(path) as archive:
             root = ElementTree.fromstring(archive.read("word/document.xml"))
     except (zipfile.BadZipFile, KeyError, ElementTree.ParseError, OSError) as error:
-        raise TranscriptError("transcript.word_unreadable", path=str(path), detail=texts.External(str(error))) from error
+        raise TranscriptError("transcript.word_unreadable", path=str(path),
+                              detail=texts.External(str(error))) from error
     lines = []
     for paragraph in root.iter(f"{_W}p"):
         pieces = []

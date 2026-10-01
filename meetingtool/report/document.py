@@ -603,8 +603,8 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     except OSError as error:
         partial.unlink(missing_ok=True)
         hint = texts.Message("report.close_word") if isinstance(error, PermissionError) else ""
-        raise ReportError("report.cannot_replace", path=str(output.resolve()), detail=texts.External(str(error.strerror)),
-                          hint=hint) from None
+        raise ReportError("report.cannot_replace", path=str(output.resolve()),
+                          detail=texts.External(str(error.strerror)), hint=hint) from None
     return ReportResult(output, language, len(frames), len(headings), output.stat().st_size,
                         time.monotonic() - started, template, cover, found.fields if found else [],
                         sum(len(entries) for entries in contents), found.dropped if found else 0)
