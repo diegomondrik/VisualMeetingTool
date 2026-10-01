@@ -463,6 +463,33 @@ class CompanyTest(Running):
             self.assertIn("pesa más de 1 MB", json.loads(body)["error"])
         self.assertNoLogo()
 
+    def test_a_logo_of_more_than_1_mb_is_read_before_the_answer(self):
+        """What makes the reason arrive, shown without depending on chance:
+        with only part of the body sent, the server waits for the rest instead
+        of answering (an answer before the body is read is what a reset cut on
+        Windows; the 20 uploads above did not always show it)."""
+        length, first = company.LOGO_LIMIT + 400_000, 100_000
+        connection = socket.create_connection((server.HOST, self.app.port), timeout=30)
+        try:
+            connection.sendall((f"PUT /api/logo?name=logo.png HTTP/1.1\r\nHost: {server.HOST}:{self.app.port}\r\n"
+                                f"Cookie: {server.COOKIE}={self.app.token}\r\nX-MeetingTool: 1\r\n"
+                                f"Content-Type: application/octet-stream\r\nContent-Length: {length}\r\n\r\n")
+                               .encode("ascii") + bytes(first))
+            connection.settimeout(1.5)
+            with self.assertRaises(socket.timeout):
+                connection.recv(1)  # still reading the body: no answer yet
+            connection.settimeout(30)
+            connection.sendall(bytes(length - first))
+            answer = b""
+            while chunk := connection.recv(65536):
+                answer += chunk
+        finally:
+            connection.close()
+        head, _, body = answer.partition(b"\r\n\r\n")
+        self.assertTrue(head.startswith(b"HTTP/1.0 413") or head.startswith(b"HTTP/1.1 413"), head[:40])
+        self.assertIn("pesa más de 1 MB", json.loads(body)["error"])
+        self.assertNoLogo()
+
     def test_a_refused_request_learns_nothing_of_the_company(self):
         """A request without the session, or for another host, gets the refusal
         in the application's language, without the company's name or logo

@@ -41,6 +41,29 @@ objective: >
   added); translating the terminal; the logo inside the Word report (the
   template carries it); the installer (WI18) and its window (D-187); the
   guide (WI19).
+
+  Corrected after the independent review of 5d4c63a and its re-verification
+  (docs/evidence/01M3T40A8C7JPW6PPP7N5EVVQE/independent-review.md): a logo
+  refused for being over 1 MB is read before the answer, so the page gets the
+  reason instead of a cut connection (P1-1: the suite failed one run in three
+  on Windows); a request refused before the session sees neither the
+  company's name nor its logo (P2-1); the checks of AC03 and AC06 read texts
+  between single quotes and backquotes, a button's value, the settings'
+  other branches, and every error of the program made, raised at once or not
+  (P2-2, P2-3); the logo keeps only its pixels and its transparent colour,
+  no colour profile, text or metadata (P2-4); a detail carries no memory
+  address (P3).
+
+  Known limitations (independent review): text put by hand in a JSON answer
+  of the server or in a job's error, without an error of the program, is
+  seen by no control unless a test goes through that path; a text in a
+  branch no test shows, or built by joining pieces in the page's script, can
+  escape the screens' check; an error of the program given text that is not
+  an entry says it as it is (the tests use that to stand in for a failure);
+  a logo of more than 32 MB still gets a cut connection; the settings show a
+  template that can no longer be used without its detail; a language request
+  without a language says "None"; data given with a Message to Failure is
+  ignored.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M3T40A8C7JPW6PPP7N5EVVQE/**

@@ -1,0 +1,24 @@
+WI17-AC08: real run at no cost, commit b7b749d, 2026-10-01T00:59:05Z
+data folder: a new one under %TEMP% (not the owner's); transcript: a copy of the BumbleBee meeting's (TLB Module Catch-up, 2026-09-22); the Gemini key read from the Windows Credential Manager, never sent
+console of the application at start (its language then, Spanish):
+  MeetingTool está abierto en tu navegador (http://127.0.0.1:57665); sólo esta máquina puede entrar.
+  Si no se abrió, pegá esta dirección en el navegador: http://127.0.0.1:57665/open?token=<hidden>
+  Dejá esta ventana abierta mientras lo uses; para cerrarlo, cerrá esta ventana o apretá Ctrl+C.
+language set to English: (200, b'{"language": "en"}')
+settings page: 200 True True
+transcript uploaded: 912309 bytes
+process request: 200
+job state: failed
+failed stage: Questions and answers (qa)
+error: stopped before sending the register (part 1 of 1): that request could cost up to US$0.13, and with about US$0.00 already spent it could go over the budget of US$0.01; nothing was written [stopped at register 1/1 after 0 attempt(s) of it; about US$0.000 spent in all; the register was not written]
+detail: []
+spent_usd: 0.0 of a ceiling of 0.01
+  stage frames (Frames of the video): skipped, 0.0 s, US$0.0
+  stage reading (Reading of the frames): skipped, 0.0 s, US$0.0
+  stage qa (Questions and answers): failed, 0.1 s, US$0.0
+  stage report (Word report): pending, 0.0 s, US$0.0
+project screen: 200 True True
+meetings kept in the project: 0
+seconds in all: 1.1
+
+The owner's judgment (WI17-AC08), 2026-10-01: the owner opened the application on the owner's own data folder, set the company's name and logo in Settings, went through the screens in English and in Spanish, and said: "everything looks good".

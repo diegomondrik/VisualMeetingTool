@@ -3,7 +3,9 @@ one part of the language of the application, of the list of messages or of
 the company's name and logo, in a copy of the working tree, runs the tests
 that guard it, and must make them fail.
 
-    python docs/evidence/01M3T40A8C7JPW6PPP7N5EVVQE/mutations.py <repository> <empty folder outside it>
+    python docs/evidence/01M3T40A8C7JPW6PPP7N5EVVQE/mutations.py <repository> <empty folder outside it> [label part]
+
+With a third argument, only the mutations whose label holds it are run.
 
 The output of the recorded run is mutations.txt next to this file.
 """
@@ -109,7 +111,7 @@ def run_tests(work):
         return subprocess.CompletedProcess([], 124, "", "FAILED (timeout)")
 
 
-def main(source, work):
+def main(source, work, only=""):
     source, work = Path(source), Path(work)
     shutil.copytree(source, work, ignore=shutil.ignore_patterns(".git", "__pycache__"))
     names = sorted({name for _, name, _, _ in MUTATIONS})
@@ -119,6 +121,8 @@ def main(source, work):
     detected_all = True
     try:
         for label, name, old, new in MUTATIONS:
+            if only not in label:
+                continue
             original = originals[name]
             if original.count(old) != 1:
                 raise SystemExit(f"mutation {label!r} does not apply exactly once")
@@ -138,4 +142,4 @@ def main(source, work):
 
 
 if __name__ == "__main__":
-    sys.exit(main(*sys.argv[1:3]))
+    sys.exit(main(*sys.argv[1:4]))
