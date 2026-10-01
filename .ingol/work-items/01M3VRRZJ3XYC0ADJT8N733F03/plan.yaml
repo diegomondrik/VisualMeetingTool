@@ -1,0 +1,64 @@
+schema_version: "1"
+work_item: 01M3VRRZJ3XYC0ADJT8N733F03
+status: approved
+next_gate: implement-then-build-then-clean-machine-then-independent-review-then-open-the-pull-request-then-release
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M3VRRZJ3XYC0ADJT8N733F03-windows-installer
+steps:
+  - every-screen-and-action-in-the-window-wi18-ac01
+  - closing-with-the-x-asks-during-a-processing-wi18-ac02
+  - one-application-per-data-folder-wi18-ac03
+  - protections-of-today-hold-wi18-ac04
+  - installer-built-with-one-command-wi18-ac05
+  - installer-language-is-the-default-language-wi18-ac06
+  - clean-machine-in-windows-sandbox-wi18-ac07
+  - real-run-on-the-clean-machine-if-asked-wi18-ac08
+  - nothing-else-changes-and-the-suite-in-a-fresh-clone-wi18-ac09
+evaluations:
+  - criterion: WI18-AC01
+    method: external-evidence
+    control: >-
+      tests/test_window.py opens the window code with a fake webview and checks
+      the address, the downloads setting and the WebView2 choice; the owner
+      goes through every screen and action in the installed window.
+  - criterion: WI18-AC02
+    method: deterministic
+    control: >-
+      tests/test_window.py closes the window while a faked meeting is
+      processed, answering yes and no, and with nothing being processed.
+  - criterion: WI18-AC03
+    method: deterministic
+    control: >-
+      tests/test_window.py starts the window twice on one data folder and
+      reads the message of the second.
+  - criterion: WI18-AC04
+    method: adversarial
+    control: >-
+      The tests of the application's server pass unchanged, plus one that
+      sends a request without the session while the window holds it.
+  - criterion: WI18-AC05
+    method: external-evidence
+    control: >-
+      python packaging/build.py in a fresh clone; its output and the .exe's
+      size and SHA-256 committed.
+  - criterion: WI18-AC06
+    method: deterministic
+    control: >-
+      tests/test_window.py reads the installer's language file into the
+      application's default language, and keeps a language chosen in Settings;
+      the clean-machine run installs in English and again in Spanish.
+  - criterion: WI18-AC07
+    method: external-evidence
+    control: >-
+      The installer run in Windows Sandbox, step by step, with what happened
+      written and screenshots, committed.
+  - criterion: WI18-AC08
+    method: external-evidence
+    control: >-
+      Numbers of the real run only (images, cost, time); the owner's judgement.
+  - criterion: WI18-AC09
+    method: deterministic
+    control: >-
+      python -m unittest discover -s tests -v in a fresh clone of the tested
+      commit; complete output committed.

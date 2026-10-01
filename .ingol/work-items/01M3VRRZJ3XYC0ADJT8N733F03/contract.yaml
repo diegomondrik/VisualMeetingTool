@@ -1,0 +1,116 @@
+schema_version: "1"
+id: 01M3VRRZJ3XYC0ADJT8N733F03
+objective: >
+  The Windows installer of VisualMeetingTool (INGOL D-185, renumbered WI18 by
+  D-188; its own window by D-187). Approved by the owner ("dale", 2026-10-01)
+  on docs/proposals/wi18-installer-proposal.md of this repository, with the
+  language of the installer added at the owner's request before approving.
+  The proposal is the authority for anything this text summarises. INGOL's
+  ledger is not written by this line of work (INGOL D-179, D-189).
+
+  What it delivers. VisualMeetingTool-Setup-<version>.exe, published on the
+  repository's releases page. Double-clicked, it first asks in which language
+  the installer is to be read (Spanish or English), and stays in that
+  language, uninstalling included. It installs for the current user only,
+  without administrator rights, with a Start-menu shortcut and an optional
+  desktop one. Python is not needed: the program carries it.
+
+  The window (D-187). The installed application opens its own window, with
+  the screens of WI15 to WI17 inside, through the web component that
+  Windows 11 already has (WebView2): no browser, no tab, no terminal. It is
+  closed with the X; if a meeting is being processed it asks first, and if
+  the answer is yes the meeting is dropped leaving nothing half done. Every
+  action of the screens works in it: uploading a recording, a transcript,
+  a template and a logo; downloading the example template; opening the Word
+  report. The server inside keeps every protection it has today: it listens
+  on this machine only and needs its session token, which only the window
+  gets. A second start on the same data folder does not start a second
+  application: it says so and stops.
+
+  The language. The installed application starts in the language chosen for
+  the installer. It is the default only: it is changed in Settings as
+  today, and a language already chosen in Settings wins over the
+  installer's. The summary's language stays separate.
+
+  The data stay outside the program, in the user's data folder as today:
+  uninstalling removes the program and not the data; installing a new
+  version over it keeps the data and the Gemini key. The installer never
+  carries a Gemini key.
+
+  The recipe. One command builds the installer from the code on a machine
+  with the build tools, whose versions are pinned in the repository. The
+  tools are free: PyInstaller, pywebview and Inno Setup.
+
+  Not done (proposal): the guide (WI19); signing the program (Windows warns
+  about an unsigned program the first time); automatic updates (a new
+  version is installed by running its installer over the old one); Mac,
+  Linux and Windows 10; any change in what the application does or how it
+  processes a meeting; `python -m meetingtool app` keeps opening the browser
+  (D-187). Whether each person uses their own Gemini key or a shared one is
+  left to WI19: the installer carries none in either case.
+
+  Authorised beyond D-100/D-107 by the same "dale" (the proposal's
+  authorisation block): installing the build tools on the owner's machine,
+  and publishing the first release with the installer attached on this
+  public repository once integrated. One real run on the clean machine with
+  the owner's key, ceiling US$1.00, only if the owner asks for it.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M3VRRZJ3XYC0ADJT8N733F03/**
+  - docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/**
+  - docs/proposals/**
+  - docs/limitations/**
+  - meetingtool/**
+  - packaging/**
+  - tests/**
+  - README.md
+  - pyproject.toml
+  - .gitignore
+acceptance:
+  - id: WI18-AC01
+    description: >
+      Opened in its own window, every screen and every action works as in the
+      browser: uploading a recording, a transcript, a template and a logo;
+      downloading the example template; opening the Word report.
+  - id: WI18-AC02
+    description: >
+      Closing with the X while a meeting is processed asks first; confirmed,
+      nothing is left half done; refused, the processing goes on; with
+      nothing being processed it closes without asking.
+  - id: WI18-AC03
+    description: >
+      A second start on the same data folder does not start another
+      application; it says so in the application's language.
+  - id: WI18-AC04
+    description: >
+      The protections of today hold: a request from another machine or from
+      another page is refused, also with the window open; the tests of WI15
+      pass unchanged.
+  - id: WI18-AC05
+    description: >
+      The installer is built from the code with one command in a fresh clone;
+      its output and the size of the .exe are committed as evidence.
+  - id: WI18-AC06
+    description: >
+      The installer asks for its language first (Spanish or English) and stays
+      in it, uninstalling included; the installed application starts in that
+      language; a language already chosen in Settings is kept.
+  - id: WI18-AC07
+    description: >
+      On a clean machine (Windows Sandbox): installing without administrator
+      rights, opening, processing at no cost, closing with the X during a
+      processing, installing again over it and uninstalling, without losing
+      the data; what the Windows antivirus said is recorded.
+  - id: WI18-AC08
+    description: >
+      Real run, only if the owner asks for it: a short meeting processed on the
+      clean machine with the owner's key, typed by the owner, ceiling US$1.00,
+      Word report opened; the owner says whether it is understood.
+  - id: WI18-AC09
+    description: >
+      Without the installer everything stays as it is: the commands and
+      `python -m meetingtool app` do what they do today; the whole suite
+      passes with `python -m unittest discover -s tests -v` in a fresh clone
+      of the tested commit on the owner's machine, and its complete output is
+      committed under docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/ before the
+      pull request (INGOL D-163).
