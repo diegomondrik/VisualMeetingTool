@@ -258,6 +258,25 @@ class LogTest(Folders):
         self.assertIn(str(self.tmp / "log" / window.LOG_NAME), text)
         self.assertIn("the page did not load", (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8"))
 
+    def test_webview2_failing_to_start_is_said_at_once_with_how_to_repair_it(self):
+        """As in Windows Sandbox: WebView2 registered, but it cannot start."""
+        def while_shown(webview):
+            logging.getLogger("pywebview").error(
+                "WebView2 initialization failed with exception: Couldn't find a compatible Webview2 Runtime "
+                "installation to host WebViews.")
+            time.sleep(1.0)
+
+        started = time.monotonic()
+        self.load_wait = 20
+        self.window(FakeWebview(while_shown, loads=False)).run()
+        self.assertLess(time.monotonic() - started, 10)
+        self.assertEqual(len(self.boxes.told), 1)
+        text = self.boxes.told[0][1]
+        self.assertIn("no pudo arrancar", text)
+        self.assertIn("Microsoft Edge WebView2 Runtime", text)
+        self.assertIn(str(self.tmp / "log" / window.LOG_NAME), text)
+        self.assertIn("Couldn't find a compatible", (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8"))
+
     def test_a_page_that_loads_says_nothing(self):
         self.window(FakeWebview(lambda webview: time.sleep(1.0))).run()
         self.assertEqual(self.boxes.told, [])

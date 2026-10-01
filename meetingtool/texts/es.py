@@ -400,6 +400,10 @@ TEXTS = {
                               "(Microsoft Edge WebView2). Instalalo desde la página de Microsoft y volvé a abrir "
                               "MeetingTool.",
     "app.window.failed": "MeetingTool no pudo abrirse[[: {error}]]",
+    "app.window.webview2_failed": "El componente de Windows que muestra las pantallas de MeetingTool (Microsoft "
+                                  "Edge WebView2) no pudo arrancar. Instalalo o reparalo desde la página de "
+                                  "Microsoft («Microsoft Edge WebView2 Runtime») y volvé a abrir MeetingTool. Lo "
+                                  "que pasó está en {log}",
     "app.window.not_shown": "La ventana de MeetingTool no pudo mostrar sus pantallas. Cerrala y volvé a "
                             "abrirla; si sigue igual, el detalle de lo que pasó está en {log}",
 

@@ -1,0 +1,26 @@
+WI18-AC07, first clean-machine attempt: Windows Sandbox on the owner's machine, 2026-10-01.
+Installer: the build of commit 0ec1f6c-era (the log build), installed in Spanish then English by the owner; the window stayed blank.
+Cause (the log below, copied by the owner from the sandbox): WebView2 is registered in the sandbox (pv 153.0.4234.48) but cannot start:
+"Couldn't find a compatible Webview2 Runtime installation" / "package dependency criteria could not be resolved".
+Known limitation of Windows Sandbox on Windows 11 24H2, not of the program: https://github.com/MicrosoftEdge/WebView2Feedback/issues/5697
+(installing the runtime inside the sandbox fails as well). The same program shows its screens on the owner's machine.
+What changed because of it: the window now says at once that WebView2 could not start and how to repair it (app.window.webview2_failed).
+
+--- window.log from the sandbox ---
+2026-10-01 20:12:14,076 INFO meetingtool.window: VisualMeetingTool 0.1.0, Python 3.12.10, Windows 10.0.26100, program C:\Users\WDAGUtilityAccount\AppData\Local\Programs\VisualMeetingTool
+2026-10-01 20:12:14,076 INFO meetingtool.window: WebView2 runtime 153.0.4234.48; language es (installer's: es)
+2026-10-01 20:12:14,201 INFO meetingtool.window: server at http://127.0.0.1:49724
+2026-10-01 20:12:18,652 ERROR pywebview: WebView2 initialization failed with exception:
+ Couldn't find a compatible Webview2 Runtime installation to host WebViews. ---> System.IO.FileNotFoundException: No se pudieron resolver los criterios de dependencia del paquete.\u000d\u000a
+No se pudieron resolver los criterios de dependencia del paquete.\u000d\u000a
+   --- End of inner exception stack trace ---
+   at Microsoft.Web.WebView2.Core.CoreWebView2Environment.<CreateAsync>d__102.MoveNext()
+--- End of stack trace from previous location where exception was thrown ---
+   at System.Runtime.ExceptionServices.ExceptionDispatchInfo.Throw()
+   at System.Runtime.CompilerServices.TaskAwaiter.HandleNonSuccessAndDebuggerNotification(Task task)
+   at Microsoft.Web.WebView2.WinForms.WebView2.<InitCoreWebView2Async>d__25.MoveNext()
+2026-10-01 20:12:18,763 INFO meetingtool.window: window shown, renderer edgechromium
+2026-10-01 20:12:48,780 ERROR meetingtool.window: the page did not load in 30 seconds
+2026-10-01 20:12:56,498 INFO meetingtool.window: closed
+2026-10-01 20:12:56,530 WARNING pywebview: Failed to delete user data folder: 'NoneType' object has no attribute 'BrowserProcessId'
+2026-10-01 20:12:56,593 INFO meetingtool.window: window gone

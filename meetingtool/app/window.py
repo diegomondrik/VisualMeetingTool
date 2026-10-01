@@ -16,8 +16,10 @@ page shares the window. `python -m meetingtool app` keeps opening the browser.
 - What happened at the last start is written to a log (LOG_NAME, in the
   user's local application data, outside the data folder; the session token
   never in it). WebView2 can fail to start and leave the window blank, saying
-  it only to pywebview's log: a window whose page has not loaded after
-  LOAD_WAIT seconds says so in a box, with the log's place.
+  it only to pywebview's log (it did in Windows Sandbox, whose WebView2 is
+  registered but cannot start): that failure is said at once in a box, how to
+  repair it and the log's place; a page that has not loaded after LOAD_WAIT
+  seconds for any other reason is said too.
 
 Everything that touches the machine (pywebview, the message boxes, the
 registry) can be replaced, so the tests need none of them.
@@ -127,6 +129,21 @@ class Hidden(logging.Filter):
         return True
 
 
+class WebView2Failed(logging.Handler):
+    """Hears pywebview say that WebView2 could not start."""
+
+    SIGN = "WebView2 initialization failed"
+
+    def __init__(self, failed, settled):
+        super().__init__(logging.ERROR)
+        self.failed, self.settled = failed, settled
+
+    def emit(self, record):
+        if self.SIGN in record.getMessage():
+            self.failed.set()
+            self.settled.set()
+
+
 class Window:
     def __init__(self, data_dir=None, *, folder=None, webview=None, ask=ask, tell=tell,
                  has_webview2=webview2_version, make_app=server.App, log_folder=None, load_wait=LOAD_WAIT):
@@ -139,7 +156,8 @@ class Window:
         self.make_app = make_app
         self.log_path = Path(log_folder or log_dir()) / LOG_NAME
         self.load_wait = load_wait
-        self.loaded = threading.Event()
+        self.loaded, self.webview2_failed = threading.Event(), threading.Event()
+        self.settled = threading.Event()  # loaded, or WebView2 failed
         self.hidden = Hidden()
         self.app = None
 
@@ -177,13 +195,17 @@ class Window:
     def on_loaded(self, *args):
         log.info("page loaded")
         self.loaded.set()
+        self.settled.set()
 
     def on_shown(self, *args):
         log.info("window shown, renderer %s", getattr(self.webview, "renderer", None))
         threading.Thread(target=self.watch_the_load, daemon=True).start()
 
     def watch_the_load(self):
-        if not self.loaded.wait(self.load_wait):
+        self.settled.wait(self.load_wait)
+        if self.webview2_failed.is_set():
+            self.tell(TITLE, self.say(texts.Message("app.window.webview2_failed", log=str(self.log_path))))
+        elif not self.loaded.is_set():
             log.error("the page did not load in %s seconds", self.load_wait)
             self.tell(TITLE, self.say(texts.Message("app.window.not_shown", log=str(self.log_path))))
 
@@ -205,9 +227,12 @@ class Window:
 
     def run(self):
         handler = self.start_log()
+        hearing = WebView2Failed(self.webview2_failed, self.settled)
+        logging.getLogger("pywebview").addHandler(hearing)
         try:
             return self._run()
         finally:
+            logging.getLogger("pywebview").removeHandler(hearing)
             if handler is not None:
                 logging.getLogger().removeHandler(handler)
                 handler.close()
