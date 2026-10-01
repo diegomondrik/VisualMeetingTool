@@ -1,9 +1,11 @@
-(fresh clone of b7b749d, 2026-10-01T00:59:00Z, python -m unittest discover -s tests -v)
+(fresh clone of 7955616, 2026-10-01T01:54:45Z, python -m unittest discover -s tests -v)
 test_meetingtool_app_serves_its_page_on_this_machine (test_app.CommandTest.test_meetingtool_app_serves_its_page_on_this_machine) ... ok
 test_the_help_names_the_application (test_app.CommandTest.test_the_help_names_the_application) ... ok
 test_the_page_files_are_packaged (test_app.CommandTest.test_the_page_files_are_packaged) ... ok
 test_a_logo_of_more_than_1_mb_gets_its_reason_every_time (test_app.CompanyTest.test_a_logo_of_more_than_1_mb_gets_its_reason_every_time)
 The body of a refused logo is read before the answer, so the page ... ok
+test_a_logo_of_more_than_1_mb_is_read_before_the_answer (test_app.CompanyTest.test_a_logo_of_more_than_1_mb_is_read_before_the_answer)
+What makes the reason arrive, shown without depending on chance: ... ok
 test_a_logo_of_more_than_1_mb_is_refused_saying_why (test_app.CompanyTest.test_a_logo_of_more_than_1_mb_is_refused_saying_why) ... ok
 test_a_logo_that_is_not_a_real_png_or_jpg_is_refused_and_nothing_is_kept (test_app.CompanyTest.test_a_logo_that_is_not_a_real_png_or_jpg_is_refused_and_nothing_is_kept) ... ok
 test_a_name_that_cannot_be_shown_is_refused (test_app.CompanyTest.test_a_name_that_cannot_be_shown_is_refused) ... ok
@@ -392,6 +394,6 @@ test_text_that_is_not_an_entry_is_kept_as_it_is (test_texts.TerminalTest.test_te
 test_the_prompts_to_gemini_do_not_change (test_texts.TerminalTest.test_the_prompts_to_gemini_do_not_change) ... ok
 
 ----------------------------------------------------------------------
-Ran 378 tests in 223.582s
+Ran 379 tests in 232.452s
 
 OK

@@ -194,3 +194,9 @@ Ninguno.
 - La salida de la suite para AC09, en un clon limpio en la máquina del owner.
 - La salida de `mutations.py`.
 - `independent-review.md`, hoy sin commitear.
+
+---
+
+# Nota del implementador después de la re-verificación, commit 7955616
+
+La corrida de mutaciones sobre b7b749d (mutations.txt, corrida 2) **no detectó** la mutación que quita la corrección de P1-1: la prueba de 20 subidas no siempre muestra la conexión cortada, así que no protegía la corrección. Se agregó una prueba que no depende del azar (`CompanyTest.test_a_logo_of_more_than_1_mb_is_read_before_the_answer`): manda sólo una parte del cuerpo y exige que el servidor espere el resto antes de contestar. Con la corrección pasa (5 de 5); sin ella falla (corrida 3: DETECTED). Sólo cambió una prueba y `mutations.py` (un filtro por etiqueta); el código del programa es el que la re-verificación aprobó. Suite completa en un clon limpio de 7955616: 379 pruebas, OK.
