@@ -34,8 +34,20 @@ MUTATIONS = [
      "            if self.app is not None:\n                self.app.runner.close()\n                self.app.stop()\n",
      "            if self.app is not None:\n                self.app.stop()\n",
      ["tests.test_window.LogTest"]),
+    # The fix has two layers (no interpolation, and the read inside the try): the code as it was, without both.
     ("a % in installation.ini is read as a reference (review P2-1)", WINDOW,
-     "configparser.ConfigParser(interpolation=None)", "configparser.ConfigParser()",
+     "    parser = configparser.ConfigParser(interpolation=None)  # a % in the file is text (review P2-1)\n"
+     "    try:\n"
+     "        parser.read(Path(folder) / INSTALLATION_FILE, encoding=\"utf-8\")\n"
+     "        value = parser.get(\"installation\", \"language\", fallback=\"\").strip().lower()\n"
+     "    except (OSError, configparser.Error, UnicodeDecodeError):\n"
+     "        return None\n",
+     "    parser = configparser.ConfigParser()\n"
+     "    try:\n"
+     "        parser.read(Path(folder) / INSTALLATION_FILE, encoding=\"utf-8\")\n"
+     "    except (OSError, configparser.Error, UnicodeDecodeError):\n"
+     "        return None\n"
+     "    value = parser.get(\"installation\", \"language\", fallback=\"\").strip().lower()\n",
      ["tests.test_window.LanguageTest"]),
     ("the trace of an exception keeps the token (review P3-2)", WINDOW,
      "            record.exc_info, record.exc_text = None, None\n", "",
