@@ -29,7 +29,7 @@ class Event:
     def __init__(self):
         self.handlers = []
 
-    def __iadd__(self, handler):
+    def __add__(self, handler):  # as pywebview's: `+=` goes through __add__
         self.handlers.append(handler)
         return self
 
