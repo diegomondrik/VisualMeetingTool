@@ -23,6 +23,7 @@ import threading
 import time
 from pathlib import Path
 
+from meetingtool import texts
 from meetingtool.app import library
 from meetingtool.projects import store
 from meetingtool.reading import gemini
@@ -34,13 +35,17 @@ FORMATS = ("summary", "qa")
 DEFAULT_MAX_COST_USD = 1.00
 TRANSCRIPT_SUFFIXES = (".docx", ".txt")
 RECORDING_SUFFIXES = (".mp4", ".mov", ".mkv", ".webm", ".avi", ".wmv", ".m4v")
-LABELS = {"frames": "Imágenes del video", "reading": "Lectura de las imágenes", "summary": "Resumen",
-          "qa": "Preguntas y respuestas", "report": "Informe en Word", "preparing": "Preparación",
-          "saving": "Guardar la reunión en el proyecto"}
+STAGE_KEYS = {"frames": "app.stage.frames", "reading": "app.stage.reading", "summary": "app.stage.summary",
+              "qa": "app.stage.qa", "report": "app.stage.report", "preparing": "app.stage.preparing",
+              "saving": "app.stage.saving"}
 
 
-class JobError(Exception):
+class JobError(texts.Failure):
     """A request to process that cannot be started; nothing was done."""
+
+
+def label(name, language):
+    return texts.Message(STAGE_KEYS[name]).text(language) if name in STAGE_KEYS else ""
 
 
 class Stage:
@@ -50,8 +55,8 @@ class Stage:
         self.seconds = 0.0
         self.cost_usd = 0.0
 
-    def as_dict(self):
-        return {"name": self.name, "label": LABELS[self.name], "state": self.state,
+    def as_dict(self, language=texts.DEFAULT_LANGUAGE):
+        return {"name": self.name, "label": label(self.name, language), "state": self.state,
                 "seconds": round(self.seconds, 1), "cost_usd": round(self.cost_usd, 4)}
 
 
@@ -62,19 +67,23 @@ class Job:
         self.state = "running"  # running, done, failed
         self.stages = [Stage(name) for name in ("frames", "reading", request["format"], "report")]
         self.counters = gemini.new_counters()
-        self.error = ""
+        self.error = ""  # the message of what failed: a texts.Message, or text
         self.failed_stage = ""
         self.meeting_id = ""
         self.started = time.monotonic()
         self.seconds = 0.0
 
-    def as_dict(self):
+    def as_dict(self, language=texts.DEFAULT_LANGUAGE):
+        """The job as the page reads it, in the application's language: what
+        failed is said in it, and what came from outside comes as `detail`."""
         seconds = self.seconds if self.state != "running" else time.monotonic() - self.started
+        error, detail = texts.said(self.error, language)
         return {"id": self.id, "state": self.state, "project": self.request["project"],
-                "title": self.request["title"], "stages": [stage.as_dict() for stage in self.stages],
+                "title": self.request["title"], "stages": [stage.as_dict(language) for stage in self.stages],
                 "spent_usd": round(self.counters["spent"], 4), "max_cost_usd": self.request["max_cost"],
-                "seconds": round(seconds, 1), "error": self.error,
-                "failed_stage": LABELS.get(self.failed_stage, ""), "meeting": self.meeting_id}
+                "seconds": round(seconds, 1), "error": error, "detail": detail,
+                "failed_stage": label(self.failed_stage, language), "failed_stage_name": self.failed_stage,
+                "meeting": self.meeting_id}
 
 
 def _date(value):
@@ -83,7 +92,7 @@ def _date(value):
             return value
     except ValueError:
         pass
-    raise JobError(f"la fecha {value!r} no es una fecha AAAA-MM-DD válida")
+    raise JobError("app.request.bad_date", value=value)
 
 
 def check_request(data, data_dir, uploads, meeting_types, languages):
@@ -91,41 +100,40 @@ def check_request(data, data_dir, uploads, meeting_types, languages):
     def text(name):
         value = data.get(name, "")
         if not isinstance(value, str):
-            raise JobError(f"el campo {name} no es texto")
+            raise JobError("app.request.not_text", name=name)
         return value.strip()
 
     project_id = text("project")
     try:
         project = library.project(data_dir, project_id)
     except library.NotFound:
-        raise JobError(f"no hay un proyecto {project_id!r}") from None
+        raise JobError("app.request.no_project", project=project_id) from None
     title = text("title")
     if not title:
-        raise JobError("la reunión necesita un título")
+        raise JobError("app.request.needs_title")
     date = _date(text("date"))
     meeting_type = text("meeting_type")
     if meeting_type and meeting_type not in meeting_types:
-        raise JobError(f"no hay un tipo de reunión {meeting_type!r}")
+        raise JobError("app.request.no_type", value=meeting_type)
     language = text("language")
     if language and language not in languages:
-        raise JobError(f"no hay un idioma {language!r}")
+        raise JobError("app.request.no_language", value=language)
     kind = text("format") or "summary"
     if kind not in FORMATS:
-        raise JobError(f"no hay un formato {kind!r}")
+        raise JobError("app.request.no_format", value=kind)
     transcript = uploads.get(text("transcript"), TRANSCRIPT_SUFFIXES)
     if transcript is None:
-        raise JobError("falta la transcripción (un .docx de Teams o un .txt con líneas [HH:MM:SS])")
+        raise JobError("app.request.no_transcript")
     recording = None
     if text("recording"):
         recording = uploads.get(text("recording"), RECORDING_SUFFIXES)
         if recording is None:
-            raise JobError("el video subido ya no está: subilo de nuevo")
+            raise JobError("app.request.video_gone")
     if kind == "summary" and recording is None:
-        raise JobError("el resumen necesita el video, para leer lo que se mostró; sin video, elegí el formato "
-                       "preguntas y respuestas")
+        raise JobError("app.request.summary_needs_video")
     max_cost = data.get("max_cost", DEFAULT_MAX_COST_USD)
     if isinstance(max_cost, bool) or not isinstance(max_cost, (int, float)) or not 0 < max_cost <= 5:
-        raise JobError("el techo de gasto tiene que ser un número de dólares mayor que 0 y hasta 5")
+        raise JobError("app.request.bad_ceiling")
     return {"project": project_id, "project_name": project["name"], "client": project.get("client") or "",
             "title": title, "date": date,
             "meeting_type": meeting_type or None, "language": language or None, "format": kind,
@@ -217,10 +225,10 @@ class Runner:
     def start(self, request, wait=False):
         key = self.read_key()
         if not key:
-            raise JobError("no hay una clave de Gemini guardada: guardala en Ajustes")
+            raise JobError("app.run.no_key")
         with self.lock:
             if any(job.state == "running" for job in self.jobs.values()):
-                raise JobError("ya hay una reunión procesándose: esperá a que termine")
+                raise JobError("app.run.busy")
             job = Job(request)
             self.jobs[job.id] = job
         thread = threading.Thread(target=self._run, args=(job, key), daemon=True)
@@ -308,7 +316,7 @@ class Runner:
                                                  encoding="utf-8")
             final.parent.mkdir(parents=True, exist_ok=True)
             if final.exists():
-                raise JobError(f"ya hay una carpeta {folder_name} en el proyecto")
+                raise JobError("app.run.folder_taken", folder=folder_name)
             os.replace(work, final)
             moved = True
             later["kwargs"]["transcript"] = str(final / transcript.name)
@@ -316,7 +324,8 @@ class Runner:
             added = True
             job.meeting_id = record["id"]
         except Exception as error:  # every failure ends the job with its reason
-            job.error = str(error) or error.__class__.__name__
+            job.error = error.message if isinstance(error, texts.Failure) else texts.Message(
+                "app.unexpected", detail=texts.External(str(error) or error.__class__.__name__))
             job.failed_stage = job.failed_stage or phase
         finally:
             if not added:

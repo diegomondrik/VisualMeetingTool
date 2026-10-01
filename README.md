@@ -171,8 +171,23 @@ projects and their meetings with the summary or the register, their frames,
 the Word report to open and what each cost; a form to process a new meeting
 (the transcript, and the recording if there is one, uploaded from the
 browser; type, language, format and spending ceiling); and the settings (the
-Gemini key, never shown back, and the company's Word template). Keep the
-window it was started from open while it is used.
+application's language, the company's name and logo, the Gemini key, never
+shown back, and the company's Word template). Keep the window it was started
+from open while it is used.
+
+The application speaks Spanish, or English if it is set so in its settings:
+every screen, notice and error, those of every stage included. That is apart
+from the summary's language, chosen for each meeting. The commands keep
+speaking English. Everything the program says is an entry of
+`meetingtool/texts/<language>.py`; another language is another such file. What
+comes from outside the program (Google's reason for refusing a request, a
+system error) is shown as it came, below the application's own sentence.
+
+The company's name and logo appear at the top of every screen and in the
+tab's name. The logo is a PNG or JPG of up to 1 MB; it is checked to be a real
+image and kept written again, and an SVG is refused, since it could carry a
+script. Both are kept in the data folder (`app-settings.json`,
+`company-logo.png` or `.jpg`).
 
 "Procesar" runs the same functions as the commands, in order: frames,
 reading (for the summary), summary or register, Word report. One ceiling

@@ -1,0 +1,71 @@
+Three runs, kept whole, in order.
+
+== Run 1: the commit the independent review read ==
+(on commit 5d4c63a with this script as in the working tree, 2026-09-30T22:11:29Z)
+mutation run for 01M3T40A8C7JPW6PPP7N5EVVQE: each mutation is applied alone to a copy of the
+working tree, `python -m unittest tests.test_texts tests.test_app.CompanyTest tests.test_qa tests.test_summary` is run, and the mutation must make it fail
+- a text written in a page instead of the list (AC03): exit 1, FAILED (failures=2) -> DETECTED
+- a text written in the page's script instead of the list (AC03): exit 1, FAILED (failures=2) -> DETECTED
+- the language chosen not kept (AC03): exit 1, FAILED (failures=7) -> DETECTED
+- an English text left in the Spanish list (AC03, AC04): exit 1, FAILED (failures=3) -> DETECTED
+- a Spanish entry without one of its data (AC04): exit 1, FAILED (failures=1) -> DETECTED
+- an entry missing in Spanish (AC04): exit 1, FAILED (failures=1, errors=3) -> DETECTED
+- a stage's error said in English whatever the language (AC05): exit 1, FAILED (failures=9, errors=1) -> DETECTED
+- a stage's name said in Spanish whatever the language (AC05): exit 1, FAILED (failures=8, errors=1) -> DETECTED
+- an error raised with text written in the code (AC06): exit 1, FAILED (failures=3) -> DETECTED
+- an error raised without the data its entry names (AC06): exit 1, FAILED (failures=2) -> DETECTED
+- what comes from outside said inside the application's sentence (AC07): exit 1, FAILED (failures=10) -> DETECTED
+- a detail inside a message inside another lost (AC07): exit 1, FAILED (failures=1) -> DETECTED
+- an unexpected failure said without its text (AC07): exit 1, FAILED (failures=1) -> DETECTED
+- the company's name placed as markup (AC02): exit 1, FAILED (failures=1, errors=1) -> DETECTED
+- an SVG under another name taken for a picture (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- the logo not decoded: only its name checked (AC02): exit 1, FAILED (failures=4) -> DETECTED
+- a logo of more than 1 MB accepted (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- the logo kept as it was sent, not written again (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- the logo missing from the screens (AC01): exit 1, FAILED (failures=1) -> DETECTED
+- the company's name missing from the tab's name (AC01): exit 1, FAILED (failures=1) -> DETECTED
+- a terminal message changed (AC09): exit 1, FAILED (failures=2, errors=1) -> DETECTED
+- unmutated: exit 0, OK
+all mutations detected
+
+== Run 2: after the review's correction, with its five mutations added ==
+The mutation of review P1-1 was NOT DETECTED: the test of 20 uploads did not always show a cut connection, so it did not guard the correction. A test that does not depend on chance was added (CompanyTest.test_a_logo_of_more_than_1_mb_is_read_before_the_answer) and the mutation run again (run 3).
+(on commit b7b749d with this script as in the working tree, 2026-10-01T00:58:32Z)
+mutation run for 01M3T40A8C7JPW6PPP7N5EVVQE: each mutation is applied alone to a copy of the
+working tree, `python -m unittest tests.test_texts tests.test_app.CompanyTest tests.test_qa tests.test_summary` is run, and the mutation must make it fail
+- a text written in a page instead of the list (AC03): exit 1, FAILED (failures=2) -> DETECTED
+- a text written in the page's script instead of the list (AC03): exit 1, FAILED (failures=2) -> DETECTED
+- the language chosen not kept (AC03): exit 1, FAILED (failures=7) -> DETECTED
+- an English text left in the Spanish list (AC03, AC04): exit 1, FAILED (failures=3) -> DETECTED
+- a Spanish entry without one of its data (AC04): exit 1, FAILED (failures=1) -> DETECTED
+- an entry missing in Spanish (AC04): exit 1, FAILED (failures=1, errors=3) -> DETECTED
+- a stage's error said in English whatever the language (AC05): exit 1, FAILED (failures=9, errors=1) -> DETECTED
+- a stage's name said in Spanish whatever the language (AC05): exit 1, FAILED (failures=8, errors=1) -> DETECTED
+- an error raised with text written in the code (AC06): exit 1, FAILED (failures=3) -> DETECTED
+- an error raised without the data its entry names (AC06): exit 1, FAILED (failures=2) -> DETECTED
+- what comes from outside said inside the application's sentence (AC07): exit 1, FAILED (failures=11) -> DETECTED
+- a detail inside a message inside another lost (AC07): exit 1, FAILED (failures=1) -> DETECTED
+- an unexpected failure said without its text (AC07): exit 1, FAILED (failures=1) -> DETECTED
+- the company's name placed as markup (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- an SVG under another name taken for a picture (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- the logo not decoded: only its name checked (AC02): exit 1, FAILED (failures=5) -> DETECTED
+- a logo of more than 1 MB accepted (AC02): exit 1, FAILED (failures=1) -> DETECTED
+- the logo kept as it was sent, not written again (AC02): exit 1, FAILED (failures=2) -> DETECTED
+- the logo missing from the screens (AC01): exit 1, FAILED (failures=1) -> DETECTED
+- the company's name missing from the tab's name (AC01): exit 1, FAILED (failures=1) -> DETECTED
+- a terminal message changed (AC09): exit 1, FAILED (failures=2, errors=1) -> DETECTED
+- a logo over 1 MB answered before its body is read (review P1-1): exit 0, OK -> NOT DETECTED
+- a request refused before the session shown the company (review P2-1): exit 1, FAILED (failures=1) -> DETECTED
+- the logo's colour profile kept (review P2-4): exit 1, FAILED (failures=1) -> DETECTED
+- an error made with written text and raised later (review P2-3): exit 1, FAILED (failures=3) -> DETECTED
+- a text between single quotes in the page's script (review P2-2): exit 1, FAILED (failures=2) -> DETECTED
+- unmutated: exit 0, OK
+A MUTATION WAS NOT DETECTED
+
+== Run 3 ==
+(on commit 7955616, only the mutation of review P1-1, after the test that does not depend on chance, 2026-10-01T01:47:58Z)
+mutation run for 01M3T40A8C7JPW6PPP7N5EVVQE: each mutation is applied alone to a copy of the
+working tree, `python -m unittest tests.test_texts tests.test_app.CompanyTest tests.test_qa tests.test_summary` is run, and the mutation must make it fail
+- a logo over 1 MB answered before its body is read (review P1-1): exit 1, FAILED (failures=1, errors=1) -> DETECTED
+- unmutated: exit 0, OK
+all mutations detected

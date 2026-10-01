@@ -1,20 +1,37 @@
 // MeetingTool's page. Every change goes to the server as JSON (or a raw
 // upload) with the X-MeetingTool header; what comes back is placed with
-// textContent, never as HTML.
+// textContent, never as HTML. Every text it shows is an entry of the list of
+// messages, in the application's language: the page brings them in the
+// data-texts attribute of its body (meetingtool/app/pages.py).
 "use strict";
 
 const HEADERS = { "X-MeetingTool": "1" };
+let TEXTS = {};
 
-function money(value) {
-  return "US$" + Number(value || 0).toFixed(3).replace(".", ",");
+function text(key, values) {
+  let said = Object.prototype.hasOwnProperty.call(TEXTS, key) ? TEXTS[key] : key;
+  for (const [name, value] of Object.entries(values || {})) said = said.split("{" + name + "}").join(String(value));
+  return said;
 }
 
-function say(form, text, bad) {
+function money(value) {
+  const fixed = Number(value || 0).toFixed(3);
+  return "US$" + (document.documentElement.lang === "es" ? fixed.replace(".", ",") : fixed);
+}
+
+function say(form, message, bad) {
   const place = form.querySelector(".message");
   if (place) {
-    place.textContent = text;
+    place.textContent = message;
     place.classList.toggle("bad", Boolean(bad));
   }
+}
+
+// What failed, with what came from outside the program as its detail.
+function failure(answer, fallback) {
+  const details = Array.isArray(answer.detail) ? answer.detail : [];
+  return [answer.error || text(fallback)].concat(details.map((detail) => text("js.detail", { detail: detail })))
+    .join(" — ");
 }
 
 async function send(path, data) {
@@ -24,8 +41,8 @@ async function send(path, data) {
     body: JSON.stringify(data || {}),
     credentials: "same-origin",
   });
-  const answer = await response.json().catch(() => ({ error: "la respuesta no se pudo leer" }));
-  if (!response.ok) throw new Error(answer.error || "no se pudo");
+  const answer = await response.json().catch(() => ({ error: text("js.unreadable") }));
+  if (!response.ok) throw new Error(failure(answer, "js.failed"));
   return answer;
 }
 
@@ -40,11 +57,11 @@ function upload(path, file, progress) {
     };
     request.onload = () => {
       let answer = {};
-      try { answer = JSON.parse(request.responseText); } catch (error) { answer = { error: "la respuesta no se pudo leer" }; }
+      try { answer = JSON.parse(request.responseText); } catch (error) { answer = { error: text("js.unreadable") }; }
       if (request.status >= 200 && request.status < 300) resolve(answer);
-      else reject(new Error(answer.error || "no se pudo subir"));
+      else reject(new Error(failure(answer, "js.upload_failed")));
     };
-    request.onerror = () => reject(new Error("se cortó la conexión con MeetingTool"));
+    request.onerror = () => reject(new Error(text("js.connection_lost")));
     request.send(file);
   });
 }
@@ -64,7 +81,7 @@ function apiForms() {
     form.addEventListener("submit", async (event) => {
       event.preventDefault();
       if (form.dataset.confirm && !window.confirm(form.dataset.confirm)) return;
-      say(form, "Un momento…");
+      say(form, text("js.wait"));
       try {
         const answer = await send(form.dataset.api, fields(form));
         if (form.dataset.then === "project") window.location.href = "/p/" + encodeURIComponent(answer.id);
@@ -82,7 +99,7 @@ function openButtons() {
       const holder = button.parentElement;
       try {
         await send("/api/open", { target: button.dataset.open });
-        say(holder, "Abriendo el Word…");
+        say(holder, text("js.opening"));
       } catch (error) {
         say(holder, error.message, true);
       }
@@ -90,16 +107,17 @@ function openButtons() {
   }
 }
 
-function templateForm() {
-  const form = document.getElementById("template");
+// A file of the settings (the Word template, the logo), sent to its own address.
+function settingForm(id, field, address, choose, checking) {
+  const form = document.getElementById(id);
   if (!form) return;
   form.addEventListener("submit", async (event) => {
     event.preventDefault();
-    const file = form.elements.template.files[0];
-    if (!file) return say(form, "Elegí la plantilla.", true);
-    say(form, "Revisando la plantilla…");
+    const file = form.elements[field].files[0];
+    if (!file) return say(form, text(choose), true);
+    say(form, text(checking));
     try {
-      await upload("/api/template?name=" + encodeURIComponent(file.name), file);
+      await upload(address + "?name=" + encodeURIComponent(file.name), file);
       window.location.reload();
     } catch (error) {
       say(form, error.message, true);
@@ -118,20 +136,18 @@ function processForm() {
     data.max_cost = Number(data.max_cost);
     const transcript = form.elements.transcript.files[0];
     const recording = form.elements.recording.files[0];
-    if (!transcript) return say(form, "Falta la transcripción.", true);
-    if (data.format === "summary" && !recording) {
-      return say(form, "El resumen necesita el video. Sin video, elegí preguntas y respuestas.", true);
-    }
+    if (!transcript) return say(form, text("js.missing_transcript"), true);
+    if (data.format === "summary" && !recording) return say(form, text("js.summary_needs_video"), true);
     button.disabled = true;
     try {
-      say(form, "Subiendo la transcripción…");
+      say(form, text("js.uploading_transcript"));
       data.transcript = (await upload("/api/upload?kind=transcript&name=" + encodeURIComponent(transcript.name),
         transcript)).upload;
       if (recording) {
         data.recording = (await upload("/api/upload?kind=recording&name=" + encodeURIComponent(recording.name),
-          recording, (percent) => say(form, "Subiendo el video… " + percent + " %"))).upload;
+          recording, (percent) => say(form, text("js.uploading_video", { percent: percent })))).upload;
       }
-      say(form, "Empezando…");
+      say(form, text("js.starting"));
       const answer = await send("/api/process", data);
       window.location.href = "/job/" + encodeURIComponent(answer.job);
     } catch (error) {
@@ -141,13 +157,14 @@ function processForm() {
   });
 }
 
-function cell(row, text) {
+function cell(row, value) {
   const td = document.createElement("td");
-  td.textContent = text;
+  td.textContent = value;
   row.appendChild(td);
 }
 
-const STATES = { pending: "en espera", running: "en curso…", done: "listo", skipped: "no hace falta", failed: "falló" };
+const STATES = { pending: "js.state.pending", running: "js.state.running", done: "js.state.done",
+  skipped: "js.state.skipped", failed: "js.state.failed" };
 
 function drawJob(place, job) {
   place.replaceChildren();
@@ -157,9 +174,9 @@ function drawJob(place, job) {
   const table = document.createElement("table");
   table.className = "list";
   const head = document.createElement("tr");
-  for (const name of ["Etapa", "Estado", "Tiempo", "Costo"]) {
+  for (const key of ["js.col.stage", "js.col.state", "js.col.time", "js.col.cost"]) {
     const th = document.createElement("th");
-    th.textContent = name;
+    th.textContent = text(key);
     head.appendChild(th);
   }
   table.appendChild(head);
@@ -167,33 +184,38 @@ function drawJob(place, job) {
     const row = document.createElement("tr");
     row.className = "stage " + stage.state;
     cell(row, stage.label);
-    cell(row, STATES[stage.state] || stage.state);
+    cell(row, Object.prototype.hasOwnProperty.call(STATES, stage.state) ? text(STATES[stage.state]) : stage.state);
     cell(row, stage.state === "pending" || stage.state === "skipped" ? "" : Math.round(stage.seconds) + " s");
     cell(row, stage.state === "pending" || stage.state === "skipped" ? "" : money(stage.cost_usd));
     table.appendChild(row);
   }
   place.appendChild(table);
   const spent = document.createElement("p");
-  spent.textContent = "Gastado: " + money(job.spent_usd) + " de un techo de " + money(job.max_cost_usd) +
-    " · " + Math.round(job.seconds) + " s";
+  spent.textContent = text("js.spent", { spent: money(job.spent_usd), ceiling: money(job.max_cost_usd),
+    seconds: Math.round(job.seconds) });
   place.appendChild(spent);
   if (job.state === "done") {
     const done = document.createElement("p");
     const link = document.createElement("a");
     link.className = "button";
     link.href = "/p/" + encodeURIComponent(job.project) + "/m/" + encodeURIComponent(job.meeting);
-    link.textContent = "Ver la reunión";
+    link.textContent = text("js.see_meeting");
     done.appendChild(link);
     place.appendChild(done);
   } else if (job.state === "failed") {
     const failed = document.createElement("p");
     failed.className = "bad";
-    failed.textContent = "Falló en «" + job.failed_stage + "»: " + job.error +
-      ". La reunión no se agregó al proyecto y no quedó nada a medias.";
+    failed.textContent = text("js.failed_at", { stage: job.failed_stage, error: job.error });
     place.appendChild(failed);
+    for (const detail of job.detail || []) {
+      const said = document.createElement("p");
+      said.className = "hint detail";
+      said.textContent = text("js.detail", { detail: detail });
+      place.appendChild(said);
+    }
     const back = document.createElement("a");
     back.href = "/p/" + encodeURIComponent(job.project) + "/new";
-    back.textContent = "Volver a intentar";
+    back.textContent = text("js.retry");
     place.appendChild(back);
   }
 }
@@ -208,7 +230,7 @@ function jobPage() {
       drawJob(place, job);
       if (job.state === "running") setTimeout(poll, 1000);
     } catch (error) {
-      place.textContent = "Se cortó la conexión con MeetingTool: fijate que su ventana siga abierta.";
+      place.textContent = text("js.connection_job");
     }
   };
   poll();
@@ -223,7 +245,7 @@ async function runningBanner() {
     if (!answer.job) return;
     const link = document.createElement("a");
     link.href = "/job/" + encodeURIComponent(answer.job.id);
-    link.textContent = "Se está procesando «" + answer.job.title + "»: ver el avance";
+    link.textContent = text("js.running", { title: answer.job.title });
     banner.replaceChildren(link);
     banner.hidden = false;
   } catch (error) {
@@ -232,9 +254,11 @@ async function runningBanner() {
 }
 
 document.addEventListener("DOMContentLoaded", () => {
+  try { TEXTS = JSON.parse(document.body.dataset.texts || "{}"); } catch (error) { TEXTS = {}; }
   apiForms();
   openButtons();
-  templateForm();
+  settingForm("template", "template", "/api/template", "js.choose_template", "js.checking_template");
+  settingForm("logo", "logo", "/api/logo", "js.choose_logo", "js.checking_logo");
   processForm();
   jobPage();
   runningBanner();

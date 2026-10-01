@@ -36,6 +36,7 @@ import re
 import time
 from pathlib import Path
 
+from meetingtool import texts
 from meetingtool.frames.transcript import TranscriptError, read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
@@ -185,8 +186,9 @@ MEETING_TYPES = {
 }
 # Types a meeting stored in a project may still carry, but a new summary cannot
 # take: what the type covered, and what replaces it.
-RETIRED_TYPES = {"discovery": ("both presales and requirements gathering", "'presale' or 'requirements'")}
-LANGUAGE_NAMES = {"es": "Spanish", "en": "English"}
+RETIRED_TYPES = {"discovery": (texts.Message("summary.retired.discovery"), "'presale' or 'requirements'")}
+LANGUAGE_NAMES = {"es": "Spanish", "en": "English"}  # as the requests to Gemini name them
+LANGUAGE_KEYS = {"es": "language.es", "en": "language.en"}  # as a message names them
 LANGUAGE_RULE = ("Write every part of the summary in {name} (headings, text and tables), whatever language the "
                  "meeting was held in. The one exception is a verbatim quote: keep it in the language it was said, "
                  "in quotation marks, followed by its translation into {name} in parentheses when the languages "
@@ -280,19 +282,20 @@ def _word_counts(text, language, tables=True):
     return (spanish, english) if language == "es" else (english, spanish)
 
 
-def check_language(text, headings, language):
+def check_language(text, headings, language, subject=None):
     """SummaryError unless the summary, and each of its sections, is in
     `language`. A section is judged on its prose: a table of labels read on
-    screen keeps their language, and only the whole summary counts tables."""
+    screen keeps their language, and only the whole summary counts tables.
+    `subject` names what is checked (by default, the summary)."""
     wanted, other = _word_counts(text, language)
     if other >= wanted:
-        raise SummaryError(f"the summary is not in {LANGUAGE_NAMES[language]} ({wanted} common words of it, "
-                           f"{other} of the other language, quotes and code left out)")
+        raise SummaryError("summary.wrong_language", subject=subject or texts.Message("summary.subject"),
+                           language=texts.Message(LANGUAGE_KEYS[language]), wanted=wanted, other=other)
     for heading in headings:
         wanted, other = _word_counts(section_text(text, heading), language, tables=False)
         if other >= FOREIGN_SECTION_WORDS and other > 2 * wanted:
-            raise SummaryError(f"the section '{heading}' is not in {LANGUAGE_NAMES[language]} ({wanted} common "
-                               f"words of it, {other} of the other language, quotes, code and tables left out)")
+            raise SummaryError("summary.section_wrong_language", heading=heading,
+                               language=texts.Message(LANGUAGE_KEYS[language]), wanted=wanted, other=other)
 
 
 def _sections(language, meeting_type):
@@ -373,15 +376,13 @@ def check_frames(text, frame_names):
     no two are named as a range."""
     missing = sorted({name for name in FRAME_REF.findall(text) if name not in frame_names})
     if missing:
-        raise SummaryError(f"the summary names frame(s) that are not in the frames folder: {', '.join(missing)}")
+        raise SummaryError("summary.frames_missing", names=", ".join(missing))
     for line in text.splitlines():
         found = FRAME_RANGE.search(line)
         if found:
-            raise SummaryError(f"the summary names a range of frames instead of each frame on its own: "
-                               f"{found.group(0)[:80]}")
+            raise SummaryError("summary.frame_range", text=found.group(0)[:80])
         if FRAME_LIKE.search(FRAME_REF.sub("", line)):
-            raise SummaryError(f"the summary mentions a frame without its file name in square brackets: "
-                               f"{FRAME_REF.sub('', line).strip()[:80]}")
+            raise SummaryError("summary.frame_unbracketed", text=FRAME_REF.sub("", line).strip()[:80])
 
 
 def check_summary(answer, headings, language, frame_names=None):
@@ -392,19 +393,19 @@ def check_summary(answer, headings, language, frame_names=None):
         text = "".join(part.get("text", "") for part in candidate["content"]["parts"])
         finish = candidate.get("finishReason")
     except (KeyError, IndexError, TypeError, AttributeError) as error:
-        raise SummaryError(f"Gemini's answer has no text ({type(error).__name__})") from None
+        raise SummaryError("gemini.no_text", kind=type(error).__name__) from None
     if finish != "STOP":
-        raise SummaryError(f"Gemini's summary did not finish normally (finishReason {finish})")
+        raise SummaryError("summary.unfinished", finish=finish)
     found = []
     for heading in headings:
         positions = _heading_positions(text, heading)
         if len(positions) != 1:
-            raise SummaryError(f"the summary has the section '{heading}' {len(positions)} times, not once")
+            raise SummaryError("summary.section_count", heading=heading, count=len(positions))
         found.append(positions[0])
     if found != sorted(found):
-        raise SummaryError("the summary's sections are not in the required order")
+        raise SummaryError("summary.order")
     if not key_points(text, language):
-        raise SummaryError(f"the summary's '{KEY_POINTS[language]}' section has no bullet point")
+        raise SummaryError("summary.no_key_points", heading=KEY_POINTS[language])
     check_language(text, headings, language)
     if frame_names is not None:
         check_frames(text, frame_names)
@@ -424,34 +425,33 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
     gemini.check_outside_repository(frames_dir)
     reading = frames_dir / gemini.OUTPUT_NAME
     if not reading.is_file():
-        raise SummaryError(f"the frames of {frames_dir.resolve()} have not been read yet: run "
-                           f"python -m meetingtool.reading read --frames <folder> first")
+        raise SummaryError("summary.not_read", folder=str(frames_dir.resolve()))
     if meeting_type in RETIRED_TYPES:
-        raise SummaryError(f"meeting type {meeting_type!r} is no longer used: it covered "
-                           f"{RETIRED_TYPES[meeting_type][0]}; use {RETIRED_TYPES[meeting_type][1]}")
+        raise SummaryError("summary.retired_type", meeting_type=meeting_type, covered=RETIRED_TYPES[meeting_type][0],
+                           use=RETIRED_TYPES[meeting_type][1])
     if meeting_type is not None and meeting_type not in MEETING_TYPES:
-        raise SummaryError(f"unknown meeting type {meeting_type!r}; one of {', '.join(MEETING_TYPES)}")
+        raise SummaryError("summary.unknown_type", meeting_type=meeting_type, options=", ".join(MEETING_TYPES))
     if language is not None and language not in SECTIONS:
-        raise SummaryError(f"unknown language {language!r}; one of {', '.join(SECTIONS)}")
+        raise SummaryError("summary.unknown_language", language=language, options=", ".join(SECTIONS))
     try:
         turns = read_turns(transcript)
     except TranscriptError as error:
-        raise SummaryError(str(error)) from error
+        raise SummaryError(error.message) from error
     knowledge = ""
     if project:
         if not title or not title.strip() or not date:
-            raise SummaryError("a meeting added to a project needs --title and --date")
+            raise SummaryError("summary.needs_title_and_date")
         if not re.fullmatch(r"\d{4}-\d{2}-\d{2}", date):
-            raise SummaryError(f"meeting date {date!r} is not a valid YYYY-MM-DD date")
+            raise SummaryError("meeting.bad_date", date=date)
         try:
             datetime.date.fromisoformat(date)
         except ValueError:
-            raise SummaryError(f"meeting date {date!r} is not a valid YYYY-MM-DD date") from None
+            raise SummaryError("meeting.bad_date", date=date) from None
         data_dir = Path(data_dir) if data_dir else store.default_data_dir()
         try:
             knowledge = store.knowledge_context(data_dir, project)
         except (store.ProjectError, OSError) as error:
-            raise SummaryError(f"project {project}: {error}") from error
+            raise SummaryError("summary.project", project=project, error=texts.outside(error)) from error
     language = language or detect_language(" ".join(text for _, _, text in turns))
     headings = required_headings(language, meeting_type)
     prompt = build_prompt(turns, reading.read_text(encoding="utf-8"), language, meeting_type, knowledge, title or "")
@@ -463,8 +463,7 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
     started = time.monotonic()
     text = gemini.call_checked(gemini.model_url(endpoint, model), key, payload,
                                lambda answer: check_summary(answer, headings, language, frame_names), worst,
-                               "the summary",
-                               retry_delays, sleep, counters, max_cost_usd)
+                               texts.Message("summary.what"), retry_delays, sleep, counters, max_cost_usd)
     output = frames_dir / OUTPUT_NAME
     partial = frames_dir / (OUTPUT_NAME + ".partial")
     partial.write_text(text.strip() + "\n", encoding="utf-8")
@@ -477,8 +476,8 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
                 data_dir, project, title, date, meeting_type=meeting_type or "", recording=recording or "",
                 transcript=str(transcript), summary=executive, key_points=key_points(text, language))
         except (store.ProjectError, OSError) as error:
-            raise SummaryError(f"{output} was written, but the meeting could not be added to project {project}: "
-                               f"{error}") from error
+            raise SummaryError("summary.not_added", output=str(output), project=project,
+                               error=texts.outside(error)) from error
         meeting_id = record["id"]
     return SummaryResult(output, language, counters["attempts"], time.monotonic() - started, counters["input"],
                          counters["output"], counters["thinking"], counters["spent"],

@@ -36,6 +36,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
 
+from meetingtool import texts
 from meetingtool.projects import store
 from meetingtool.report import layout
 from meetingtool.summary import qa, writer
@@ -78,7 +79,7 @@ LABELS = {
 INDENT = Cm(0.63)
 
 
-class ReportError(Exception):
+class ReportError(texts.Failure):
     """A report that could not be built; nothing was written."""
 
 
@@ -101,7 +102,7 @@ class ReportResult:
 
 def active_content(parts):
     """What in a Word package would be loaded or run from outside it when the
-    document opens, one line each: an external relationship other than a
+    document opens, one message each: an external relationship other than a
     hyperlink (an attached template, which may be a .dotm with macros; a
     linked picture), a relationship to an embedded object, control or macro
     project, and a field that pulls or runs outside content (DDE, INCLUDE...).
@@ -113,19 +114,19 @@ def active_content(parts):
             try:
                 relationships = ElementTree.fromstring(data)
             except ElementTree.ParseError as error:
-                found.append(f"{name}: unreadable relationships ({error})")
+                found.append(texts.Message("report.active.unreadable", part=name, detail=texts.External(str(error))))
                 continue
             for relationship in relationships:
                 kind = relationship.get("Type", "").rsplit("/", 1)[-1]
                 target = relationship.get("Target", "")
                 if relationship.get("TargetMode") == "External" and kind != "hyperlink":
-                    found.append(f"{name}: an external {kind} ({target})")
+                    found.append(texts.Message("report.active.external", part=name, kind=kind, target=target))
                 elif kind in ACTIVE_RELATIONSHIPS:
-                    found.append(f"{name}: a {kind} ({target})")
+                    found.append(texts.Message("report.active.embedded", part=name, kind=kind, target=target))
         elif name.startswith("word/") and name.endswith(".xml"):
             codes = b" ".join(FIELD_ATTRIBUTE.findall(data)) + b" " + b"".join(FIELD_TEXT.findall(data))
             for field in sorted({match.upper() for match in ACTIVE_FIELDS.findall(codes.decode("utf-8", "replace"))}):
-                found.append(f"{name}: a {field} field")
+                found.append(texts.Message("report.active.field", part=name, field=field))
     return found
 
 
@@ -136,25 +137,21 @@ def template_bytes(path):
     path = Path(path)
     suffix = path.suffix.lower()
     if suffix in MACRO_EXTENSIONS:
-        raise ReportError(f"the template {path.name} can carry macros ({suffix}); save it in Word as .docx or .dotx")
+        raise ReportError("report.macro_extension", name=path.name, suffix=suffix)
     if suffix not in TEMPLATE_EXTENSIONS:
-        raise ReportError(f"the template {path.name} is not a Word document or template (.docx or .dotx)")
+        raise ReportError("report.not_word", name=path.name)
     try:
         with zipfile.ZipFile(path) as archive:
             names = archive.namelist()
             types = archive.read("[Content_Types].xml")
             parts = {name: archive.read(name) for name in names}
     except (OSError, KeyError, zipfile.BadZipFile) as error:
-        raise ReportError(f"the template {path.name} cannot be opened: {error}") from None
+        raise ReportError("report.cannot_open", name=path.name, detail=texts.External(str(error))) from None
     if b"macroEnabled" in types or any(Path(name).name.lower().startswith("vbaproject") for name in names):
-        raise ReportError(f"the template {path.name} carries macros; save it in Word as .docx or .dotx")
+        raise ReportError("report.macros", name=path.name)
     active = active_content(parts)
     if active:
-        raise ReportError(f"the template {path.name} has content that Word would load or run from outside it when "
-                          "a report is opened, and every report would carry it to the client:\n  "
-                          + "\n  ".join(active) + "\nRemove it in Word and save the template again (attach the "
-                          "Normal template, embed pictures instead of linking them, delete linked fields and "
-                          "embedded objects).")
+        raise ReportError("report.active", name=path.name, items=texts.Joined(active, "\n  "))
     if TEMPLATE_TYPE in types:
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -168,11 +165,11 @@ def template_bytes(path):
     try:
         opened = docx.Document(io.BytesIO(data))
     except Exception as error:  # python-docx raises several kinds for a broken package
-        raise ReportError(f"the template {path.name} cannot be opened as a Word document: {error}") from None
+        raise ReportError("report.not_a_document", name=path.name, detail=texts.External(str(error))) from None
     try:
         layout.read_layout(opened)
     except layout.LayoutError as error:
-        raise ReportError(f"the template {path.name} cannot be used: {error}") from None
+        raise ReportError("report.template_unusable", name=path.name, error=error.message) from None
     return data
 
 
@@ -278,19 +275,19 @@ def cited_frames(text, frames_dir):
     for number, line in enumerate(text.splitlines(), start=1):
         found = writer.FRAME_RANGE.search(line)
         if found:
-            problems.append(f"line {number}: a range of frames; name each frame on its own: {found.group(0)[:80]}")
+            problems.append(texts.Message("report.problem.range", line=number, text=found.group(0)[:80]))
         for match in FRAME_REF.finditer(line):
             name = match.group(1)
             if name not in frames:
                 frames[name] = Path(frames_dir) / name
                 if not frames[name].is_file():
-                    problems.append(f"line {number}: {name} is not in {Path(frames_dir).resolve()}")
+                    problems.append(texts.Message("report.problem.missing", line=number, name=name,
+                                                  folder=str(Path(frames_dir).resolve())))
         leftover = FRAME_REF.sub("", line)
         if FRAME_LIKE.search(leftover):
-            problems.append(f"line {number}: a frame mention that names no frame file "
-                            f"(expected [frame_NNN_tHH-MM-SS.jpg]): {leftover.strip()[:80]}")
+            problems.append(texts.Message("report.problem.unnamed", line=number, text=leftover.strip()[:80]))
     if problems:
-        raise ReportError("the report was not built:\n  " + "\n  ".join(problems))
+        raise ReportError("report.not_built", problems=texts.Joined(problems, "\n  "))
     return frames
 
 
@@ -449,25 +446,23 @@ def check_report(path, headings, cover_images, frames, *, start=0, contents=()):
     texts = iter(layout.paragraph_text(child).strip() for child in children[start:] if child.tag == qn("w:p"))
     missing = [heading for heading in headings if not any(text == heading for text in texts)]
     if missing:
-        raise ReportError(f"the Word document is missing the section(s) {missing}; it was not delivered")
+        raise ReportError("report.missing_sections", missing=missing)
     cover_ids = {id(child) for child in children[:start]}
     body = document.element.body
     found_contents = [layout.toc_entries(document, toc) for toc in layout._tocs(document)
                       if id(layout._top(toc[0], body)) in cover_ids]
     if found_contents != [list(entries) for entries in contents]:
-        raise ReportError("the Word document's table of contents does not list exactly its sections; "
-                          "it was not delivered")
+        raise ReportError("report.toc_mismatch")
     left = layout.leftover_fields(document, children[:start])
     if left:
-        raise ReportError(f"the Word document still has {', '.join(left)} unfilled; it was not delivered")
+        raise ReportError("report.fields_left", fields=", ".join(left))
     expected = collections.Counter(cover_images)
     expected.update(hashlib.sha256(Path(frame).read_bytes()).hexdigest() for frame in frames)
     found = collections.Counter(_body_images(document))
     if found != expected:
         lacking = sum((expected - found).values())
         extra = sum((found - expected).values())
-        raise ReportError(f"the Word document has {lacking} image(s) missing and {extra} unexpected; "
-                          "it was not delivered")
+        raise ReportError("report.images_mismatch", lacking=lacking, extra=extra)
 
 
 def build_report(frames_dir, *, title=None, date=None, project_name=None, data_dir=None, neutral=False,
@@ -479,23 +474,20 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
     frames_dir = Path(frames_dir)
     work_tree = store.enclosing_git_work_tree(frames_dir)
     if work_tree is not None:
-        raise ReportError(f"folder {frames_dir.resolve()} is inside the git work tree {work_tree}; "
-                          "the report is client data and must live outside any repository")
+        raise ReportError("report.inside_repository", folder=str(frames_dir.resolve()), work_tree=str(work_tree))
     summary = frames_dir / SUMMARY_NAME
     if not summary.is_file():
-        raise ReportError(f"there is no {SUMMARY_NAME} in {frames_dir.resolve()}: write the summary first "
-                          "with python -m meetingtool.summary")
+        raise ReportError("report.no_summary", summary=SUMMARY_NAME, folder=str(frames_dir.resolve()))
     # utf-8-sig: an editor may add a byte-order mark when the summary is
     # edited by hand, and it would hide the first heading.
     text = summary.read_text(encoding="utf-8-sig")
     headings = summary_headings(text)
     if not headings:
-        raise ReportError(f"{summary.resolve()} has no section heading; it does not look like a summary")
+        raise ReportError("report.no_heading", path=str(summary.resolve()))
     unread = [number for number, line in enumerate(text.splitlines(), start=1)
               if line.lstrip().startswith("#") and not HEADING.match(line)]
     if unread:
-        raise ReportError(f"line(s) {unread} of {summary.resolve()} start with # but are not headings the report "
-                          "can read (a heading starts the line with 1 to 6 # and has text); the report was not built")
+        raise ReportError("report.unread_headings", lines=unread, path=str(summary.resolve()))
     frames = cited_frames(text, frames_dir)
     language = summary_language(text)
     labels = LABELS[language]
@@ -569,8 +561,8 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
             try:
                 _picture(document, frames[name], labels["caption"].format(clock=clock(*match.groups()[1:])), width)
             except (UnrecognizedImageError, OSError) as error:
-                raise ReportError(f"the frame {name} cannot be embedded ({type(error).__name__}: {error}); "
-                                  "the report was not built") from None
+                raise ReportError("report.frame_unembeddable", name=name,
+                                  detail=texts.External(f"{type(error).__name__}: {error}")) from None
             embedded.add(name)
 
     expected = [FRAME_REF.sub(lambda m: labels["mention"].format(clock=clock(*m.groups()[1:])), heading)
@@ -582,7 +574,7 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
             for toc in found.tocs:
                 layout.fill_toc(document, toc, placed, bookmarks)
         except layout.LayoutError as error:
-            raise ReportError(f"the template {Path(template).name} cannot be used: {error}") from None
+            raise ReportError("report.template_unusable", name=Path(template).name, error=error.message) from None
         # What each table of contents must list, from the summary's headings
         # and the field's levels, not from what was written in it.
         depth = [max(1, min(len(HEADING.match(line).group(1)) - 1, 3)) for line in text.splitlines()
@@ -601,7 +593,8 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
         check_report(partial, expected, cover_images, frames.values(), start=start, contents=contents)
     except OSError as error:
         partial.unlink(missing_ok=True)
-        raise ReportError(f"the report could not be written in {frames_dir.resolve()}: {error}") from None
+        raise ReportError("report.cannot_write", folder=str(frames_dir.resolve()),
+                          detail=texts.External(str(error))) from None
     except BaseException:
         partial.unlink(missing_ok=True)
         raise
@@ -609,8 +602,9 @@ def build_report(frames_dir, *, title=None, date=None, project_name=None, data_d
         os.replace(partial, output)
     except OSError as error:
         partial.unlink(missing_ok=True)
-        hint = "; if it is open in Word, close it and try again" if isinstance(error, PermissionError) else ""
-        raise ReportError(f"{output.resolve()} could not be replaced ({error.strerror}){hint}") from None
+        hint = texts.Message("report.close_word") if isinstance(error, PermissionError) else ""
+        raise ReportError("report.cannot_replace", path=str(output.resolve()),
+                          detail=texts.External(str(error.strerror)), hint=hint) from None
     return ReportResult(output, language, len(frames), len(headings), output.stat().st_size,
                         time.monotonic() - started, template, cover, found.fields if found else [],
                         sum(len(entries) for entries in contents), found.dropped if found else 0)

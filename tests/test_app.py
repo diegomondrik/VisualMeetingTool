@@ -24,7 +24,7 @@ import docx
 import numpy as np
 from PIL import Image
 
-from meetingtool.app import jobs, library, pages, server
+from meetingtool.app import company, jobs, library, pages, server
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.report import document
@@ -336,6 +336,203 @@ class SettingsTest(Running):
         status, _, answer = self.request("PUT", "/api/template?name=" + pages.EXAMPLE_NAME, body, RAW)
         self.assertEqual(status, 200, answer)
         self.assertEqual(document.template_info(self.data).fields, ["project", "client", "meeting", "type", "date"])
+
+
+# ── WI17-AC01 and AC02: the company's name and logo ───────────────────────────
+
+def png_bytes(size=(40, 20), color=(200, 10, 10)):
+    buffer = io.BytesIO()
+    Image.new("RGB", size, color).save(buffer, "PNG")
+    return buffer.getvalue()
+
+
+class CompanyTest(Running):
+    SCREENS = ("/", "/settings", "/p/{project}", "/p/{project}/new", "/no-such-page")
+
+    def setUp(self):
+        super().setUp()
+        self.project = self.new_project()
+
+    def logo(self, data, name="logo.png"):
+        return self.request("PUT", "/api/logo?name=" + quote(name), data, RAW)
+
+    def screens(self):
+        return {path: self.request("GET", path.format(project=self.project))[2].decode("utf-8")
+                for path in self.SCREENS}
+
+    def assertNoLogo(self):
+        self.assertIsNone(company.logo_path(self.data))
+        self.assertEqual(self.request("GET", "/company/logo")[0], 404)
+        uploads = self.data / ".meetingtool-uploads"
+        self.assertEqual(list(uploads.iterdir()) if uploads.exists() else [], [])
+
+    def test_the_name_and_the_logo_are_on_every_screen_and_in_the_tabs_name(self):
+        self.api("/api/company", {"name": "  Nexo   Consultores  "})
+        status, _, body = self.logo(png_bytes())
+        self.assertEqual(status, 200, body)
+        for path, page in self.screens().items():
+            self.assertIn('<a class="brand" href="/"><img class="logo" src="/company/logo" alt="">'
+                          '<span class="company">Nexo Consultores</span><span class="product">MeetingTool</span></a>',
+                          page, path)
+            self.assertRegex(page, r"<title>[^<]* · Nexo Consultores · MeetingTool</title>", path)
+        status, headers, data = self.request("GET", "/company/logo")
+        self.assertEqual((status, headers["content-type"]), (200, "image/png"))
+        self.assertEqual(Image.open(io.BytesIO(data)).size, (40, 20))
+        self.assertEqual(self.request("GET", "/company/logo", cookie=False)[0], 403)
+
+    def test_the_name_and_the_logo_change_and_go(self):
+        self.api("/api/company", {"name": "Nexo"})
+        self.logo(png_bytes())
+        self.api("/api/company", {"name": "Otra"})
+        jpeg = io.BytesIO()
+        Image.new("RGB", (30, 30), (0, 90, 20)).save(jpeg, "JPEG")
+        status, _, body = self.logo(jpeg.getvalue(), "nuevo.JPG")
+        self.assertEqual(status, 200, body)
+        self.assertEqual(company.logo_path(self.data).name, "company-logo.jpg")
+        self.assertFalse((self.data / "company-logo.png").exists())
+        self.assertEqual(self.request("GET", "/company/logo")[1]["content-type"], "image/jpeg")
+        self.assertIn('<span class="company">Otra</span>', self.page("/"))
+        self.assertEqual(self.api("/api/logo/remove"), {"removed": True})
+        self.api("/api/company", {"name": ""})
+        self.assertNoLogo()
+        self.assertIn('<a class="brand" href="/">MeetingTool</a>', self.page("/"))
+
+    def test_without_a_name_or_a_logo_the_screens_are_as_before(self):
+        before = self.screens()
+        self.api("/api/company", {"name": "Nexo"})
+        self.logo(png_bytes())
+        self.api("/api/logo/remove")
+        self.api("/api/company", {"name": "   "})
+        self.assertEqual(self.screens(), before)
+        self.assertIn('<a class="brand" href="/">MeetingTool</a>', before["/"])
+        self.assertIn("<title>Proyectos · MeetingTool</title>", before["/"])
+
+    def test_a_name_with_markup_is_shown_as_text(self):
+        self.api("/api/company", {"name": '<script>alert(1)</script> & "x"'})
+        for path, page in self.screens().items():
+            self.assertNotIn("<script>alert", page, path)
+            self.assertIn("&lt;script&gt;alert(1)&lt;/script&gt; &amp; &quot;x&quot;", page, path)
+            self.assertEqual(re.findall(r"<script(?![^>]*\bsrc=)", page), [], path)
+
+    def test_a_name_that_cannot_be_shown_is_refused(self):
+        for name, said in (("x" * 81, "hasta 80 caracteres"), ("Nexo\x07", "no se pueden mostrar"),
+                           ("Ne‮xo", "no se pueden mostrar"), (12, "es texto")):
+            self.assertIn(said, self.api("/api/company", {"name": name}, expect=400)["error"])
+        self.assertEqual(company.company(self.data).name, "")
+
+    def test_a_logo_that_is_not_a_real_png_or_jpg_is_refused_and_nothing_is_kept(self):
+        whole = png_bytes((200, 120))
+        gif = io.BytesIO()
+        Image.new("RGB", (10, 10)).save(gif, "GIF")
+        svg = b'<?xml version="1.0"?><svg xmlns="http://www.w3.org/2000/svg" onload="alert(1)"/>'
+        for data, name, status, said in (
+                (b"just some text, not an image", "logo.png", 400, "no es una imagen PNG o JPG"),
+                (whole[:len(whole) // 2], "logo.png", 400, "no es una imagen PNG o JPG"),
+                (svg, "logo.svg", 415, "SVG no se acepta"),
+                (svg, "logo.png", 400, "SVG no se acepta"),
+                (b"  <svg><script>alert(1)</script></svg>", "logo.jpg", 400, "SVG no se acepta"),
+                (gif.getvalue(), "logo.png", 400, "tiene que ser un PNG o un JPG"),
+                (gif.getvalue(), "logo.gif", 415, "se acepta .png, .jpg, .jpeg"),
+                (png_bytes((4001, 10)), "logo.png", 400, "hasta 4000 píxeles")):
+            answer_status, _, body = self.logo(data, name)
+            self.assertEqual(answer_status, status, (name, body))
+            self.assertIn(said, json.loads(body)["error"], name)
+            self.assertNoLogo()
+
+    def test_a_logo_of_more_than_1_mb_is_refused_saying_why(self):
+        noise = Image.fromarray(np.random.default_rng(7).integers(0, 255, (700, 700, 3), dtype=np.uint8))
+        buffer = io.BytesIO()
+        noise.save(buffer, "PNG")
+        self.assertGreater(len(buffer.getvalue()), company.LOGO_LIMIT)
+        status, _, body = self.logo(buffer.getvalue())
+        self.assertEqual(status, 413)
+        self.assertIn("pesa más de 1 MB", json.loads(body)["error"])
+        with self.assertRaises(company.SettingsError) as caught:
+            company.check_logo(buffer.getvalue(), "logo.png")
+        self.assertEqual(caught.exception.message.key, "app.logo.too_big")
+        self.assertNoLogo()
+
+    def test_a_logo_of_more_than_1_mb_gets_its_reason_every_time(self):
+        """The body of a refused logo is read before the answer, so the page
+        gets the reason, not a cut connection (review of 5d4c63a, P1-1: 3 of 8
+        runs were cut on Windows)."""
+        big = b"\x89PNG" + bytes(company.LOGO_LIMIT + 400_000)
+        for _ in range(20):
+            status, _, body = self.logo(big)
+            self.assertEqual(status, 413)
+            self.assertIn("pesa más de 1 MB", json.loads(body)["error"])
+        self.assertNoLogo()
+
+    def test_a_logo_of_more_than_1_mb_is_read_before_the_answer(self):
+        """What makes the reason arrive, shown without depending on chance:
+        with only part of the body sent, the server waits for the rest instead
+        of answering (an answer before the body is read is what a reset cut on
+        Windows; the 20 uploads above did not always show it)."""
+        length, first = company.LOGO_LIMIT + 400_000, 100_000
+        connection = socket.create_connection((server.HOST, self.app.port), timeout=30)
+        try:
+            connection.sendall((f"PUT /api/logo?name=logo.png HTTP/1.1\r\nHost: {server.HOST}:{self.app.port}\r\n"
+                                f"Cookie: {server.COOKIE}={self.app.token}\r\nX-MeetingTool: 1\r\n"
+                                f"Content-Type: application/octet-stream\r\nContent-Length: {length}\r\n\r\n")
+                               .encode("ascii") + bytes(first))
+            connection.settimeout(1.5)
+            with self.assertRaises(socket.timeout):
+                connection.recv(1)  # still reading the body: no answer yet
+            connection.settimeout(30)
+            connection.sendall(bytes(length - first))
+            answer = b""
+            while chunk := connection.recv(65536):
+                answer += chunk
+        finally:
+            connection.close()
+        head, _, body = answer.partition(b"\r\n\r\n")
+        self.assertTrue(head.startswith(b"HTTP/1.0 413") or head.startswith(b"HTTP/1.1 413"), head[:40])
+        self.assertIn("pesa más de 1 MB", json.loads(body)["error"])
+        self.assertNoLogo()
+
+    def test_a_refused_request_learns_nothing_of_the_company(self):
+        """A request without the session, or for another host, gets the refusal
+        in the application's language, without the company's name or logo
+        (review of 5d4c63a, P2-1)."""
+        self.api("/api/company", {"name": "Nexo Secreto"})
+        self.logo(png_bytes())
+        for cookie, host in ((False, None), (f"{server.COOKIE}=wrong", None), (True, "evil.example")):
+            status, _, body = self.request("GET", "/", cookie=cookie, host=host)
+            self.assertEqual(status, 403)
+            self.assertNotIn(b"Nexo", body)
+            self.assertNotIn(b"/company/logo", body)
+        status, _, body = self.request("GET", "/open?token=wrong", cookie=False)
+        self.assertEqual(status, 403)
+        self.assertNotIn(b"Nexo", body)
+
+    def test_only_the_pixels_of_the_logo_are_kept(self):
+        """A colour profile, text chunks or metadata of the file are not kept
+        (review of 5d4c63a, P2-4); a transparent colour is part of the image."""
+        from PIL import PngImagePlugin
+
+        info = PngImagePlugin.PngInfo()
+        info.add_text("Comment", "<script>alert(1)</script>")
+        image = Image.new("P", (20, 10), 1)
+        image.putpalette([0, 0, 0, 255, 0, 0] + [0] * 762)
+        buffer = io.BytesIO()
+        image.save(buffer, "PNG", pnginfo=info, icc_profile=b"CHOSEN-BYTES" * 40, transparency=1)
+        status, _, body = self.logo(buffer.getvalue())
+        self.assertEqual(status, 200, body)
+        kept = company.logo_path(self.data).read_bytes()
+        for chunk in (b"iCCP", b"tEXt", b"CHOSEN", b"<script>"):
+            self.assertNotIn(chunk, kept)
+        self.assertEqual(Image.open(io.BytesIO(kept)).info.get("transparency"), 1)
+        status, _, body = self.logo(b"just some text, not an image")
+        self.assertNotIn("object at 0x", json.dumps(json.loads(body)["detail"]))
+
+    def test_what_is_kept_is_the_image_written_again(self):
+        """Anything a file carries besides its image (here, a page appended to a
+        PNG) is not kept or served."""
+        status, _, body = self.logo(png_bytes() + b"<html><script>alert(1)</script></html>")
+        self.assertEqual(status, 200, body)
+        kept = company.logo_path(self.data).read_bytes()
+        self.assertNotIn(b"<script>", kept)
+        self.assertEqual(Image.open(io.BytesIO(kept)).size, (40, 20))
 
 
 # ── WI15-AC02: only this machine, and no other site ───────────────────────────
@@ -716,7 +913,7 @@ class FailureTest(Processing):
     def test_a_recording_that_cannot_be_read_stops_at_the_frames(self):
         self.video.write_bytes(b"this is not a video")
         job = self.process()
-        self.assertEqual(job["failed_stage"], jobs.LABELS["frames"])
+        self.assertEqual(job["failed_stage_name"], "frames")
         self.assertEqual(job["spent_usd"], 0)
         self.assertEqual(self.fake.requests, [])
         self.assertNothingLeft(job)
@@ -724,7 +921,7 @@ class FailureTest(Processing):
     def test_a_reading_gemini_refuses_stops_at_the_reading(self):
         self.fake.script[:] = [400]
         job = self.process()
-        self.assertEqual(job["failed_stage"], jobs.LABELS["reading"])
+        self.assertEqual(job["failed_stage_name"], "reading")
         self.assertIn("HTTP 400", job["error"])
         self.assertNothingLeft(job)
 
@@ -732,7 +929,7 @@ class FailureTest(Processing):
         broken = test_summary.returning(test_summary.summary_text("es", drop="Decisiones"))
         self.fake.script[:] = [lambda first, count: answer_for(first, count), broken, broken]
         job = self.process()
-        self.assertEqual(job["failed_stage"], jobs.LABELS["summary"])
+        self.assertEqual(job["failed_stage_name"], "summary")
         self.assertEqual(self.states(job)[:3], [("frames", "done"), ("reading", "done"), ("summary", "failed")])
         self.assertGreater(job["spent_usd"], 0)
         self.assertAlmostEqual(job["spent_usd"], sum(s["cost_usd"] for s in job["stages"]), places=3)
@@ -746,7 +943,7 @@ class FailureTest(Processing):
         with mock.patch("meetingtool.report.document.build_report",
                         side_effect=document.ReportError("the report could not be opened again")):
             job = self.process(meeting_type="")
-        self.assertEqual(job["failed_stage"], jobs.LABELS["report"])
+        self.assertEqual(job["failed_stage_name"], "report")
         self.assertIn("could not be opened again", job["error"])
         self.assertGreater(job["spent_usd"], 0)
         self.assertNothingLeft(job)
@@ -756,7 +953,7 @@ class FailureTest(Processing):
                                test_summary.returning(test_summary.summary_text("es"))]
         with mock.patch.object(store, "add_meeting", side_effect=store.ProjectError("the disk is full")):
             job = self.process(meeting_type="")
-        self.assertEqual(job["failed_stage"], jobs.LABELS["saving"])
+        self.assertEqual(job["failed_stage_name"], "saving")
         self.assertNothingLeft(job)
 
     def test_one_ceiling_covers_every_stage(self):
@@ -767,8 +964,8 @@ class FailureTest(Processing):
         ceiling = round(gemini.worst_attempt_cost(3) + 0.05, 2)
         self.assertGreater(ceiling, gemini.token_cost(20000 / writer.CHARS_PER_TOKEN, writer.MAX_OUTPUT_TOKENS))
         job = self.process(meeting_type="", max_cost=ceiling)
-        self.assertEqual(job["failed_stage"], jobs.LABELS["summary"], job["error"])
-        self.assertIn("stopped before sending the summary", job["error"])
+        self.assertEqual(job["failed_stage_name"], "summary", job["error"])
+        self.assertIn("se frenó antes de mandar el resumen", job["error"])  # the application speaks Spanish (WI17)
         self.assertEqual(self.summary_requests(), [])
         self.assertLessEqual(job["spent_usd"], ceiling)
         self.assertNothingLeft(job)
@@ -784,7 +981,7 @@ class ReviewFixesTest(Processing):
         # add_meeting writes the record, then the knowledge (P2-1).
         with mock.patch.object(store, "rebuild_knowledge", side_effect=OSError("knowledge.md is locked")):
             job = self.process(meeting_type="")
-        self.assertEqual(job["failed_stage"], jobs.LABELS["saving"])
+        self.assertEqual(job["failed_stage_name"], "saving")
         self.assertEqual(list((self.data / self.project / "meetings").glob("*/meeting.json")), [])
         self.assertNothingLeft(job)
         self.assertNotIn("Sesión de dudas", (self.data / self.project / "knowledge.md").read_text(encoding="utf-8"))
