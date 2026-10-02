@@ -779,7 +779,9 @@ class ProcessTest(Processing):
         for name in (writer.OUTPUT_NAME, library.REPORT_NAME, library.RUN_NAME, gemini.OUTPUT_NAME,
                      "transcript.docx"):
             self.assertTrue((folder / name).is_file(), name)
-        self.assertEqual(record["transcript"], str(folder / "transcript.docx"))
+        # The application keeps the path as the system resolves it: a temporary folder given by its short
+        # name (C:\Users\RUNNER~1\..., as on GitHub's Windows runners) comes back with its long one.
+        self.assertEqual(record["transcript"], str((folder / "transcript.docx").resolve()))
         self.assertGreater(len(list(folder.glob("frame_*.jpg"))), 0)
         self.assertEqual(list(folder.glob("recording*")), [])
         self.assertFalse((self.data / self.project / library.PROCESSING_DIR).exists())
