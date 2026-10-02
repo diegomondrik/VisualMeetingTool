@@ -1,0 +1,9 @@
+# What the build environment needs (WI18): the program's own libraries, and the
+# tools that build it. Installed once from here; the exact versions installed
+# are then frozen into requirements-build.txt, which packaging/build.py checks.
+pyinstaller
+pywebview
+av>=14
+numpy>=1.26
+pillow>=10
+python-docx>=1.1

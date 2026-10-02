@@ -134,10 +134,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         language and, for a request of the session, the company (a request
         refused before the session is checked learns nothing of the data
         folder but its language)."""
+        language = company.language(self.app.data_dir, self.app.default_language)
         if not session:
-            return pages.View(company.language(self.app.data_dir))
+            return pages.View(language)
         owner = company.company(self.app.data_dir)
-        return pages.View(company.language(self.app.data_dir), owner.name, owner.logo is not None)
+        return pages.View(language, owner.name, owner.logo is not None)
 
     # ── Answers ──────────────────────────────────────────────────────────────
 
@@ -475,11 +476,14 @@ class App:
     the machine can be replaced, so the tests need no key and no network."""
 
     def __init__(self, data_dir, *, port=0, token=None, read_key=None, save_key=None, delete_key=None,
-                 endpoint=gemini.ENDPOINT, sleep=time.sleep, retry_delays=None, opener=None):
+                 endpoint=gemini.ENDPOINT, sleep=time.sleep, retry_delays=None, opener=None,
+                 default_language=texts.DEFAULT_LANGUAGE):
         from meetingtool.reading import credentials
         from meetingtool.report import document
 
         self.data_dir = store.check_data_dir(Path(data_dir))
+        # The language until someone chooses one in Settings: the installer's, in the window (WI18).
+        self.default_language = default_language
         self.token = token or secrets.token_urlsafe(32)
         self.read_key = read_key or credentials.read_key
         self.save_key = save_key or credentials.save_key

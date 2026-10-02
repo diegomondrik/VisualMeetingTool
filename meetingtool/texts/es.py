@@ -374,6 +374,7 @@ TEXTS = {
     "app.run.no_key": "no hay una clave de Gemini guardada: guardala en Ajustes",
     "app.run.busy": "ya hay una reunión procesándose: esperá a que termine",
     "app.run.folder_taken": "ya hay una carpeta {folder} en el proyecto",
+    "app.run.closed": "MeetingTool se cerró mientras la reunión se procesaba: no se guardó",
     "app.key.paste": "pegá la clave antes de guardarla",
     "app.open.windows_only": "abrir el Word desde acá sólo funciona en Windows: descargalo",
     "app.data_folder_in_use": "MeetingTool ya está abierto sobre {folder}: usá esa ventana",
@@ -392,6 +393,19 @@ TEXTS = {
     "app.console.keep": "Dejá esta ventana abierta mientras lo uses; para cerrarlo, cerrá esta ventana o apretá "
                         "Ctrl+C.",
     "app.console.error": "error: {error}",
+    "app.window.closing_title": "Cerrar MeetingTool",
+    "app.window.closing_running": "Hay una reunión procesándose. Si cerrás ahora, se descarta y no queda nada de "
+                                  "ella (si justo se estaba guardando, se guarda entera). ¿Cerrar igual?",
+    "app.window.no_webview2": "Falta el componente de Windows que muestra las pantallas de MeetingTool "
+                              "(Microsoft Edge WebView2). Instalalo desde la página de Microsoft y volvé a abrir "
+                              "MeetingTool.",
+    "app.window.failed": "MeetingTool no pudo abrirse[[: {error}]]",
+    "app.window.webview2_failed": "El componente de Windows que muestra las pantallas de MeetingTool (Microsoft "
+                                  "Edge WebView2) no pudo arrancar. Instalalo o reparalo desde la página de "
+                                  "Microsoft («Microsoft Edge WebView2 Runtime») y volvé a abrir MeetingTool. Lo "
+                                  "que pasó está en {log}",
+    "app.window.not_shown": "La ventana de MeetingTool no pudo mostrar sus pantallas. Cerrala y volvé a "
+                            "abrirla; si sigue igual, el detalle de lo que pasó está en {log}",
 
     # ── El script de la página (static/app.js), que pone él mismo los {datos}
     "js.unreadable": "la respuesta no se pudo leer",

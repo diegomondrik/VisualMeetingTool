@@ -217,10 +217,21 @@ class Runner:
         self.retry_delays = gemini.RETRY_DELAYS if retry_delays is None else retry_delays
         self.jobs = {}
         self.lock = threading.Lock()
+        # Closing the window (WI18): no run saves its meeting after close(); one saving then ends first.
+        self.saving = threading.Lock()
+        self.closed = False
 
     def running(self):
         with self.lock:
             return next((job for job in self.jobs.values() if job.state == "running"), None)
+
+    def close(self):
+        """After this no run joins its meeting to a project: a run being
+        processed is dropped, and what it left in the project's working folder
+        is cleared at the next start (clear_leftovers). A meeting being saved
+        right now is saved whole first."""
+        with self.saving:
+            self.closed = True
 
     def start(self, request, wait=False):
         key = self.read_key()
@@ -265,7 +276,7 @@ class Runner:
                  f"{secrets.token_hex(3)}"
         work = project_dir / library.PROCESSING_DIR / run_id
         final = project_dir / library.RESULTS_DIR / run_id
-        added, moved, phase = False, False, "preparing"
+        added, moved, saving, phase = False, False, False, "preparing"
         folder_name = f"{library.RESULTS_DIR}/{run_id}"
         try:
             store.check_data_dir(project_dir)
@@ -314,6 +325,11 @@ class Runner:
                    "report_images": report.images, "finished_utc": store._now_utc()}
             (work / library.RUN_NAME).write_text(json.dumps(run, indent=2, ensure_ascii=False) + "\n",
                                                  encoding="utf-8")
+            # Held until what a failed saving made is undone: the window closes only after that.
+            self.saving.acquire()
+            saving = True
+            if self.closed:
+                raise JobError("app.run.closed")
             final.parent.mkdir(parents=True, exist_ok=True)
             if final.exists():
                 raise JobError("app.run.folder_taken", folder=folder_name)
@@ -328,14 +344,18 @@ class Runner:
                 "app.unexpected", detail=texts.External(str(error) or error.__class__.__name__))
             job.failed_stage = job.failed_stage or phase
         finally:
-            if not added:
-                shutil.rmtree(work, ignore_errors=True)
-                if moved:  # never a folder this run did not make
-                    forget_meeting(self.data_dir, request["project"], folder_name)
-                    shutil.rmtree(final, ignore_errors=True)
-                for leftover in (request["transcript"], request["recording"]):
-                    if leftover is not None and leftover.exists():
-                        leftover.unlink()
+            try:
+                if not added:
+                    shutil.rmtree(work, ignore_errors=True)
+                    if moved:  # never a folder this run did not make
+                        forget_meeting(self.data_dir, request["project"], folder_name)
+                        shutil.rmtree(final, ignore_errors=True)
+                    for leftover in (request["transcript"], request["recording"]):
+                        if leftover is not None and leftover.exists():
+                            leftover.unlink()
+            finally:
+                if saving:
+                    self.saving.release()
             try:
                 (project_dir / library.PROCESSING_DIR).rmdir()
             except OSError:
