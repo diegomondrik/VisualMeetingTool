@@ -762,8 +762,10 @@ def wi05_p3_5(args, root):
     x = "meetingtool/frames/extract.py"
     block = ("    references = None\n    if transcript is not None:\n        try:\n"
              "            references = VisualReferences.from_file(transcript)\n"
-             "        except TranscriptError as error:\n            raise FramesError(str(error)) from error\n")
-    opened = '        raise FramesError(f"cannot open recording {video_path}: {error}") from error\n'
+             "        except TranscriptError as error:\n            raise FramesError(error.message) from error\n")
+    # The texts of WI17 (one list of messages) changed both lines; the mutation is the same.
+    opened = ('        raise FramesError("frames.cannot_open", path=str(video_path), '
+              'detail=texts.External(str(error))) from error\n')
     # The recording is closed when the moved read fails: a variant that leaves it open is caught on
     # Windows only because the test cannot delete a file still in use, not by what the test asserts.
     moved = block.replace("            raise FramesError", "            container.close()\n            raise FramesError")
