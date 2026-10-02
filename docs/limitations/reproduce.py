@@ -228,32 +228,48 @@ def h2(args, root):
 
 @entry("H3", needs_ingol=True)
 def h3(args, root):
+    """Pull request #6, replayed on a protected main that carries this repository's
+    own CI: its wrapper (with its pin) and its tests.yml. Until INGOL WI-029 the
+    wrapper had to be the only workflow; the limitation reproduces if that pull
+    request is refused there. A second run, with the tests.yml of the old
+    reproduction (an action pinned by tag), must still be refused: it shows the
+    closed form decides, not the mere presence of a second workflow."""
     ing = ingol(args, root)
     body = f"INGOL-Work-Item: {PR6_WORK_ITEM}"
-    baseline = ing.project_clone("h3-baseline", PR6_BASE)
-    candidate = ing.project_clone("h3-candidate", PR6_HEAD)
-    control = ing.protected_check(baseline, candidate, PR6_BASE, PR6_HEAD, body)
-    if control.returncode != 0:
-        raise RuntimeError(f"positive control failed, the replica is broken: {control.stderr.strip()[-300:]}")
-    # The same pull request on a protected main that also runs the project's own tests.
-    workflow = baseline / ".github" / "workflows" / "tests.yml"
-    workflow.write_text("name: tests\non: pull_request\npermissions:\n  contents: read\njobs:\n  tests:\n"
-                        "    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
-                        "      - run: python -m unittest discover -s tests -v\n", encoding="utf-8")
-    git("add", "-A", cwd=baseline)
-    git("-c", "user.name=lab", "-c", "user.email=lab@example.invalid", "commit", "-q", "-m", "tests", cwd=baseline)
-    base = git("rev-parse", "HEAD", cwd=baseline).stdout.strip()
-    git("fetch", "-q", str(baseline), "HEAD", cwd=candidate)
-    git("-c", "user.name=lab", "-c", "user.email=lab@example.invalid", "rebase", "-q", "--onto", "FETCH_HEAD",
-        PR6_BASE, cwd=candidate)
-    head = git("rev-parse", "HEAD", cwd=candidate).stdout.strip()
-    variant = ing.protected_check(baseline, candidate, base, head, body)
-    failed = sorted(set(re.findall(r'"predicate": "([^"]+)",\s+"status": "failed"', variant.stdout)))
-    reason = "workflow set must contain only ingol-bootstrap.yml" in variant.stdout
-    return (variant.returncode != 0 and reason,
-            f"PR #6 in the local replica: exit {control.returncode}; the same PR with tests.yml on main: exit "
-            f"{variant.returncode}, failed {', '.join(failed)}: \"workflow set must contain only "
-            f"ingol-bootstrap.yml\" {'named' if reason else 'NOT named'}")
+    own = REPO / ".github" / "workflows" / "tests.yml"
+    if not own.is_file():
+        raise RuntimeError("this repository has no .github/workflows/tests.yml to replay")
+    by_tag = ("name: tests\non: pull_request\npermissions:\n  contents: read\njobs:\n  tests:\n"
+              "    runs-on: ubuntu-latest\n    steps:\n      - uses: actions/checkout@v4\n"
+              "      - run: python -m unittest discover -s tests -v\n").encode("utf-8")
+
+    def replay(name, tests):
+        baseline = ing.project_clone(f"h3-{name}-baseline", PR6_BASE)
+        candidate = ing.project_clone(f"h3-{name}-candidate", PR6_HEAD)
+        workflows = baseline / ".github" / "workflows"
+        (workflows / "ingol-bootstrap.yml").write_bytes(WRAPPER.read_bytes())
+        (workflows / "tests.yml").write_bytes(tests)
+        git("add", "-A", cwd=baseline)
+        git("-c", "user.name=lab", "-c", "user.email=lab@example.invalid", "commit", "-q", "-m", "ci", cwd=baseline)
+        base = git("rev-parse", "HEAD", cwd=baseline).stdout.strip()
+        git("fetch", "-q", str(baseline), "HEAD", cwd=candidate)
+        git("-c", "user.name=lab", "-c", "user.email=lab@example.invalid", "rebase", "-q", "--onto", "FETCH_HEAD",
+            PR6_BASE, cwd=candidate)
+        head = git("rev-parse", "HEAD", cwd=candidate).stdout.strip()
+        result = ing.protected_check(baseline, candidate, base, head, body)
+        states = dict(re.findall(r'"predicate": "([^"]+)",\s+"status": "([a-z]+)"', result.stdout))
+        return result, states
+
+    own_run, own_states = replay("own", own.read_bytes())
+    tag_run, tag_states = replay("by-tag", by_tag)
+    if tag_run.returncode == 0 or tag_states.get("CI-TRUST") != "failed":
+        raise RuntimeError("the control with an action pinned by tag was not refused by CI-TRUST: the replica "
+                           "does not discriminate")
+    named = ", ".join(f"{name} {own_states.get(name, 'absent')}" for name in ("CI-TRUST", "TP-05", "TP-15"))
+    return (own_run.returncode != 0,
+            f"INGOL {ing.revision[:7]}; PR #6 on a main with this repository's wrapper and tests.yml: exit "
+            f"{own_run.returncode}, {named}; the control with the old tests.yml (checkout@v4): exit "
+            f"{tag_run.returncode}, CI-TRUST {tag_states.get('CI-TRUST')}")
 
 
 @entry("H4", needs_ingol=True)
