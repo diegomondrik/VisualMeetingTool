@@ -27,7 +27,7 @@ jobs:
         uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd
         with:
           repository: diegomondrik/ingol
-          ref: 2e862e99cee0ca89222dded8645b79b8c925fecd
+          ref: feb1e5381b90c04626e9b87f79c6a44095f1d2c0
           token: ${{ secrets.INGOL_TRUSTED_READ_TOKEN }}
           path: installation
           persist-credentials: false
