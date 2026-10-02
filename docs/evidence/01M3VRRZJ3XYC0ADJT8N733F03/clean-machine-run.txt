@@ -1,0 +1,48 @@
+WI18-AC07, clean machine: the computer of a member of the owner's team that never had
+VisualMeetingTool (Windows user "lenny"), 2026-10-01/02. Installer: the build of 37d14df
+(sha256 7c0e069fd44c8d6474d42c55f320595f3f68283a0410f9488e1b25dcfe9e5019, build-run.txt),
+handed over in a folder with PASOS.txt (10 steps) and two invented files (a 15-minute video
+and a Teams-shaped transcript). The tester's report reached the owner as a PDF ("Revision
+Pasos.pdf", 4 pages of notes and screenshots), which the owner pasted into the session; what
+follows is what it shows, transcribed by the implementer. No Gemini key, no spend.
+
+What the report shows, step by step
+
+Step 1, installing in English: the language was asked first; the installer went on in
+English. Then "Select Destination Location" offered
+C:\Users\lenny\AppData\Local\Programs\VisualMeetingTool (the user's own programs folder: no
+administrator), "At least 141,4 MB of free disk space is required", then the shortcut page.
+The tester notes that PASOS.txt did not mention the destination page: a gap of the steps,
+not of the installer.
+
+Step 2, the window: not described in words; the screenshots of steps 3 and 4 are the
+application's screens in English, inside its own window (Windows' own file dialog opens
+from it, in Spanish, the tester's Windows language). WebView2 started on this machine.
+
+Step 3, processing at no cost: the tester chose the transcript without a video and the
+summary format, as PASOS.txt said, and the application refused at once: "The summary needs
+the video. Without a video, choose questions and answers." That is the application's
+intended rule (WI15); PASOS.txt was wrong to expect a stop by the ceiling there (it should
+have said questions and answers). Two remarks of the tester:
+  - the date field accepts a future date (31/10/2026 in the screenshot), which would not be
+    reasonable for a meeting;
+  - the file dialog opens in the user's home folder; the tester would like it to open in a
+    folder of the client and of the project.
+
+Step 4, processing with the video, ceiling 0.01: "Frames of the video: done, 64 s,
+US$0.000"; "Reading of the frames: failed, 0 s, US$0.000"; "Spent: US$0.000 of a ceiling of
+US$0.010 · 65 s"; "It failed at «Reading of the frames»: stopped before sending frames 1-15:
+that request could cost up to US$0.20, and with about US$0.00 already spent it could go over
+the budget of US$0.01; nothing was written. The meeting was not added to the project and
+nothing was left half done." That is the expected result: the frames came out of a real
+video on a machine without Python, and the ceiling stopped the reading before anything was
+sent. The report does not say whether the window was closed with the X during the frames.
+
+Steps 5 to 10 (second start, reinstalling in Spanish, uninstalling, the antivirus, the log):
+not in the report.
+
+Shown on a clean machine by this report: installing without administrator rights, the
+language asked first, the window showing the screens through WebView2, uploading a
+transcript and a video through Windows' dialog, the frames extracted by the installed
+program, the spending ceiling stopping the run with nothing left. Not yet shown: the closing
+question, the second start, reinstalling over it, uninstalling, the antivirus.
