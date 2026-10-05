@@ -24,6 +24,10 @@ TEXTS = {
     "projects.needs_name": "a project needs a name",
     "projects.exists": "project {project} already exists in {folder}",
     "projects.needs_title": "a meeting needs a title",
+    "projects.unreadable": "the record {file} cannot be read[[: {detail}]]; nothing was changed: fix it or "
+                           "move it out of the project",
+    "projects.busy": "another MeetingTool (the application or a command) has held the data folder {folder} "
+                     "for more than {seconds:.0f} s; nothing was changed: try again when it ends",
     "meeting.bad_date": "meeting date {date!r} is not a valid YYYY-MM-DD date",
 
     # ── The Gemini key and the reading of the frames (meetingtool.reading) ──
@@ -202,6 +206,7 @@ TEXTS = {
     "app.col.stage": "Stage",
     "app.col.state": "State",
     "app.col.time": "Time",
+    "app.col.paid": "Paid",
     "app.projects.title": "Projects",
     "app.projects.none": "There are no projects yet.",
     "app.projects.new": "New project",
@@ -217,6 +222,12 @@ TEXTS = {
     "app.project.no_meetings": "There are no meetings yet.",
     "app.project.knowledge": "What the project already knows",
     "app.project.knowledge_hint": "What each meeting leaves and the next one reads.",
+    "app.kept.title": "Kept from runs that failed",
+    "app.kept.hint": "What was paid in a run that failed stays here, so that processing the same meeting "
+                     "again (the same transcript and format) does not pay it again. Discarding it cannot be "
+                     "undone.",
+    "app.kept.discard": "Discard",
+    "app.kept.confirm": "Discard what was kept of «{title}»? Processing it again would pay it again.",
     "app.type.presale": "Presale",
     "app.type.negotiation": "Sales or negotiation",
     "app.type.requirements": "Requirements gathering",
@@ -422,4 +433,9 @@ TEXTS = {
     "js.retry": "Try again",
     "js.connection_job": "The connection with MeetingTool was lost: check that its window is still open.",
     "js.running": "«{title}» is being processed: see the progress",
+    "js.kept": "What Gemini already answered for this meeting was kept ({paid} paid so far): processing it "
+               "again with the same transcript does not pay that again. Until then, it is listed in the project.",
+    "js.discard": "Discard what was kept",
+    "js.discard_confirm": "Discard what was kept? Processing this meeting again would pay it again.",
+    "js.discarded": "Discarded.",
 }

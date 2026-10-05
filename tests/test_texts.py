@@ -181,6 +181,7 @@ OUTSIDE_RAISES = {
     ("meetingtool/report/__main__.py", "argparse.ArgumentTypeError"): "the terminal's argument parser says it",
     ("meetingtool/app/library.py", "NotFound"): "never said: the server answers app.not_found",
     ("meetingtool/app/server.py", "library.NotFound"): "never said: the server answers app.not_found",
+    ("meetingtool/app/jobs.py", "library.NotFound"): "never said: the server answers app.not_found (WI20)",
 }
 # Errors of the program that are not said to anyone.
 UNSAID = {"NotFound"}
@@ -196,6 +197,7 @@ SCRIPT_TECHNICAL = {
     "/api/upload?kind=transcript&name=", "/api/upload?kind=recording&name=", "/api/process", "/job/", "td", "h2",
     "table", "list", "tr", "th", "stage ", "pending", "skipped", "", " s", "done", "p", "a", "button", "/m/",
     "failed", "hint detail", "/new", "job", "/api/jobs/", "running", "/api/running", "DOMContentLoaded", " — ",
+    "hint kept", "span", "message", "role", "status", "/api/kept/discard",  # WI20: what a failed run kept
 }
 
 

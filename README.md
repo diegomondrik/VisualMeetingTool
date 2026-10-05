@@ -192,12 +192,24 @@ script. Both are kept in the data folder (`app-settings.json`,
 "Procesar" runs the same functions as the commands, in order: frames,
 reading (for the summary), summary or register, Word report. One ceiling
 covers the whole run. The meeting is added to its project only once its Word
-report is built; if a stage fails, nothing is left of the run and the page
-says which stage failed, why and what was spent. Each processed meeting keeps
-its frames, transcript, summary, report and a record of the run in
-`<data>/<project>/results/<run>/`; the recording itself is not copied.
-Folders of the data folder made with the commands outside a project are
-listed read-only.
+report is built; if a stage fails, the meeting is not added and the page says
+which stage failed, why and what was spent. What Gemini already answered is
+not thrown away: a failed run that paid for something keeps its folder in
+`<data>/<project>/processing/<run>/`, listed in the project's page, and
+processing the same meeting again (the same transcript and format) continues
+there and pays only what is missing. It goes when that run succeeds or when
+it is discarded from the page; a run that paid nothing leaves nothing. Each
+processed meeting keeps its frames, transcript, summary, report and a record
+of the run in `<data>/<project>/results/<run>/`; the recording itself is not
+copied. Folders of the data folder made with the commands outside a project
+are listed read-only.
+
+Everything kept in the data folder is written whole or not at all (to a
+temporary file, then put in place at once), and every change to it holds the
+folder's lock (`.meetingtool-write.lock`), which the application and the
+commands share: two saves at once never take the same name, and a save cut
+short leaves every record readable. A record that still cannot be read (one
+edited by hand) is named in an error, not skipped.
 
 Only this machine can use it: the server listens on 127.0.0.1, every request
 needs the session cookie set when the browser opens the launch address (a new
@@ -212,3 +224,9 @@ Python 3.11 or newer, with the libraries in `pyproject.toml` installed:
 ```
 python -m unittest discover -s tests -v
 ```
+
+The `test_d1_*.py` files are INGOL's reproductions of the external review of
+2026-10-02; they need INGOL's test kits, which are not part of this
+repository, and are skipped without them. With the kits installed
+(`~/.claude/ingol-kits`), they run with
+`PYTHONPATH=<home>/.claude/ingol-kits/python`.

@@ -5,6 +5,7 @@ projects are invented at test time in a temporary folder."""
 import contextlib
 import io
 import json
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -72,6 +73,11 @@ class Workspace(unittest.TestCase):
         write_teams_docx(self.transcript, SPANISH)
         self.data = self.tmp / "data"
         self.sleeps = []
+
+    def forget_paid(self):
+        """Drop the answers kept by an earlier request (WI20), for a test whose
+        requests are the same and must each be sent."""
+        shutil.rmtree(self.frames / gemini.KEPT_DIR, ignore_errors=True)
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -220,6 +226,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
     def test_a_meeting_type_adds_its_sections_and_they_are_required(self):
         with FakeGemini([returning(summary_text(meeting_type="technical"))] + [returning(summary_text())] * 2) as fake:
             self.summarise(fake, meeting_type="technical")
+            self.forget_paid()
             with self.assertRaises(writer.SummaryError):
                 self.summarise(fake, meeting_type="technical")
         self.assertIn("## Decisiones técnicas", fake.requests[0]["body"]["contents"][0]["parts"][0]["text"])
@@ -234,6 +241,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
     def test_the_key_never_appears_in_any_output(self):
         outputs = []
         for script in ([returning(summary_text())], [400], [returning(summary_text(drop="Temas"))] * 2):
+            self.forget_paid()
             stdout, stderr = io.StringIO(), io.StringIO()
             with FakeGemini(script) as fake, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 code = main(["--frames", str(self.frames), "--transcript", str(self.transcript)],
@@ -242,7 +250,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
         self.assertEqual([code for code, _ in outputs], [0, 2, 2])
         for _, text in outputs:
             self.assertNotIn(KEY, text)
-        for path in self.frames.iterdir():
+        for path in (p for p in self.frames.rglob("*") if p.is_file()):
             self.assertNotIn(KEY, path.read_text(encoding="utf-8"))
 
     def test_with_no_key_saved_nothing_is_sent(self):
@@ -571,6 +579,7 @@ class KeyAndBudgetWithTypesTest(Workspace):
         spanish_body = summary_text("en", "requirements").replace("The text of", "Texto de la sección")
         scripts = ([returning(summary_text("en", "requirements"))], [returning(spanish_body)] * 2)
         for script in scripts:
+            self.forget_paid()
             stdout, stderr = io.StringIO(), io.StringIO()
             with FakeGemini(script) as fake, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type",
@@ -582,7 +591,7 @@ class KeyAndBudgetWithTypesTest(Workspace):
         self.assertIn("not in English", outputs[1][1])
         for _, text in outputs:
             self.assertNotIn(KEY, text)
-        for path in self.frames.iterdir():
+        for path in (p for p in self.frames.rglob("*") if p.is_file()):
             self.assertNotIn(KEY, path.read_text(encoding="utf-8"))
 
     def test_a_typed_request_that_could_go_over_the_budget_is_not_sent(self):

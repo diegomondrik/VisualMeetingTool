@@ -1000,7 +1000,8 @@ class TemplateInfoTest(Workspace):
         document.set_template(owner_shaped(self.tmp / "duena.docx"), self.data)
         self.assertTrue((self.data / document.TEMPLATE_RECORD).is_file())
         document.remove_template(self.data)
-        self.assertEqual(list(self.data.iterdir()), [])
+        # What is left is only the data folder's lock (WI20), never the template or its record.
+        self.assertEqual([p.name for p in self.data.iterdir()], [".meetingtool-write.lock"])
 
 
 class ExampleTemplateTest(Workspace):

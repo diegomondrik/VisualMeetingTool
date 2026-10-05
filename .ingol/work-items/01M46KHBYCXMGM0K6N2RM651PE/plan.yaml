@@ -1,0 +1,65 @@
+schema_version: "1"
+work_item: 01M46KHBYCXMGM0K6N2RM651PE
+status: approved
+next_gate: implement-then-independent-review-and-security-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code
+branch: work-item/01M46KHBYCXMGM0K6N2RM651PE-data-integrity
+steps:
+  - the-pilot-tests-of-the-family-copied-unchanged-wi20-ac01
+  - one-write-layer-temporary-name-and-replace-wi20-ac02
+  - a-lock-on-the-disk-and-ids-reserved-exclusively-wi20-ac03-ac04
+  - an-unreadable-record-named-not-skipped-wi20-ac05
+  - paid-answers-kept-by-fingerprint-wi20-ac06
+  - a-failed-run-keeps-what-was-paid-until-processed-again-or-discarded-wi20-ac07
+  - mutations-with-and-without-the-kits-wi20-ac08
+  - the-suite-in-a-fresh-clone-and-the-limitations-register-wi20-ac09
+evaluations:
+  - criterion: WI20-AC01
+    method: deterministic
+    control: >-
+      docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/compare_pilot_tests.py compares
+      the source of each copied class with INGOL's file, the project's name
+      apart; the classes pass with the kits on the import path.
+  - criterion: WI20-AC02
+    method: adversarial
+    control: >-
+      Tests with ingol_kits.fallas cut every write boundary of each
+      operation, in both modes; a kit-free test cuts the close of a record
+      and of the knowledge file.
+  - criterion: WI20-AC03
+    method: adversarial
+    control: >-
+      Tests with ingol_kits.intercalar run every order with one and two
+      switches; kit-free tests hold the lock and check the second writer
+      waits and gets its own id.
+  - criterion: WI20-AC04
+    method: adversarial
+    control: >-
+      A test holds the data folder's lock in this process and starts the
+      terminal command in another one.
+  - criterion: WI20-AC05
+    method: deterministic
+    control: >-
+      A test writes a truncated record by hand, lists the project in both
+      languages and runs the application against it.
+  - criterion: WI20-AC06
+    method: deterministic
+    control: >-
+      Tests with Gemini faked count the paid requests of a failed run and of
+      the repeat, for both formats, in the application and in the terminal.
+  - criterion: WI20-AC07
+    method: deterministic
+    control: >-
+      Tests of the application: a kept failed run across a restart, the
+      discard, the page's text in both languages, and a run with nothing paid.
+  - criterion: WI20-AC08
+    method: adversarial
+    control: >-
+      docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/mutations.py and mutations.txt,
+      run once with the kits and once without.
+  - criterion: WI20-AC09
+    method: deterministic
+    control: >-
+      docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/local-test-run.txt, from a
+      fresh clone of the tested commit; python docs/limitations/reproduce.py.

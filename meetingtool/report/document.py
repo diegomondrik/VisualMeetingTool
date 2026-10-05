@@ -36,7 +36,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
 
-from meetingtool import texts
+from meetingtool import disk, texts
 from meetingtool.projects import store
 from meetingtool.report import layout
 from meetingtool.summary import qa, writer
@@ -212,26 +212,24 @@ def set_template(path, data_dir=None, name=None):
     name it was given (by default, its own file name)."""
     data = template_bytes(path)
     folder = store.check_data_dir(data_dir or store.default_data_dir())
-    folder.mkdir(parents=True, exist_ok=True)
     target = folder / TEMPLATE_NAME
-    partial = folder / (TEMPLATE_NAME + ".partial")
-    partial.write_bytes(data)
     record = {"name": Path(name or Path(path).name).name[:200], "set_utc": store._now_utc()}
-    (folder / (TEMPLATE_RECORD + ".partial")).write_text(json.dumps(record, ensure_ascii=False) + "\n",
-                                                          encoding="utf-8")
-    os.replace(partial, target)
-    os.replace(folder / (TEMPLATE_RECORD + ".partial"), folder / TEMPLATE_RECORD)
+    with store.data_lock(folder):  # each file whole or not at all (WI20, R01)
+        disk.write_bytes(target, data)
+        disk.write_text(folder / TEMPLATE_RECORD, json.dumps(record, ensure_ascii=False) + "\n")
     return target
 
 
 def remove_template(data_dir=None):
     """Remove the installation's template and its record; True if there was
     one."""
-    path = stored_template(data_dir)
-    if path is None:
-        return False
-    path.unlink()
-    (path.parent / TEMPLATE_RECORD).unlink(missing_ok=True)
+    folder = store.check_data_dir(data_dir or store.default_data_dir())
+    with store.data_lock(folder):
+        path = stored_template(folder)
+        if path is None:
+            return False
+        path.unlink()
+        (path.parent / TEMPLATE_RECORD).unlink(missing_ok=True)
     return True
 
 

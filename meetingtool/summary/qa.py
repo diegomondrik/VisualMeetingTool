@@ -34,7 +34,7 @@ import time
 import unicodedata
 from pathlib import Path
 
-from meetingtool import texts
+from meetingtool import disk, texts
 from meetingtool.frames.transcript import TranscriptError, read_text, read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
@@ -729,9 +729,7 @@ def _kept_part(path, digest, check):
 
 
 def _write(path, text):
-    partial = path.with_name(path.name + ".partial")
-    partial.write_text(text, encoding="utf-8")
-    partial.replace(path)
+    disk.write_text(path, text)
 
 
 def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, title=None, date=None,
@@ -818,7 +816,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
             found = _stage(stages, counters, name, lambda: gemini.call_checked(
                 url, key, payload, check, worst, texts.Message("qa.what.register_part", part=part, parts=len(windows)),
                 retry_delays,
-                sleep, counters, max_cost_usd, revising), refusals)
+                sleep, counters, max_cost_usd, revising, keep=frames_dir / gemini.KEPT_DIR), refusals)
         found, found_knowledge = found
         questions += found
         if last:
@@ -832,7 +830,8 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     readings = {}
     if wanted:
         readings = _stage(stages, counters, texts.Message("qa.stage.frames"), lambda: gemini.read_listed(
-            url, key, wanted, retry_delays, sleep, counters, max_cost_usd), refusals)
+            url, key, wanted, retry_delays, sleep, counters, max_cost_usd, keep=frames_dir / gemini.KEPT_DIR),
+                          refusals)
     needing = {identifier: [path.name for path in paths] for identifier, paths in spans.items() if paths}
     seen = {}
     if needing:
@@ -844,7 +843,8 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
         seen = _stage(stages, counters, texts.Message("qa.stage.seen"), lambda: gemini.call_checked(
             url, key, payload, lambda answer: check_seen(parse_json(answer, texts.Message("qa.what.screen_reading")),
                                                         needing, language),
-            worst, texts.Message("qa.where.seen"), retry_delays, sleep, counters, max_cost_usd, revising), refusals)
+            worst, texts.Message("qa.where.seen"), retry_delays, sleep, counters, max_cost_usd, revising,
+            keep=frames_dir / gemini.KEPT_DIR), refusals)
 
     markdown = render(questions, grouped, seen, language)
     writer.check_frames(markdown, {path.name for path in frames})
