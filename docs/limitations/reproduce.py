@@ -999,6 +999,17 @@ def wi21_p3_3(args, root):
         f"{len(said)} lines about it; options {options}")
 
 
+@entry("WI21-P3-4")
+def wi21_p3_4(args, root):
+    from meetingtool.summary import qa
+    # An answer whose last turn begins at 0:20 and goes on explaining; a slide shown at 5:00 of that
+    # explanation was extracted (WI21) but is not among the frames the register reads for the answer.
+    frames = [Path(f"frame_001_t00-00-15.jpg"), Path(f"frame_002_t00-05-00.jpg")]
+    span = [path.name for path in qa.span_frames(frames, 10, 20)]
+    return "frame_002_t00-05-00.jpg" not in span, (
+        f"an answer from 0:10 whose last turn begins at 0:20: the register reads {span}, not the slide at 5:00")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))

@@ -159,15 +159,18 @@ here; these are the ones left open, and three the work item itself declared.
 ## Work item 21, reading to the end (`01M474JN9F7N86SHHSKZ41Q1VY`)
 
 Source: the limitations the contract declares
-(`.ingol/work-items/01M474JN9F7N86SHHSKZ41Q1VY/contract.yaml`). Their
-reproductions use a synthetic 140 s recording whose transcript ends at 1 s;
-the 120 s of the old cut are written in the script, since the constant is
-gone. The real-meeting measurement (the 35 minutes past the last line, 19% of
-the time the cut saved) is in the evidence of WI10 and, again, of this work
-item; it needs the owner's recording and has no entry here.
+(`.ingol/work-items/01M474JN9F7N86SHHSKZ41Q1VY/contract.yaml`), and the
+independent review's P3-4 (`docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/independent-review.md`).
+Their reproductions use a synthetic 140 s recording whose transcript ends at
+1 s; the 120 s of the old cut are written in the script, since the constant
+is gone. What reading to the end costs on a longer synthetic recording is in
+this work item's `synthetic-run.txt` (the owner chose it over the real
+meeting); on the real meeting, WI10's evidence measured the cut saving 19% of
+the time, the recording running 35 minutes past the last line.
 
 | ID | What it means | State | Seen by running |
 |---|---|---|---|
 | `WI21-P3-1` | A recording that runs on after the meeting (people leave, the screen stays shared) is read to its end, with or without a transcript: the time the WI10 cut saved is spent again. On the owner's real 117-minute meeting the recording ran 35 minutes past the last line and the cut saved 19% of the time | open, by design | The 140 s recording with a transcript ending at 1 s: every sample read: 280, against about 243 if reading still stopped 120 s after the last line |
 | `WI21-P3-2` | The frames shown in that tail can reach the report, since nothing leaves them out (camera close-ups are still never candidates, since WI10) | open | The slide shown from 130 s on, after the last line plus 120 s, is kept |
 | `WI21-P3-3` | The person cannot set where the recording ends, and nothing says when the transcript and the recording seem misaligned (a transcript whose times run past the recording, or end long before it): the command prints no warning and has no option for an end | open | A transcript with a line at 10 min on a 140 s recording: the command ends well, says nothing about it, and its options hold no end |
+| `WI21-P3-4` | The questions-and-answers register reads, for each answer, the frames until its last turn began (at most 10 minutes after it began): a slide shown during a long last explanation is now extracted but not read for that answer. The summary reads every frame. Already so before WI21 (review P3-4) | open | An answer from 0:10 whose last turn begins at 0:20: the frame at 5:00 is not among those read |

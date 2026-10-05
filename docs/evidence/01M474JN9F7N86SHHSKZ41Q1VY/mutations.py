@@ -106,7 +106,7 @@ def main(argv):
     names = sorted({name for _, edits in MUTATIONS for name, _, _ in edits})
     originals = {name: (work / name).read_text(encoding="utf-8") for name in names}
     print("mutation run for 01M474JN9F7N86SHHSKZ41Q1VY: each mutation is applied alone to a copy of the working")
-    print(f"tree; `python -m unittest {' '.join(CI)}` (what the CI runs) must fail; "
+    print(f"tree; `python -m unittest {' '.join(CI)}` (the frames tests, part of what the CI runs) must fail; "
           f"`python -m unittest {' '.join(PILOT)}` is run besides and recorded")
     detected_all = True
     try:

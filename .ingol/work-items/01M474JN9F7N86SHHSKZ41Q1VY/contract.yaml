@@ -36,6 +36,19 @@ objective: >
   transcript and the recording seem misaligned; leaving out a tail after the
   meeting by what it shows (the review's other suggestions); R02, R04, R06
   and the second batch.
+
+  Corrected after the independent review of a9a09f3
+  (docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/independent-review.md): the
+  mutation record names its commit (P3-1), the mutation script does not
+  call its selection all of the CI (P3-2), and the evidence says which test
+  covers which criterion (P3-3). No P0, P1 or P2.
+
+  Known limitations (docs/limitations/REGISTER.md, WI21-P3-1 to WI21-P3-4):
+  a recording that runs on after the meeting is read to its end; frames of
+  that tail can reach the report; no end set by hand and no warning when the
+  transcript and the recording seem misaligned; the questions-and-answers
+  register reads an answer's frames only until its last turn began (already
+  so before WI21).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M474JN9F7N86SHHSKZ41Q1VY/**
