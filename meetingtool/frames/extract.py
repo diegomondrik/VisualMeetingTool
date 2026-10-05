@@ -18,9 +18,13 @@ use the full sample. The opening slide needs no special case: the
 first sample has nothing to compare with, and the next one enters on time
 coverage alone. Two uses of what a meeting is (INGOL D-176): a sample that
 shows a person on camera never becomes a candidate (signals.is_camera_view),
-and with a transcript the recording is read only until TRANSCRIPT_TAIL
-seconds after its last line starts, since a recording often runs on after
-everyone has stopped talking.
+and the recording is always read to its end, with a transcript or without
+one (WI21). A transcript says when each line starts, not when it ends, so
+nothing in it can say where the meeting ends: WI10 stopped reading
+TRANSCRIPT_TAIL seconds after its last line started, and a long last
+explanation, or a transcript that stopped early, lost every slide shown after
+that point (review R05). The transcript only raises the score of samples near
+a phrase that points at the screen.
 """
 
 import collections
@@ -44,7 +48,7 @@ ANALYSIS_WIDTH = 640
 MAX_HEIGHT = 720
 JPEG_QUALITY = 85
 DISCARD_LOG = "frames_discarded.log"
-TRANSCRIPT_TAIL = 120.0
+TRANSCRIPT_TAIL = 120.0  # no longer read: the cut it set is gone (WI21); tests/test_d1_final_de_la_reunion.py still patches it
 
 
 class FramesError(texts.Failure):
@@ -63,7 +67,7 @@ class ExtractionResult:
     discards: collections.Counter
     boosted: int = 0      # candidates whose score the transcript raised
     boosted_in: int = 0   # of those, the ones that were below the minimum score without it
-    read_until: float = None  # where reading stopped because the transcript had ended; None if it did not
+    read_until: float = None  # always None since WI21: the recording is read to its end; kept for the same test
 
 
 def enclosing_git_work_tree(path):
@@ -167,8 +171,6 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     candidate_times = []
     samples = candidates = max_pool = boosted = boosted_in = 0
     last_distinct_gray = None
-    stop_at = references.last + TRANSCRIPT_TAIL if references is not None else None
-    read_until = None
     try:
         stream = container.streams.video[0]
         stream.thread_type = "AUTO"  # decode on every core; frames and their order do not change
@@ -181,9 +183,6 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
             if frame.pts is None:
                 continue
             timestamp = float(frame.pts * stream.time_base)
-            if stop_at is not None and timestamp > stop_at:
-                read_until = stop_at
-                break
             if timestamp - last_sampled < interval:
                 continue
             last_sampled = timestamp
@@ -262,4 +261,4 @@ def extract_frames(video_path, output_dir, budget=150, fps_analyze=2.0, roi_top=
     lines = [f"{run} | {timestamp_label(t)} | {reason}" for t, reason in sorted(log_lines, key=lambda x: x[0])]
     (output_dir / DISCARD_LOG).write_text("\n".join(lines) + ("\n" if lines else ""), encoding="utf-8")
     return ExtractionResult(duration, samples, candidates, max_pool, kept, kept_times, candidate_times, discards,
-                            boosted, boosted_in, read_until)
+                            boosted, boosted_in)

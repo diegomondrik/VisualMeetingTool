@@ -24,9 +24,18 @@ anyway.
 
 ## Reading the frames with Gemini
 
-The frames of a meeting (`python -m meetingtool.frames`) are read with
-Gemini's paid tier, using your own key. Save it once in the Windows
-Credential Manager; it is never shown or written anywhere:
+The command that selects the frames of a meeting
+(`python -m meetingtool.frames`) reads the recording to its end, with a
+transcript or without one: a transcript says when each line starts, not when
+the meeting ends, so it never shortens the reading. With `--transcript`, the
+samples near a phrase that points at the screen score higher, and the
+command says how many candidates that raised. A recording that runs on after
+the meeting is read to its end too, and a slide shown there can reach the
+report.
+
+The frames are read with Gemini's paid tier, using your own key. Save it
+once in the Windows Credential Manager; it is never shown or written
+anywhere:
 
 ```
 python -m meetingtool.reading key set

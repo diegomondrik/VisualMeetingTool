@@ -427,32 +427,70 @@ class MeetingRealityTest(Workspace):
         grain = np.clip(np.random.default_rng(7).normal(128, 14, (HEIGHT - STRIP, WIDTH)), 0, 255).astype(np.uint8)
         self.assertFalse(signals.is_camera_view(grain))
 
-    def test_with_a_transcript_reading_stops_soon_after_its_last_line(self):
-        ended = self.tmp / "ended.txt"
-        ended.write_text("[00:00:01] Ana:\nhola\n[00:00:04] Luis:\nchau", encoding="utf-8")
-        with mock.patch.object(extract_module, "TRANSCRIPT_TAIL", 5.0):
-            result = extract_frames(self.video, self.out, transcript=ended)
-        self.assertEqual(result.read_until, 9.0)
-        self.assertEqual([which_slide(self.out / name) for name in result.kept], ["A", "B"], result)
-        self.assertTrue(result.candidate_times and max(result.candidate_times) <= 9.0, result.candidate_times)
-        self.assertLessEqual(result.samples, 19)
-        whole = extract_frames(self.video, self.out)
-        self.assertIsNone(whole.read_until)
-        self.assertGreater(whole.samples, 50)
+    def long_recording(self):
+        """140 s: slide C shows from 130 s on, after the 121 s that the cut of WI10 (the last line's
+        start plus 120 s) left for a transcript whose last line starts at 1 s."""
+        video = self.tmp / "long.mp4"
+        write_video(video, [(SLIDE_A, 10, False), (SLIDE_B, 120, False), (SLIDE_C, 10, False)])
+        return video
 
-    def test_the_command_line_says_where_reading_stopped(self):
+    def assertReadToTheEnd(self, transcript_text):
+        """WI21-AC02: with this transcript the samples read, the candidates and the frames kept are
+        exactly those of the same recording without one, and the last slide is among them."""
+        video = self.long_recording()
+        written = self.tmp / "transcript.txt"
+        written.write_text(transcript_text, encoding="utf-8")
+        without = extract_frames(video, self.tmp / "without")
+        with_one = extract_frames(video, self.out, transcript=written)
+        self.assertEqual([which_slide(self.tmp / "without" / name) for name in without.kept], ["A", "B", "C"])
+        self.assertEqual(with_one.samples, without.samples)
+        self.assertGreater(with_one.samples, 270)
+        self.assertEqual(with_one.candidate_times, without.candidate_times)
+        self.assertEqual(with_one.kept_times, without.kept_times)
+        self.assertEqual([which_slide(self.out / name) for name in with_one.kept], ["A", "B", "C"], with_one)
+        self.assertGreaterEqual(max(with_one.candidate_times), 129.0)
+
+    def test_a_transcript_that_ends_early_does_not_shorten_the_reading(self):
+        self.assertReadToTheEnd("[00:00:01] Ana:\nhola\n[00:00:04] Luis:\nchau")
+
+    def test_a_last_line_that_is_long_does_not_shorten_the_reading(self):
+        self.assertReadToTheEnd("[00:00:01] Ana:\nTe explico el tablero entero, columna por columna, "
+                                "y después pasamos al detalle del costo de proceso.\n")
+
+    def test_a_transcript_whose_times_run_past_the_recording_does_not_change_the_reading(self):
+        self.assertReadToTheEnd("[00:00:01] Ana:\nhola\n[00:10:00] Luis:\nchau")
+
+    def test_a_transcript_that_ends_early_still_raises_the_candidates_next_to_its_phrases(self):
+        video = self.long_recording()
+        ended = self.tmp / "ended.txt"
+        ended.write_text("[00:00:05] Ana:\nfijate acá\n[00:00:08] Luis:\nchau", encoding="utf-8")
+        with mock.patch.object(extract_module, "composite_score", lambda *args: 0.1):
+            without = extract_frames(video, self.tmp / "without")
+            raised = extract_frames(video, self.out, transcript=ended)
+        self.assertEqual((without.candidates, without.boosted), (0, 0))
+        self.assertGreater(raised.boosted, 0)
+        self.assertEqual(raised.boosted_in, raised.candidates)
+        self.assertEqual(raised.samples, without.samples)
+        self.assertGreater(raised.samples, 270)
+
+    def test_the_command_line_reads_to_the_end_with_a_transcript_and_says_what_the_transcript_raised(self):
+        video = self.long_recording()
         ended = self.tmp / "ended.txt"
         ended.write_text("[00:00:01] Ana:\nhola", encoding="utf-8")
-        result = subprocess.run(
-            [sys.executable, "-c",
-             "import sys; from meetingtool.frames import extract, __main__ as cli; extract.TRANSCRIPT_TAIL = 5.0; "
-             "cli.TRANSCRIPT_TAIL = 5.0; sys.exit(cli.main(sys.argv[1:]))",
-             "--video", str(self.video), "--out", str(self.out), "--transcript", str(ended)],
-            cwd=REPOSITORY, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
-            capture_output=True, text=True, encoding="utf-8",
-        )
-        self.assertEqual(result.returncode, 0, result.stderr)
-        self.assertIn("read until 6s of 30s: the transcript's last line starts 1s in", result.stdout)
+
+        def command(*extra):
+            return subprocess.run(
+                [sys.executable, "-m", "meetingtool.frames", "--video", str(video), "--out", str(self.out), *extra],
+                cwd=REPOSITORY, env=dict(os.environ, PYTHONDONTWRITEBYTECODE="1"),
+                capture_output=True, text=True, encoding="utf-8",
+            )
+
+        without, with_one = command(), command("--transcript", str(ended))
+        self.assertEqual((without.returncode, with_one.returncode), (0, 0), with_one.stderr)
+        self.assertNotIn("read until", with_one.stdout)
+        self.assertIn("candidates raised by the transcript", with_one.stdout)
+        self.assertEqual(with_one.stdout.splitlines()[0], without.stdout.splitlines()[0])
+        self.assertIn("duration 140.0s", with_one.stdout)
 
 
 class PackagingTest(unittest.TestCase):
