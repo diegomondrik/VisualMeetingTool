@@ -54,3 +54,9 @@ answer the second time; they drop it first.
 |---|---|
 | `test_texts.OUTSIDE_RAISES` | `library.NotFound` raised in `meetingtool/app/jobs.py` (discarding a kept run that does not exist), never said: the server answers `app.not_found`, as for the two places already listed. |
 | `test_texts.SCRIPT_TECHNICAL` | The page script's new technical strings: two class names (`hint kept`, `message`), an element (`span`), an attribute and its value (`role`, `status`) and the address `/api/kept/discard`. Every text a person reads comes from the list (`js.kept`, `js.discard`, `js.discard_confirm`, `js.discarded`). |
+
+## Not WI20's: a fix main did not have yet
+
+| Test | What changed |
+|---|---|
+| `test_app.ProcessTest.test_the_summary_runs_every_stage_in_order_and_the_meeting_joins_its_project` | The first CI run of this pull request failed it, and only it: GitHub's Windows runners give the temporary folder by its short name (`C:\Users\RUNNER~1`), and the test compared the transcript's path as text. The same one-line fix was already in WI18's branch (`f7b8737`, found by PR #19's first CI run); it is brought here with `git cherry-pick -x`, unchanged, so main gets it whichever pull request is integrated first. |
