@@ -7,8 +7,9 @@ recorded, caught or not.
 
     python docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/mutations.py <repository> <empty folder outside it> [--kits <kits python folder>] [label part]
 
-With a label part, only the mutations whose label holds it are run. The
-output of the recorded run is mutations.txt next to this file.
+With a label part, only the mutations whose label holds it are run; with
+`--from <label part>`, the run starts at the first mutation whose label holds
+it. The output of the recorded run is mutations.txt next to this file.
 """
 
 import os
@@ -35,7 +36,7 @@ MEETING_ID = '''        meeting_id, counter = base_id, 2
                 (meetings / meeting_id).mkdir(parents=True)
                 break
             except FileExistsError:
-                if (meetings / meeting_id).is_dir() and not (meetings / meeting_id / "meeting.json").exists():
+                if _left_by_a_cut(meetings / meeting_id):
                     break
             meeting_id, counter = f"{base_id}-{counter}", counter + 1
 '''
@@ -145,6 +146,9 @@ def main(argv):
     kits = None
     if rest[:1] == ["--kits"]:
         kits, rest = Path(rest[1]), rest[2:]
+    start = ""
+    if rest[:1] == ["--from"]:
+        start, rest = rest[1], rest[2:]
     only = rest[0] if rest else ""
     shutil.copytree(source, work, ignore=shutil.ignore_patterns(".git", "__pycache__"))
     names = sorted({name for _, edits, _ in MUTATIONS for name, _, _ in edits})
@@ -154,8 +158,10 @@ def main(argv):
           (f"; with the kits ({kits}), the INGOL tests named for it are run and recorded" if kits else ""))
     detected_all = True
     try:
+        started = not start
         for label, edits, kit_tests in MUTATIONS:
-            if only not in label:
+            started = started or start in label
+            if only not in label or not started:
                 continue
             changed = dict(originals)
             for name, old, new in edits:

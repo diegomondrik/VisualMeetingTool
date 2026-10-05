@@ -34,6 +34,7 @@ answer the second time; they drop it first.
 
 | Test | What changed |
 |---|---|
+| `test_qa.Workspace.register` | Its rule was already "each run starts without the batches kept by the one before, unless the test is about them": it removed `qa-parts/`, and now `paid-answers/` too. Found by the suite in a fresh clone of `7252f74`, which failed 13 cases of `test_qa` once the register's parts were also kept by fingerprint (the correction of the review's P2-2). |
 | `test_summary.Workspace.forget_paid` | New helper: removes `paid-answers/` of the test's folder. |
 | `test_summary.LanguageTypeKeyBudgetTest.test_a_meeting_type_adds_its_sections_and_they_are_required` | `forget_paid()` before the second, refused, summary. |
 | `test_summary.LanguageTypeKeyBudgetTest.test_the_key_never_appears_in_any_output` | `forget_paid()` before each of its three runs; the check that no file holds the key now reads every file under the folder (`rglob`), the kept answers included. |

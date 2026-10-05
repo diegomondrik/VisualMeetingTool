@@ -124,9 +124,11 @@ class Workspace(unittest.TestCase):
 
     def register(self, fake, transcript=None, keep=False, **kwargs):
         # Each run starts without the batches kept by the one before, unless
-        # the test is about them.
+        # the test is about them: the register's parts, and every paid answer
+        # kept by its fingerprint (WI20).
         if not keep:
             shutil.rmtree(self.frames / qa.PARTS_DIR, ignore_errors=True)
+            shutil.rmtree(self.frames / gemini.KEPT_DIR, ignore_errors=True)
         return qa.write_register(self.frames, transcript or self.transcript, KEY, endpoint=fake.endpoint,
                                  sleep=self.sleeps.append, data_dir=self.data, **kwargs)
 
