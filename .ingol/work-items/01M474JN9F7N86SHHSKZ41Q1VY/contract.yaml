@@ -22,8 +22,9 @@ objective: >
   read to its end. On the owner's real 117-minute meeting measured in WI10,
   the recording ran 35 minutes past the last line and the cut saved 19% of
   the time; frames of that tail can reach the report (camera close-ups are
-  still never candidates, since WI10). Both are measured on that meeting
-  again, numbers only, with no Gemini.
+  still never candidates, since WI10). Both are measured on a synthetic
+  recording with a tail after its transcript's last line, with no Gemini:
+  the owner decided on 2026-10-05 not to use the real meeting for it.
 
   The test that shows the defect was written in this pilot and fails on
   main: tests/test_d1_final_de_la_reunion.py (a 14-second slide A while one
@@ -62,13 +63,14 @@ acceptance:
       in the evidence.
   - id: WI21-AC04
     description: >
-      The owner's real meeting used in WI10 (read in place, never copied
-      into any repository), extracted with its transcript on main and on
-      this branch, each from a fresh clone, with no Gemini: duration,
-      samples, candidates, frames kept, seconds, and how many kept frames
-      come after the transcript's last line, recorded under
-      docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/ as numbers only. The owner
-      gives the recording's path when it is run.
+      A synthetic recording made by a script in the evidence (slides, a last
+      transcript line followed by a slide past the old cut, and a tail after
+      the meeting), extracted with its transcript on main and on this
+      branch, each from a fresh clone, with no Gemini: duration, samples,
+      candidates, frames kept, seconds, and how many kept frames come after
+      the transcript's last line, recorded under
+      docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/. Changed from the owner's
+      real meeting by the owner's decision of 2026-10-05.
   - id: WI21-AC05
     description: >
       The whole suite passes with `python -m unittest discover -s tests -v`
