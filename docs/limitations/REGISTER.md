@@ -153,5 +153,21 @@ here; these are the ones left open, and three the work item itself declared.
 | `WI20-P3-3` | A process that dies between saving a meeting's record and rewriting `knowledge.md` leaves the copy one meeting behind; the application's next start rewrites it, but a summary made from the commands before that reads it without the meeting | open | The rewrite skipped: the meeting missing from the knowledge until `clear_leftovers` |
 | `WI20-P3-4` | A meeting record broken by hand is found when the meeting is saved, after the summary or register was paid; what was paid is kept, but once the record is fixed the project's knowledge differs, so the request differs and is paid again | open | A record cut by hand: 1 request paid, then the meeting not added |
 | `WI20-P3-5` | The same request is never paid twice in one folder: asking the commands again for the same summary to get a different answer returns the kept one. To pay for a new answer, `paid-answers/` of the folder is deleted | open, by design | The same summary asked twice in one folder: 1 request paid |
-| `WI20-P3-6` | INGOL's pilot tests (`tests/test_d1_*.py`) need INGOL's kits, which are not in this public repository nor in its CI: on GitHub they are skipped, and only the owner's machine runs them | open | `test_d1_*` without the kits: every file skipped |
+| `WI20-P3-6` | INGOL's pilot tests (`tests/test_d1_*.py`) need INGOL's kits, which are not in this public repository nor in its CI: on GitHub they are skipped, and only the owner's machine runs them | open | `test_d1_*` without the kits: the three files that need them skipped (the fourth, WI21's pilot test of R05, needs none and runs) |
 | `WI20-P3-7` | A failed run that paid keeps the meeting's transcript, frames and Gemini's answers in the data folder until the meeting is processed again or the run is discarded (before WI20 they were removed at once; the owner approved the change, the security review noted it) | open, by design | A run failed at the report: its folder kept with `transcript.docx` and its frames |
+
+## Work item 21, reading to the end (`01M474JN9F7N86SHHSKZ41Q1VY`)
+
+Source: the limitations the contract declares
+(`.ingol/work-items/01M474JN9F7N86SHHSKZ41Q1VY/contract.yaml`). Their
+reproductions use a synthetic 140 s recording whose transcript ends at 1 s;
+the 120 s of the old cut are written in the script, since the constant may
+go. The real-meeting measurement (the 35 minutes past the last line, 19% of
+the time the cut saved) is in the evidence of WI10 and, again, of this work
+item; it needs the owner's recording and has no entry here.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `WI21-P3-1` | A recording that runs on after the meeting (people leave, the screen stays shared) is read to its end, with or without a transcript: the time the WI10 cut saved is spent again. On the owner's real 117-minute meeting the recording ran 35 minutes past the last line and the cut saved 19% of the time | open, by design | The 140 s recording with a transcript ending at 1 s: every sample read: 280, against about 243 if reading still stopped 120 s after the last line |
+| `WI21-P3-2` | The frames shown in that tail can reach the report, since nothing leaves them out (camera close-ups are still never candidates, since WI10) | open | The slide shown from 130 s on, after the last line plus 120 s, is kept |
+| `WI21-P3-3` | The person cannot set where the recording ends, and nothing says when the transcript and the recording seem misaligned (a transcript whose times run past the recording, or end long before it): the command prints no warning and has no option for an end | open | A transcript with a line at 10 min on a 140 s recording: the command ends well, says nothing about it, and its options hold no end |
