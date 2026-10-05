@@ -98,7 +98,7 @@ review's order.
 | `WI03-P3-1` | Project ids drop letters such as `Ł`, `ß`, `ø`; wholly non-Latin names all become `project` and collide | open | `Łódź` → `odz`; a second non-Latin project is refused as already existing |
 | `WI03-P3-2` | A very long project name raises a raw `OSError` on Windows instead of a clear error | open | A 300-character name |
 | `WI03-P3-3` | A summary with Windows line endings makes the knowledge text returned differ from the one read back; the test comparing the file with the returned text is close to tautological | open | `rebuild_knowledge` and `knowledge_context` differ |
-| `WI03-P3-4` | A missing `knowledge.md` raises `FileNotFoundError`, not a clear error | open | The file deleted, then read |
+| `WI03-P3-4` | A missing `knowledge.md` raises `FileNotFoundError`, not a clear error | fixed by `ef0abc5` (WI20: a missing copy is made from the records) | The file deleted, then read: the knowledge comes back |
 | `WI03-P3-5` | `~` in the data folder setting is not expanded | open | `MEETINGTOOL_DATA_DIR=~/vmt-data` gives a folder literally named `~` |
 | `WI03-P3-6` | Two meetings of the same day added within the same second list alphabetically, not in the order added | open | "Zeta" then "Alpha" list as Alpha, Zeta |
 | `WI03-P3-7` | The WI03-AC05 evidence holds synthetic context, summaries and a key point besides titles; no client content | open, noted only | The evidence file holds `--context`, `--summary`, `--key-point` |

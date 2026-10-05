@@ -509,7 +509,7 @@ def wi03_p3_4(args, root):
         return False, "ProjectError"
     except FileNotFoundError:
         return True, "a missing knowledge.md raises FileNotFoundError, not ProjectError"
-    return False, "no error"
+    return False, "no error: the knowledge is made from the records (ef0abc5)"
 
 
 @entry("WI03-P3-5")
