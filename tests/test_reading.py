@@ -315,8 +315,8 @@ class KeyNeverShownTest(Workspace):
             self.assertNotIn(KEY, request["path"])
             self.assertNotIn("key=", request["path"])
             self.assertNotIn(KEY, json.dumps(request["body"]))
-        for path in self.frames.iterdir():
-            if path.suffix != ".jpg":
+        for path in self.frames.rglob("*"):  # the answers kept by WI20 too
+            if path.is_file() and path.suffix != ".jpg":
                 self.assertNotIn(KEY, path.read_text(encoding="utf-8"))
         self.assertTrue(self.output().exists())
 

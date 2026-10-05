@@ -18,13 +18,16 @@ attempt that got no answer is counted at its maximum, since it may have
 been billed. Prices are the list prices read for D-169; the model that
 answered is recorded, so the estimate can be checked against its price.
 
-Only the standard library is used. Nothing is written unless every request
-succeeded, and the frames folder must be outside any git work tree: frames
-and what they show are client data.
+Only the standard library is used. The reading is written only once every
+request succeeded, but each accepted answer is kept as it arrives, in
+KEPT_DIR of the frames folder, so that reading again after a failure pays
+only what is missing (WI20). The frames folder must be outside any git work
+tree: frames and what they show are client data.
 """
 
 import base64
 import dataclasses
+import hashlib
 import http.client
 import json
 import re
@@ -33,7 +36,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from meetingtool import texts
+from meetingtool import disk, texts
 from meetingtool.frames.extract import enclosing_git_work_tree
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
@@ -54,6 +57,8 @@ RETRY_DELAYS = (30.0, 60.0)
 RETRYABLE_STATUS = frozenset({429, 500, 503})
 TIMEOUT = 300
 OUTPUT_NAME = "frames_read.md"
+# Where the accepted answers of paid requests are kept, by fingerprint (see call_checked).
+KEPT_DIR = "paid-answers"
 
 PROMPT = """You are analysing screenshots from a business meeting recording.
 For each image, in order, extract all visible structured information.
@@ -185,13 +190,44 @@ def new_counters():
     return {"attempts": 0, "input": 0, "output": 0, "thinking": 0, "spent": 0.0, "models": set()}
 
 
-def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd, revise=None):
+def fingerprint(url, payload):
+    """What identifies a request: the model it goes to and everything it
+    sends (text, images, settings); not the key, nor the service's address."""
+    model = url.rstrip("/").rsplit("/", 1)[-1]
+    sent = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(f"{model}\n{sent}".encode("utf-8")).hexdigest()
+
+
+def _kept_answer(path, check):
+    """check() of the answer kept at path, or None if there is none or it no
+    longer passes the check."""
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        answer = {"candidates": [{"content": {"parts": [{"text": record["answer"]}]}, "finishReason": "STOP"}]}
+        return check(answer)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, texts.Failure):
+        return None
+
+
+def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd, revise=None,
+                 keep=None):
     """Send one request and return check(answer), within the budget and after
     the allowed retries: an answer check refuses is retried once; a busy,
     rate-limited or unanswered request twice, after the given pauses; any
     other error ends at once. `worst` is the most one attempt can cost.
     With `revise`, the retry of a refused answer sends revise(payload, error)
-    instead, so the request can say what was refused; `worst` must cover it."""
+    instead, so the request can say what was refused; `worst` must cover it.
+
+    With `keep`, a folder, an accepted answer is kept there under the
+    request's fingerprint, and the same request made again (the same model,
+    exactly the same content) takes it from there, checked again, without
+    paying (WI20: what was paid is never thrown away). Any other request,
+    even one differing in a single character, pays."""
+    kept = Path(keep) / f"{fingerprint(url, payload)}.json" if keep is not None else None
+    if kept is not None:
+        found = _kept_answer(kept, check)
+        if found is not None:
+            return found
     incomplete_retried = False
     refused = ""  # why the answer before was refused, so a stop by the budget says it (INGOL D-181's run)
     what = what if isinstance(what, texts.Message) else texts.External(what)
@@ -218,7 +254,7 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
             if isinstance(answer, dict) and answer.get("modelVersion"):
                 counters["models"].add(str(answer["modelVersion"]))
             try:
-                return check(answer)
+                value = check(answer)
             except ReadingError as error:
                 if incomplete_retried:
                     raise
@@ -227,6 +263,11 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                 if revise is not None:
                     payload = revise(payload, error)
                 continue
+            if kept is not None:
+                text = "".join(part.get("text", "") for part in answer["candidates"][0]["content"]["parts"])
+                disk.write_text(kept, json.dumps({"answer": text, "model": answer.get("modelVersion", "")},
+                                                 ensure_ascii=False) + "\n")
+            return value
         if status is not None and status not in RETRYABLE_STATUS:
             raise ReadingError("gemini.refused", status=status, reason=reason)
         if not delays:
@@ -251,16 +292,16 @@ def model_url(endpoint, model):
 
 
 def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost_usd,
-                max_output_tokens=MAX_OUTPUT_TOKENS):
+                max_output_tokens=MAX_OUTPUT_TOKENS, keep=None):
     """The checked text for one chunk, after the allowed retries and within the budget."""
     return call_checked(url, key, _payload(frames, first, max_output_tokens),
                         lambda answer: check_answer(answer, first, len(frames)),
                         worst_attempt_cost(len(frames), max_output_tokens),
                         texts.Message("gemini.what.frames", first=first, last=first + len(frames) - 1),
-                        retry_delays, sleep, counters, max_cost_usd)
+                        retry_delays, sleep, counters, max_cost_usd, keep=keep)
 
 
-def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, chunk_size=CHUNK_SIZE):
+def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, chunk_size=CHUNK_SIZE, keep=None):
     """What each of `frames` shows, as {name: its [FRAME n] block}, reading
     only those frames, each chunk checked and within the budget as
     read_frames does (the question-and-answer register reads only the frames
@@ -269,7 +310,7 @@ def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, c
     for start in range(0, len(frames), chunk_size):
         chunk = frames[start:start + chunk_size]
         text = _read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd,
-                           listed_output_tokens(len(chunk)))
+                           listed_output_tokens(len(chunk)), keep=keep)
         found = list(_BLOCK.finditer(text))
         ends = [match.start() for match in found[1:]] + [len(text)]
         blocks = {int(match.group(1)): text[match.start():end].strip() for match, end in zip(found, ends)}
@@ -298,14 +339,13 @@ def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUN
     answers = []
     for start in range(0, len(frames), chunk_size):
         chunk = frames[start:start + chunk_size]
-        answers.append(_read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd))
+        answers.append(_read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd,
+                                   keep=frames_dir / KEPT_DIR))
     header = ["# What each frame shows (read by Gemini)", "",
               f"{len(frames)} frames, {len(answers)} request(s), model {model}.", ""]
     header += [f"- FRAME {n}: {path.name}" for n, path in enumerate(frames, start=1)] + [""]
     output = frames_dir / OUTPUT_NAME
-    partial = frames_dir / (OUTPUT_NAME + ".partial")
-    partial.write_text("\n".join(header) + "\n" + "\n\n".join(a.strip() for a in answers) + "\n", encoding="utf-8")
-    partial.replace(output)
+    disk.write_text(output, "\n".join(header) + "\n" + "\n\n".join(a.strip() for a in answers) + "\n")
     return ReadingResult(len(frames), len(answers), counters["attempts"], time.monotonic() - started,
                          counters["input"], counters["output"], counters["thinking"], output,
                          counters["spent"], tuple(sorted(counters["models"])))

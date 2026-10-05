@@ -9,12 +9,22 @@ one ceiling covers the whole run.
 
 Nothing is added to the project until the report is built: the run works in
 <project>/processing/<run>, moves it to <project>/results/<run> and only then
-adds the meeting, naming that folder. If anything fails, the working folder
-is removed and the meeting is not added; the job says which stage failed, why,
-and what was spent. One run at a time.
+adds the meeting, naming that folder. If anything fails, the meeting is not
+added and the job says which stage failed, why, and what was spent.
+
+What was paid is not thrown away (WI20, the external review's R03, a rule the
+owner approved on 2026-10-05 in place of "if anything fails, nothing is left
+of the run"): every accepted answer of a paid request is kept in the working
+folder (gemini.KEPT_DIR, and the register's qa.PARTS_DIR), and a run that
+fails holding one keeps its folder, with KEPT_RECORD saying what it was
+asked. Processing the same meeting again (the same transcript and format, in
+the same project) continues in that folder and pays only what is missing; the
+folder goes when that run succeeds or when the person discards it. A run that
+paid nothing leaves nothing. One run at a time.
 """
 
 import datetime
+import hashlib
 import json
 import os
 import secrets
@@ -23,10 +33,11 @@ import threading
 import time
 from pathlib import Path
 
-from meetingtool import texts
+from meetingtool import disk, texts
 from meetingtool.app import library
 from meetingtool.projects import store
 from meetingtool.reading import gemini
+from meetingtool.summary import qa
 
 FORMATS = ("summary", "qa")
 # The ceiling of one meeting, every stage together (INGOL D-186): it must cover each paid request and
@@ -35,6 +46,8 @@ FORMATS = ("summary", "qa")
 DEFAULT_MAX_COST_USD = 1.00
 TRANSCRIPT_SUFFIXES = (".docx", ".txt")
 RECORDING_SUFFIXES = (".mp4", ".mov", ".mkv", ".webm", ".avi", ".wmv", ".m4v")
+# In a run's working folder: what it was asked, so that the same meeting processed again continues in it.
+KEPT_RECORD = "kept.json"
 STAGE_KEYS = {"frames": "app.stage.frames", "reading": "app.stage.reading", "summary": "app.stage.summary",
               "qa": "app.stage.qa", "report": "app.stage.report", "preparing": "app.stage.preparing",
               "saving": "app.stage.saving"}
@@ -70,6 +83,8 @@ class Job:
         self.error = ""  # the message of what failed: a texts.Message, or text
         self.failed_stage = ""
         self.meeting_id = ""
+        self.run_id = ""
+        self.kept = None  # after a failure that kept what was paid: {"run", "paid_usd"}
         self.started = time.monotonic()
         self.seconds = 0.0
 
@@ -83,7 +98,7 @@ class Job:
                 "spent_usd": round(self.counters["spent"], 4), "max_cost_usd": self.request["max_cost"],
                 "seconds": round(seconds, 1), "error": error, "detail": detail,
                 "failed_stage": label(self.failed_stage, language), "failed_stage_name": self.failed_stage,
-                "meeting": self.meeting_id}
+                "meeting": self.meeting_id, "kept": self.kept}
 
 
 def _date(value):
@@ -174,34 +189,156 @@ class Uploads:
 
 
 def forget_meeting(data_dir, project_id, folder_name):
-    """Remove a meeting record that names folder_name, if add_meeting wrote it
-    before failing (it writes the record, then the knowledge), and rebuild the
-    project's knowledge, so a failed save leaves no meeting behind."""
-    meetings = Path(data_dir) / project_id / "meetings"
-    removed = False
-    for record in meetings.glob("*/meeting.json") if meetings.is_dir() else ():
+    """Remove a meeting record that names folder_name, if one was left by a
+    save that failed, and rebuild the project's knowledge, so a failed save
+    leaves no meeting behind. A record that cannot be read is not this run's
+    (its own was written whole) and is left as it is. Never raises: it runs
+    while a failure is being settled."""
+    try:
+        meetings = Path(data_dir) / project_id / "meetings"
+        removed = False
+        with store.data_lock(data_dir):
+            for record in meetings.glob("*/meeting.json") if meetings.is_dir() else ():
+                try:
+                    named = json.loads(record.read_text(encoding="utf-8")).get("folder")
+                except (OSError, ValueError, AttributeError):
+                    continue
+                if named == folder_name:
+                    shutil.rmtree(record.parent, ignore_errors=True)
+                    removed = True
+            if removed:
+                store.rebuild_knowledge(data_dir, project_id)
+    except Exception:  # noqa: BLE001 - the failure being settled is what the job reports
+        pass
+
+
+def holds_paid(folder):
+    """True if a run's folder holds an accepted answer that was paid for."""
+    folder = Path(folder)
+    return any((folder / gemini.KEPT_DIR).glob("*.json")) or any((folder / qa.PARTS_DIR).glob("part-*.json"))
+
+
+def request_fingerprint(request):
+    """What makes two requests the same meeting for continuing a kept run:
+    the project, the format and the transcript's bytes. Each kept answer is
+    used only for the exact same request to Gemini (gemini.call_checked), so
+    anything else that changed (the title, the recording) pays again."""
+    digest = hashlib.sha256(f"{request['project']}\n{request['format']}\n".encode("utf-8"))
+    with open(request["transcript"], "rb") as handle:
+        for block in iter(lambda: handle.read(1 << 20), b""):
+            digest.update(block)
+    return digest.hexdigest()
+
+
+def _kept_record(folder):
+    try:
+        record = json.loads((Path(folder) / KEPT_RECORD).read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return record if isinstance(record, dict) else None
+
+
+def kept_runs(data_dir, project_id):
+    """The runs of a project that failed (or were cut short) keeping what was
+    paid, newest first: {"run", "title", "date", "format", "failed_stage",
+    "paid_usd", "failed_utc"}."""
+    folder = Path(data_dir) / project_id / library.PROCESSING_DIR
+    found = []
+    for run in sorted(folder.iterdir()) if folder.is_dir() else ():
+        record = _kept_record(run)
+        if record is None or not library.is_slug(run.name) or not holds_paid(run):
+            continue
+        paid = record.get("paid_usd")
+        found.append({"run": run.name, "title": str(record.get("title", "")), "date": str(record.get("date", "")),
+                      "format": str(record.get("format", "")), "failed_stage": str(record.get("failed_stage", "")),
+                      "paid_usd": float(paid) if isinstance(paid, (int, float)) else 0.0,
+                      "failed_utc": str(record.get("failed_utc", ""))})
+    return sorted(found, key=lambda run: run["failed_utc"], reverse=True)
+
+
+def _kept_for(project_dir, fingerprint):
+    """The folder of the newest kept run of the same meeting, or None."""
+    for run in kept_runs(project_dir.parent, project_dir.name):
+        folder = project_dir / library.PROCESSING_DIR / run["run"]
+        if (_kept_record(folder) or {}).get("fingerprint") == fingerprint:
+            return folder
+    return None
+
+
+def discard_kept(data_dir, project_id, run):
+    """Remove what a failed run kept, at the person's request; NotFound if
+    there is no such kept run."""
+    if not all(isinstance(value, str) and library.is_slug(value) for value in (project_id, run)):
+        raise library.NotFound(str(run))
+    if run not in {kept["run"] for kept in kept_runs(data_dir, project_id)}:
+        raise library.NotFound(run)
+    processing = Path(data_dir) / project_id / library.PROCESSING_DIR
+    shutil.rmtree(processing / run)
+    try:
+        processing.rmdir()
+    except OSError:
+        pass
+
+
+def _named_folders(project_dir):
+    """The results folders the project's meeting records name, read as they
+    are: an unreadable record names none."""
+    named = set()
+    for record in (project_dir / "meetings").glob("*/meeting.json"):
         try:
-            named = json.loads(record.read_text(encoding="utf-8")).get("folder")
+            named.add(json.loads(record.read_text(encoding="utf-8")).get("folder"))
         except (OSError, ValueError, AttributeError):
             continue
-        if named == folder_name:
-            shutil.rmtree(record.parent, ignore_errors=True)
-            removed = True
-    if removed:
-        try:
-            store.rebuild_knowledge(data_dir, project_id)
-        except (store.ProjectError, OSError):
-            pass
+    return named
+
+
+def _settle_cut_saves(data_dir):
+    """A process that died while saving a run leaves a results folder still
+    holding KEPT_RECORD: if a meeting names it, the save had ended and the
+    record goes; if none does, the folder goes back to being a kept run."""
+    for results in data_dir.glob(f"*/{library.RESULTS_DIR}"):
+        project_dir = results.parent
+        if not (project_dir / "project.json").is_file():
+            continue
+        cut = [run for run in results.iterdir() if (run / KEPT_RECORD).is_file()]
+        if not cut:
+            continue
+        named = _named_folders(project_dir)
+        for run in cut:
+            if f"{library.RESULTS_DIR}/{run.name}" in named:
+                (run / KEPT_RECORD).unlink()
+            else:
+                (project_dir / library.PROCESSING_DIR).mkdir(exist_ok=True)
+                os.replace(run, project_dir / library.PROCESSING_DIR / run.name)
 
 
 def clear_leftovers(data_dir):
-    """What a run cut short by closing the window left: the working folders
-    of every project, and the uploads no run took. Called at start, while
+    """What a run cut short by closing the window left: a save cut half way
+    (_settle_cut_saves), a knowledge file one meeting behind (a process that
+    died between saving a meeting's record and rewriting it), the working
+    folders of every project that hold nothing paid (one that does is kept,
+    as a failed run's), and the uploads no run took. Called at start, while
     this session holds the data folder's lock."""
     data_dir = Path(data_dir)
+    with store.data_lock(data_dir):
+        _settle_cut_saves(data_dir)
+        for project in data_dir.glob("*/project.json"):
+            try:
+                store.rebuild_knowledge(data_dir, project.parent.name)
+            except store.ProjectError:
+                pass  # an unreadable record: listing the project names it
     for folder in data_dir.glob(f"*/{library.PROCESSING_DIR}"):
-        if (folder.parent / "project.json").is_file():
-            shutil.rmtree(folder, ignore_errors=True)
+        if not (folder.parent / "project.json").is_file():
+            continue
+        for run in folder.iterdir():
+            if not run.is_dir():
+                run.unlink(missing_ok=True)
+            elif not holds_paid(run):
+                shutil.rmtree(run, ignore_errors=True)
+        try:
+            folder.rmdir()
+        except OSError:
+            pass
     Uploads(data_dir).clear()
 
 
@@ -257,19 +394,30 @@ class Runner:
         # Imported here: the frames need av and numpy, the report python-docx.
         from meetingtool.frames.extract import extract_frames
         from meetingtool.report import document
-        from meetingtool.summary import qa, writer
+        from meetingtool.summary import writer
 
         request = job.request
         project_dir = self.data_dir / request["project"]
-        run_id = f"{request['date']}-{store.slugify(request['title'], fallback='meeting')[:40].strip('-')}-" \
-                 f"{secrets.token_hex(3)}"
-        work = project_dir / library.PROCESSING_DIR / run_id
-        final = project_dir / library.RESULTS_DIR / run_id
+        work = final = None
+        folder_name = ""
         added, moved, phase = False, False, "preparing"
-        folder_name = f"{library.RESULTS_DIR}/{run_id}"
         try:
             store.check_data_dir(project_dir)
-            work.mkdir(parents=True)
+            fingerprint = request_fingerprint(request)
+            work = _kept_for(project_dir, fingerprint)
+            kept = _kept_record(work) if work is not None else None
+            if work is None:
+                run_id = f"{request['date']}-{store.slugify(request['title'], fallback='meeting')[:40].strip('-')}-" \
+                         f"{secrets.token_hex(3)}"
+                work = project_dir / library.PROCESSING_DIR / run_id
+                work.mkdir(parents=True)
+                kept = {"paid_usd": 0.0}
+            job.run_id = work.name
+            final = project_dir / library.RESULTS_DIR / work.name
+            folder_name = f"{library.RESULTS_DIR}/{work.name}"
+            kept.update(fingerprint=fingerprint, title=request["title"], date=request["date"],
+                        format=request["format"], started_utc=store._now_utc())
+            disk.write_text(work / KEPT_RECORD, json.dumps(kept, ensure_ascii=False, indent=2) + "\n")
             transcript = work / f"transcript{request['transcript'].suffix.lower()}"
             os.replace(request["transcript"], transcript)
             if request["recording"] is not None:
@@ -281,6 +429,8 @@ class Runner:
             else:
                 job.stages[0].state = "skipped"
                 extracted = None
+                for old in work.glob("frame_*.jpg"):  # an earlier attempt's, with a recording: not this run's
+                    old.unlink()
             if request["format"] == "summary":
                 self._stage(job, "reading", lambda: gemini.read_frames(
                     work, key, endpoint=self.endpoint, retry_delays=self.retry_delays, sleep=self.sleep,
@@ -312,8 +462,7 @@ class Runner:
                    "frames_read": written.frames_read if request["format"] == "qa" else
                    (len(extracted.kept) if extracted else 0),
                    "report_images": report.images, "finished_utc": store._now_utc()}
-            (work / library.RUN_NAME).write_text(json.dumps(run, indent=2, ensure_ascii=False) + "\n",
-                                                 encoding="utf-8")
+            disk.write_text(work / library.RUN_NAME, json.dumps(run, indent=2, ensure_ascii=False) + "\n")
             final.parent.mkdir(parents=True, exist_ok=True)
             if final.exists():
                 raise JobError("app.run.folder_taken", folder=folder_name)
@@ -323,23 +472,45 @@ class Runner:
             record = store.add_meeting(*later["args"], **later["kwargs"], meeting_folder=folder_name)
             added = True
             job.meeting_id = record["id"]
+            (final / KEPT_RECORD).unlink(missing_ok=True)  # a result now, not a kept run
         except Exception as error:  # every failure ends the job with its reason
             job.error = error.message if isinstance(error, texts.Failure) else texts.Message(
                 "app.unexpected", detail=texts.External(str(error) or error.__class__.__name__))
             job.failed_stage = job.failed_stage or phase
         finally:
-            if not added:
-                shutil.rmtree(work, ignore_errors=True)
-                if moved:  # never a folder this run did not make
-                    forget_meeting(self.data_dir, request["project"], folder_name)
-                    shutil.rmtree(final, ignore_errors=True)
-                for leftover in (request["transcript"], request["recording"]):
-                    if leftover is not None and leftover.exists():
-                        leftover.unlink()
             try:
-                (project_dir / library.PROCESSING_DIR).rmdir()
-            except OSError:
-                pass
-            # Said last: a page told the run failed finds nothing left of it.
+                if not added:
+                    self._settle_failure(job, project_dir, work, final, folder_name, moved)
+                try:
+                    (project_dir / library.PROCESSING_DIR).rmdir()
+                except OSError:
+                    pass
+            except Exception as error:  # noqa: BLE001 - the job must end, and say why
+                job.error = job.error or texts.Message("app.unexpected", detail=texts.External(str(error)))
+            # Said last: a page told the run failed finds it settled.
             job.seconds = time.monotonic() - job.started
             job.state = "done" if added else "failed"
+
+    def _settle_failure(self, job, project_dir, work, final, folder_name, moved):
+        """After a failure: no meeting added, no results folder left, and the
+        working folder kept if it holds something paid, removed otherwise."""
+        request = job.request
+        if moved:  # the save failed after the folder became a result: it goes back to being worked on
+            forget_meeting(self.data_dir, request["project"], folder_name)
+            try:
+                os.replace(final, work)
+            except OSError:
+                shutil.rmtree(final, ignore_errors=True)  # never a folder this run did not make
+        if work is not None and work.is_dir():
+            if holds_paid(work):
+                record = _kept_record(work) or {}
+                paid = record.get("paid_usd") if isinstance(record.get("paid_usd"), (int, float)) else 0.0
+                record.update(paid_usd=round(paid + job.counters["spent"], 4), failed_stage=job.failed_stage,
+                              failed_utc=store._now_utc())
+                disk.write_text(work / KEPT_RECORD, json.dumps(record, ensure_ascii=False, indent=2) + "\n")
+                job.kept = {"run": work.name, "paid_usd": record["paid_usd"]}
+            else:
+                shutil.rmtree(work, ignore_errors=True)
+        for leftover in (request["transcript"], request["recording"]):
+            if leftover is not None and leftover.exists():
+                leftover.unlink()

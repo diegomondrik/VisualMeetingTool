@@ -733,13 +733,23 @@ class Processing(Running):
     def states(self, job):
         return [(stage["name"], stage["state"]) for stage in job["stages"]]
 
-    def assertNothingLeft(self, job):
+    def assertNothingLeft(self, job, kept=False):
+        """A failed run added no meeting and left no result and no upload.
+        What it paid for stays in its working folder when `kept` (WI20: the
+        rule "if a stage fails, nothing is left of the run" became "the
+        meeting is not added; what was paid stays")."""
         self.assertEqual(job["state"], "failed")
         self.assertEqual(job["meeting"], "")
         self.assertEqual(store.list_meetings(self.data, self.project), [])
-        for folder in (library.PROCESSING_DIR, library.RESULTS_DIR):
-            leftover = self.data / self.project / folder
-            self.assertTrue(not leftover.exists() or not any(leftover.iterdir()), folder)
+        results = self.data / self.project / library.RESULTS_DIR
+        self.assertTrue(not results.exists() or not any(results.iterdir()), library.RESULTS_DIR)
+        processing = self.data / self.project / library.PROCESSING_DIR
+        left = sorted(p.name for p in processing.iterdir()) if processing.exists() else []
+        if kept:
+            self.assertEqual(left, [job["kept"]["run"]])
+            self.assertTrue(jobs.holds_paid(processing / left[0]))
+        else:
+            self.assertEqual((left, job["kept"]), ([], None))
         self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
         self.assertIn("Todavía no hay reuniones", self.page(f"/p/{self.project}"))
 
@@ -797,6 +807,7 @@ class ProcessTest(Processing):
         shutil.copytree(self.data / self.project / record["folder"], copy)
         for name in (writer.OUTPUT_NAME, library.REPORT_NAME, library.RUN_NAME):
             (copy / name).unlink()
+        shutil.rmtree(copy / gemini.KEPT_DIR)  # kept, the same request would not be sent again (WI20)
         with FakeGemini([test_summary.returning(test_summary.summary_text("es", "requirements"))]) as command:
             with contextlib.redirect_stdout(io.StringIO()):
                 code = summary_main(["--frames", str(copy), "--transcript", str(copy / "transcript.docx"),
@@ -934,7 +945,7 @@ class FailureTest(Processing):
         self.assertGreater(job["spent_usd"], 0)
         self.assertAlmostEqual(job["spent_usd"], sum(s["cost_usd"] for s in job["stages"]), places=3)
         self.assertEqual(len(self.summary_requests()), 2)
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)  # the reading
         self.assertIn(f'data-job="{job["id"]}"', self.page(f"/job/{job['id']}"))
 
     def test_a_report_that_cannot_be_built_stops_at_the_report(self):
@@ -946,7 +957,7 @@ class FailureTest(Processing):
         self.assertEqual(job["failed_stage_name"], "report")
         self.assertIn("could not be opened again", job["error"])
         self.assertGreater(job["spent_usd"], 0)
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)
 
     def test_a_meeting_that_cannot_be_recorded_leaves_no_folder(self):
         self.fake.script[:] = [lambda first, count: answer_for(first, count),
@@ -954,7 +965,7 @@ class FailureTest(Processing):
         with mock.patch.object(store, "add_meeting", side_effect=store.ProjectError("the disk is full")):
             job = self.process(meeting_type="")
         self.assertEqual(job["failed_stage_name"], "saving")
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)
 
     def test_one_ceiling_covers_every_stage(self):
         # A reading answered with no usage is counted at its most (about
@@ -968,7 +979,7 @@ class FailureTest(Processing):
         self.assertIn("se frenó antes de mandar el resumen", job["error"])  # the application speaks Spanish (WI17)
         self.assertEqual(self.summary_requests(), [])
         self.assertLessEqual(job["spent_usd"], ceiling)
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)  # the reading
 
 
 class ReviewFixesTest(Processing):
@@ -983,7 +994,7 @@ class ReviewFixesTest(Processing):
             job = self.process(meeting_type="")
         self.assertEqual(job["failed_stage_name"], "saving")
         self.assertEqual(list((self.data / self.project / "meetings").glob("*/meeting.json")), [])
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)
         self.assertNotIn("Sesión de dudas", (self.data / self.project / "knowledge.md").read_text(encoding="utf-8"))
 
     def test_a_name_taken_by_another_meeting_is_not_removed(self):
@@ -996,7 +1007,9 @@ class ReviewFixesTest(Processing):
         self.assertEqual(job["state"], "failed")
         self.assertIn("ya hay una carpeta", job["error"])
         self.assertEqual((taken / "summary.md").read_text(encoding="utf-8"), "otra reunión")
-        self.assertFalse((self.data / self.project / library.PROCESSING_DIR).exists())
+        # What the run paid for stays where it was worked on (WI20), never in the other meeting's folder.
+        self.assertEqual(sorted(p.name for p in (self.data / self.project / library.PROCESSING_DIR).iterdir()),
+                         [job["kept"]["run"]])
 
     def test_a_refused_request_leaves_no_upload(self):
         self.process(expect=400, date="mal")

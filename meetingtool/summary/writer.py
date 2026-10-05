@@ -36,7 +36,7 @@ import re
 import time
 from pathlib import Path
 
-from meetingtool import texts
+from meetingtool import disk, texts
 from meetingtool.frames.transcript import TranscriptError, read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
@@ -463,11 +463,10 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
     started = time.monotonic()
     text = gemini.call_checked(gemini.model_url(endpoint, model), key, payload,
                                lambda answer: check_summary(answer, headings, language, frame_names), worst,
-                               texts.Message("summary.what"), retry_delays, sleep, counters, max_cost_usd)
+                               texts.Message("summary.what"), retry_delays, sleep, counters, max_cost_usd,
+                               keep=frames_dir / gemini.KEPT_DIR)
     output = frames_dir / OUTPUT_NAME
-    partial = frames_dir / (OUTPUT_NAME + ".partial")
-    partial.write_text(text.strip() + "\n", encoding="utf-8")
-    partial.replace(output)
+    disk.write_text(output, text.strip() + "\n")
     meeting_id = ""
     if project:
         executive = section_text(text, SECTIONS[language][0])

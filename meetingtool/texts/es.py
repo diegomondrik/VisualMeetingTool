@@ -26,6 +26,10 @@ TEXTS = {
     "projects.needs_name": "un proyecto necesita un nombre",
     "projects.exists": "ya existe el proyecto {project} en {folder}",
     "projects.needs_title": "una reunión necesita un título",
+    "projects.unreadable": "no se puede leer el registro {file}[[: {detail}]]; no se cambió nada: arreglalo "
+                           "o sacalo del proyecto",
+    "projects.busy": "otro MeetingTool (la aplicación o un comando) tiene la carpeta de datos {folder} hace "
+                     "más de {seconds:.0f} s; no se cambió nada: probá de nuevo cuando termine",
     "meeting.bad_date": "la fecha de la reunión {date!r} no es una fecha AAAA-MM-DD válida",
 
     # ── La clave de Gemini y la lectura de las imágenes (meetingtool.reading)
@@ -205,6 +209,7 @@ TEXTS = {
     "app.col.stage": "Etapa",
     "app.col.state": "Estado",
     "app.col.time": "Tiempo",
+    "app.col.paid": "Pagado",
     "app.projects.title": "Proyectos",
     "app.projects.none": "Todavía no hay proyectos.",
     "app.projects.new": "Proyecto nuevo",
@@ -220,6 +225,12 @@ TEXTS = {
     "app.project.no_meetings": "Todavía no hay reuniones.",
     "app.project.knowledge": "Lo que el proyecto ya sabe",
     "app.project.knowledge_hint": "Lo que cada reunión deja y la próxima lee.",
+    "app.kept.title": "Guardado de corridas que fallaron",
+    "app.kept.hint": "Lo que se pagó en una corrida que falló queda acá, para que procesar de nuevo la misma "
+                     "reunión (la misma transcripción y el mismo formato) no lo vuelva a pagar. Descartarlo no "
+                     "se puede deshacer.",
+    "app.kept.discard": "Descartar",
+    "app.kept.confirm": "¿Descartar lo guardado de «{title}»? Procesarla de nuevo lo volvería a pagar.",
     "app.type.presale": "Preventa",
     "app.type.negotiation": "Venta o negociación",
     "app.type.requirements": "Relevamiento",
@@ -425,4 +436,9 @@ TEXTS = {
     "js.retry": "Volver a intentar",
     "js.connection_job": "Se cortó la conexión con MeetingTool: fijate que su ventana siga abierta.",
     "js.running": "Se está procesando «{title}»: ver el avance",
+    "js.kept": "Lo que Gemini ya respondió para esta reunión quedó guardado (lleva pagado {paid}): procesarla "
+               "de nuevo con la misma transcripción no lo vuelve a pagar. Hasta entonces, figura en el proyecto.",
+    "js.discard": "Descartar lo guardado",
+    "js.discard_confirm": "¿Descartar lo guardado? Procesar de nuevo esta reunión lo volvería a pagar.",
+    "js.discarded": "Descartado.",
 }

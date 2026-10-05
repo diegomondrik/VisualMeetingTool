@@ -8,16 +8,26 @@ Layout of the data folder (outside any git repository, see check_data_dir):
 
 Only paths to recordings and transcripts are stored; their content is never
 read or copied here.
+
+Every write is whole or not at all, and every change happens holding the data
+folder's lock, which holds between the application and the terminal commands
+(meetingtool.disk; WI20, the external review's R01): two meetings added at
+once get two identifiers, and a process that dies while saving leaves every
+record readable. A record that still cannot be read (edited by hand, or left
+by a version before WI20) is named in an error, never skipped: skipping would
+hide the damage.
 """
 
+import contextlib
 import datetime
 import json
 import os
 import re
+import shutil
 import unicodedata
 from pathlib import Path
 
-from meetingtool import texts
+from meetingtool import disk, texts
 
 SCHEMA_VERSION = 1
 DATA_DIR_ENV = "MEETINGTOOL_DATA_DIR"
@@ -63,15 +73,35 @@ def slugify(text, fallback="item"):
 
 
 def _write_json(path, data):
-    path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "w", encoding="utf-8", newline="\n") as handle:
-        json.dump(data, handle, indent=2, sort_keys=True, ensure_ascii=False)
-        handle.write("\n")
+    disk.write_text(path, json.dumps(data, indent=2, sort_keys=True, ensure_ascii=False) + "\n", newline="\n")
 
 
 def _read_json(path):
     with open(path, encoding="utf-8") as handle:
         return json.load(handle)
+
+
+def _read_record(path, needed):
+    """A record holding the text fields `needed`, or ProjectError naming the file."""
+    try:
+        record = _read_json(path)
+    except ValueError as error:  # not JSON, or not UTF-8
+        raise ProjectError("projects.unreadable", file=str(path), detail=texts.External(str(error))) from None
+    if not isinstance(record, dict) or any(not isinstance(record.get(name), str) for name in needed):
+        raise ProjectError("projects.unreadable", file=str(path),
+                           detail=texts.External("missing " + ", ".join(needed)))
+    return record
+
+
+@contextlib.contextmanager
+def data_lock(data_dir):
+    """Hold the data folder's lock (meetingtool.disk.locked); ProjectError if
+    another writer keeps it too long."""
+    try:
+        with disk.locked(data_dir):
+            yield
+    except disk.LockTimeout as error:
+        raise ProjectError(error.message) from None
 
 
 def _now_utc():
@@ -98,8 +128,6 @@ def create_project(data_dir, name, client, context=""):
         raise ProjectError("projects.needs_name")
     project_id = slugify(name, fallback="project")
     folder = data_dir / project_id
-    if folder.exists():
-        raise ProjectError("projects.exists", project=project_id, folder=str(data_dir.resolve()))
     record = {
         "schema_version": SCHEMA_VERSION,
         "id": project_id,
@@ -108,8 +136,16 @@ def create_project(data_dir, name, client, context=""):
         "context": context.strip(),
         "created_utc": _now_utc(),
     }
-    _write_json(folder / "project.json", record)
-    rebuild_knowledge(data_dir, project_id)
+    with data_lock(data_dir):
+        # The folder reserves the identifier: made exclusively, under the lock.
+        # One without project.json is what a creation cut short left.
+        try:
+            folder.mkdir(parents=True)
+        except FileExistsError:
+            if (folder / "project.json").exists() or not folder.is_dir():
+                raise ProjectError("projects.exists", project=project_id, folder=str(data_dir.resolve())) from None
+        _write_json(folder / "project.json", record)
+        rebuild_knowledge(data_dir, project_id)
     return record
 
 
@@ -119,7 +155,7 @@ def list_projects(data_dir):
     if not data_dir.is_dir():
         return []
     return [
-        _read_json(entry / "project.json")
+        _read_record(entry / "project.json", ("id", "name"))
         for entry in sorted(data_dir.iterdir())
         if (entry / "project.json").is_file()
     ]
@@ -147,12 +183,8 @@ def add_meeting(data_dir, project_id, title, date, meeting_type="", recording=""
         raise ProjectError("projects.needs_title")
     meetings = folder / "meetings"
     base_id = f"{iso_date}-{slugify(title, fallback='meeting')}"
-    meeting_id, counter = base_id, 2
-    while (meetings / meeting_id).exists():
-        meeting_id, counter = f"{base_id}-{counter}", counter + 1
     record = {
         "schema_version": SCHEMA_VERSION,
-        "id": meeting_id,
         "title": title.strip(),
         "date": iso_date,
         "meeting_type": meeting_type.strip(),
@@ -164,8 +196,26 @@ def add_meeting(data_dir, project_id, title, date, meeting_type="", recording=""
     }
     if meeting_folder:
         record["folder"] = meeting_folder
-    _write_json(meetings / meeting_id / "meeting.json", record)
-    rebuild_knowledge(data_dir, project_id)
+    with data_lock(data_dir):
+        # The meeting's folder reserves its identifier, made exclusively under
+        # the lock; one without meeting.json is what a save cut short left.
+        meeting_id, counter = base_id, 2
+        while True:
+            try:
+                (meetings / meeting_id).mkdir(parents=True)
+                break
+            except FileExistsError:
+                if (meetings / meeting_id).is_dir() and not (meetings / meeting_id / "meeting.json").exists():
+                    break
+            meeting_id, counter = f"{base_id}-{counter}", counter + 1
+        record = {"id": meeting_id, **record}
+        _write_json(meetings / meeting_id / "meeting.json", record)
+        try:
+            rebuild_knowledge(data_dir, project_id)
+        except BaseException:
+            # Whole or not at all: a meeting the knowledge cannot take is not kept.
+            shutil.rmtree(meetings / meeting_id, ignore_errors=True)
+            raise
     return record
 
 
@@ -178,7 +228,7 @@ def list_meetings(data_dir, project_id):
     if not meetings.is_dir():
         return []
     records = [
-        _read_json(entry / "meeting.json")
+        _read_record(entry / "meeting.json", ("id", "title", "date", "added_utc"))
         for entry in meetings.iterdir()
         if (entry / "meeting.json").is_file()
     ]
@@ -187,16 +237,16 @@ def list_meetings(data_dir, project_id):
 
 def render_knowledge(project, meetings):
     """The knowledge text for a project and its meetings, in date order."""
-    lines = [f"# Knowledge: {project['name']}", "", f"Client: {project['client'] or '(not set)'}", "",
-             "## Context", "", project["context"] or "(none)", "", "## Meetings", ""]
+    lines = [f"# Knowledge: {project['name']}", "", f"Client: {project.get('client') or '(not set)'}", "",
+             "## Context", "", project.get("context") or "(none)", "", "## Meetings", ""]
     if not meetings:
         lines += ["(no meetings yet)", ""]
     for meeting in meetings:
         heading = f"### {meeting['date']}: {meeting['title']}"
-        if meeting["meeting_type"]:
+        if meeting.get("meeting_type"):
             heading += f" ({meeting['meeting_type']})"
-        lines += [heading, "", meeting["summary"] or "(no summary yet)", ""]
-        if meeting["key_points"]:
+        lines += [heading, "", meeting.get("summary") or "(no summary yet)", ""]
+        if meeting.get("key_points"):
             lines += ["Key points:", ""] + [f"- {point}" for point in meeting["key_points"]] + [""]
     return "\n".join(lines)
 
@@ -204,14 +254,19 @@ def render_knowledge(project, meetings):
 def rebuild_knowledge(data_dir, project_id):
     """Rewrite a project's knowledge file from all of its meetings."""
     folder = _project_dir(data_dir, project_id)
-    text = render_knowledge(_read_json(folder / "project.json"), list_meetings(data_dir, project_id))
-    with open(folder / "knowledge.md", "w", encoding="utf-8", newline="\n") as handle:
-        handle.write(text)
+    with data_lock(data_dir):
+        text = render_knowledge(_read_record(folder / "project.json", ("name",)), list_meetings(data_dir, project_id))
+        disk.write_text(folder / "knowledge.md", text, newline="\n")
     return text
 
 
 def knowledge_context(data_dir, project_id):
-    """The accumulated knowledge the next meeting summary reads."""
+    """The accumulated knowledge the next meeting summary reads: knowledge.md,
+    or, if a creation cut short left none, the same text made from the
+    records (WI20)."""
     folder = _project_dir(data_dir, project_id)
-    with open(folder / "knowledge.md", encoding="utf-8") as handle:
-        return handle.read()
+    try:
+        with open(folder / "knowledge.md", encoding="utf-8") as handle:
+            return handle.read()
+    except FileNotFoundError:
+        return render_knowledge(_read_record(folder / "project.json", ("name",)), list_meetings(data_dir, project_id))

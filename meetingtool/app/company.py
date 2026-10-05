@@ -13,14 +13,13 @@ would run inside the application.
 import dataclasses
 import io
 import json
-import os
 import re
 import unicodedata
 from pathlib import Path
 
 from PIL import Image
 
-from meetingtool import texts
+from meetingtool import disk, texts
 from meetingtool.projects import store
 
 SETTINGS_NAME = "app-settings.json"
@@ -54,10 +53,17 @@ def _read(data_dir):
 
 def _write(data_dir, settings):
     folder = store.check_data_dir(Path(data_dir))
-    folder.mkdir(parents=True, exist_ok=True)
-    partial = folder / (SETTINGS_NAME + ".partial")
-    partial.write_text(json.dumps(settings, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
-    os.replace(partial, folder / SETTINGS_NAME)
+    disk.write_text(folder / SETTINGS_NAME, json.dumps(settings, ensure_ascii=False, indent=2) + "\n")
+
+
+def _change(data_dir, change):
+    """Read the settings, change them and write them back holding the data
+    folder's lock, so two changes at once keep both (WI20, R01)."""
+    folder = store.check_data_dir(Path(data_dir))
+    with store.data_lock(folder):
+        settings = _read(folder)
+        change(settings)
+        _write(folder, settings)
 
 
 def language(data_dir):
@@ -70,9 +76,7 @@ def language(data_dir):
 def set_language(data_dir, code):
     if code not in texts.LANGUAGES:
         raise SettingsError("app.settings.unknown_language", value=code)
-    settings = _read(data_dir)
-    settings["language"] = code
-    _write(data_dir, settings)
+    _change(data_dir, lambda settings: settings.update(language=code))
 
 
 def logo_path(data_dir):
@@ -105,12 +109,14 @@ def check_name(name):
 def set_company_name(data_dir, name):
     """Keep the company's name; an empty one removes it."""
     name = check_name(name)
-    settings = _read(data_dir)
-    if name:
-        settings["company_name"] = name
-    else:
-        settings.pop("company_name", None)
-    _write(data_dir, settings)
+
+    def change(settings):
+        if name:
+            settings["company_name"] = name
+        else:
+            settings.pop("company_name", None)
+
+    _change(data_dir, change)
     return name
 
 
@@ -161,22 +167,21 @@ def check_logo(data, name=""):
 def set_logo(data_dir, data, name=""):
     target_name, clean = check_logo(data, name)
     folder = store.check_data_dir(Path(data_dir))
-    folder.mkdir(parents=True, exist_ok=True)
-    partial = folder / (target_name + ".partial")
-    partial.write_bytes(clean)
-    os.replace(partial, folder / target_name)
-    for other in LOGO_NAMES.values():
-        if other != target_name:
-            (folder / other).unlink(missing_ok=True)
+    with store.data_lock(folder):
+        disk.write_bytes(folder / target_name, clean)
+        for other in LOGO_NAMES.values():
+            if other != target_name:
+                (folder / other).unlink(missing_ok=True)
     return folder / target_name
 
 
 def remove_logo(data_dir):
     """Remove the logo; True if there was one."""
     removed = False
-    for name in LOGO_NAMES.values():
-        path = Path(data_dir) / name
-        if path.is_file():
-            path.unlink()
-            removed = True
+    with store.data_lock(store.check_data_dir(Path(data_dir))):
+        for name in LOGO_NAMES.values():
+            path = Path(data_dir) / name
+            if path.is_file():
+                path.unlink()
+                removed = True
     return removed
