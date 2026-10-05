@@ -20,10 +20,10 @@ coverage alone. Two uses of what a meeting is (INGOL D-176): a sample that
 shows a person on camera never becomes a candidate (signals.is_camera_view),
 and the recording is always read to its end, with a transcript or without
 one (WI21). A transcript says when each line starts, not when it ends, so
-nothing in it can say where the meeting ends: WI10 stopped reading
-TRANSCRIPT_TAIL seconds after its last line started, and a long last
-explanation, or a transcript that stopped early, lost every slide shown after
-that point (review R05). The transcript only raises the score of samples near
+nothing in it can say where the meeting ends: WI10 stopped reading 120
+seconds after its last line started, and a long last explanation, or a
+transcript that stopped early, lost every slide shown after that point
+(review R05). The transcript only raises the score of samples near
 a phrase that points at the screen.
 """
 
@@ -48,7 +48,6 @@ ANALYSIS_WIDTH = 640
 MAX_HEIGHT = 720
 JPEG_QUALITY = 85
 DISCARD_LOG = "frames_discarded.log"
-TRANSCRIPT_TAIL = 120.0  # no longer read: the cut it set is gone (WI21); tests/test_d1_final_de_la_reunion.py still patches it
 
 
 class FramesError(texts.Failure):
@@ -67,7 +66,6 @@ class ExtractionResult:
     discards: collections.Counter
     boosted: int = 0      # candidates whose score the transcript raised
     boosted_in: int = 0   # of those, the ones that were below the minimum score without it
-    read_until: float = None  # always None since WI21: the recording is read to its end; kept for the same test
 
 
 def enclosing_git_work_tree(path):

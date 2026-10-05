@@ -30,12 +30,13 @@ class FinalDeLaReunion(Workspace):
         transcripcion = self.tmp / "explicacion-larga.txt"
         transcripcion.write_text("[00:00:01] Ana:\nTe explico el tablero entero, columna por columna, "
                                  "y después pasamos al detalle del costo de proceso.\n", encoding="utf-8")
-        with mock.patch.object(extract_module, "TRANSCRIPT_TAIL", 5.0):
+        # create=True: the cut is gone and so is its constant; if a cut comes back under this name, a short video shows it
+        with mock.patch.object(extract_module, "TRANSCRIPT_TAIL", 5.0, create=True):
             con = extract_frames(video, self.out, transcript=transcripcion)
         sin = extract_frames(video, self.tmp / "sin-transcripcion")
         self.assertEqual([which_slide(self.tmp / "sin-transcripcion" / n) for n in sin.kept], ["A", "B"],
                          "control: sin transcripción se ven las dos diapositivas")
         self.assertEqual(
             [which_slide(self.out / n) for n in con.kept], ["A", "B"],
-            f"con transcripción la lectura se cortó en {con.read_until} s y la diapositiva que siguió "
+            f"con transcripción la lectura se cortó en {getattr(con, 'read_until', None)} s y la diapositiva que siguió "
             "a la explicación se perdió")

@@ -949,7 +949,7 @@ def wi20_p3_7(args, root):
 
 # --- WI21: reading to the end ------------------------------------------------------------------
 
-OLD_TAIL = 120.0  # what WI10 added to the last line's start; the constant may go, the number is the history
+OLD_TAIL = 120.0  # what WI10 added to the last line's start; the constant is gone, the number is the history
 
 
 def _wi21_meeting(tmp, lines):

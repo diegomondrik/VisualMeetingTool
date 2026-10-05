@@ -21,18 +21,29 @@ import sys
 from pathlib import Path
 
 EXTRACT = "meetingtool/frames/extract.py"
+TRANSCRIPT = "meetingtool/frames/transcript.py"
 MAIN = "meetingtool/frames/__main__.py"
 CI = ["tests.test_frames.MeetingRealityTest"]
 PILOT = ["tests.test_d1_final_de_la_reunion"]
 
+DISCARD_LOG = 'DISCARD_LOG = "frames_discarded.log"\n'
+THE_TIMES = "        self.times = sorted(start for start, text in blocks if has_visual_reference(text))\n"
+THE_FIELD = "    boosted_in: int = 0   # of those, the ones that were below the minimum score without it\n"
 AFTER_LAST_DISTINCT = "    last_distinct_gray = None\n"
+AFTER_DURATION = "        duration = _duration(container, stream)\n"
 IN_THE_LOOP = "            timestamp = float(frame.pts * stream.time_base)\n"
 THE_RESULT = "boosted, boosted_in)"
 THE_BOOST = "            score = references.boost(base_score, timestamp) if references else base_score\n"
 THE_REPORT = '        print(f"candidates raised by the transcript: {result.boosted} ({result.boosted_in} only because of it)")\n'
 
+# What WI21 removed and a cut needs, put back: the tail, the transcript's last line, the result's field.
+THE_TAIL = (EXTRACT, DISCARD_LOG, DISCARD_LOG + "TRANSCRIPT_TAIL = 120.0\n")
+THE_LAST = (TRANSCRIPT, THE_TIMES, THE_TIMES + "        self.last = max((start for start, _ in blocks), default=None)\n")
+THE_READ_UNTIL = (EXTRACT, THE_FIELD, THE_FIELD + "    read_until: float = None\n")
+
 # What WI10 had, as it was: a stop time from the last line, the loop leaving at it, and the result saying so.
 THE_CUT = [
+    THE_TAIL, THE_LAST, THE_READ_UNTIL,
     (EXTRACT, AFTER_LAST_DISTINCT, AFTER_LAST_DISTINCT +
      "    stop_at = references.last + TRANSCRIPT_TAIL if references is not None else None\n"
      "    read_until = None\n"),
@@ -47,15 +58,17 @@ THE_CUT = [
 MUTATIONS = [
     ("the cut as WI10 had it: a stop time, the last line's start plus TRANSCRIPT_TAIL", THE_CUT),
     ("a stop time at the last line's start itself, no tail",
-     [(EXTRACT, AFTER_LAST_DISTINCT, AFTER_LAST_DISTINCT +
+     [THE_LAST,
+      (EXTRACT, AFTER_LAST_DISTINCT, AFTER_LAST_DISTINCT +
        "    stop_at = references.last if references is not None else None\n"),
       (EXTRACT, IN_THE_LOOP, IN_THE_LOOP +
        "            if stop_at is not None and timestamp > stop_at:\n                break\n")]),
     ("a stop time only when the transcript ends before the recording does",
-     [(EXTRACT, AFTER_LAST_DISTINCT, AFTER_LAST_DISTINCT +
-       "    stop_at = None\n"
-       "    if references is not None and references.last + TRANSCRIPT_TAIL < 140.0:\n"
-       "        stop_at = references.last + TRANSCRIPT_TAIL\n"),
+     [THE_TAIL, THE_LAST,
+      (EXTRACT, AFTER_DURATION, AFTER_DURATION +
+       "        stop_at = None\n"
+       "        if references is not None and references.last + TRANSCRIPT_TAIL < duration:\n"
+       "            stop_at = references.last + TRANSCRIPT_TAIL\n"),
       (EXTRACT, IN_THE_LOOP, IN_THE_LOOP +
        "            if stop_at is not None and timestamp > stop_at:\n                break\n")]),
     ("the decode loop leaving early when a transcript is given, whatever it says",

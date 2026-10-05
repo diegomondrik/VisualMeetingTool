@@ -161,8 +161,8 @@ here; these are the ones left open, and three the work item itself declared.
 Source: the limitations the contract declares
 (`.ingol/work-items/01M474JN9F7N86SHHSKZ41Q1VY/contract.yaml`). Their
 reproductions use a synthetic 140 s recording whose transcript ends at 1 s;
-the 120 s of the old cut are written in the script, since the constant may
-go. The real-meeting measurement (the 35 minutes past the last line, 19% of
+the 120 s of the old cut are written in the script, since the constant is
+gone. The real-meeting measurement (the 35 minutes past the last line, 19% of
 the time the cut saved) is in the evidence of WI10 and, again, of this work
 item; it needs the owner's recording and has no entry here.
 

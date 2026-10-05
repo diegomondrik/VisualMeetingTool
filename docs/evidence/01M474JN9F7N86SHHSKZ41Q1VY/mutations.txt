@@ -1,14 +1,14 @@
 mutation run for 01M474JN9F7N86SHHSKZ41Q1VY: each mutation is applied alone to a copy of the working
 tree; `python -m unittest tests.test_frames.MeetingRealityTest` (what the CI runs) must fail; `python -m unittest tests.test_d1_final_de_la_reunion` is run besides and recorded
 
-Recorded on 2026-10-05, on a copy of the working tree at 9b22e63 (the change of WI21) with this script added: `python docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/mutations.py <repository> <empty folder>`. The first selection decides (what the CI runs); the pilot's test is recorded besides: it catches the forms of the cut that stop reading by the transcript's last line, and not the ones that leave by another measure, which the frames tests catch.
+Recorded on 2026-10-05, on a copy of the working tree at a9c80f0 plus the removal of TRANSCRIPT_TAIL, ExtractionResult.read_until and VisualReferences.last: `python docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/mutations.py <repository> <empty folder>`. Each mutation puts back what its cut needs (the constant, the transcript's last line, the result's field). The first selection decides (what the CI runs); the pilot's test is recorded besides: it catches the forms of the cut that stop reading by the transcript's last line, and not the ones that leave by another measure, which the frames tests catch.
 
-- the cut as WI10 had it: a stop time, the last line's start plus TRANSCRIPT_TAIL: frames tests exit 1, Ran 7 tests in 16.302s FAILED (failures=4) -> DETECTED; pilot test exit 1, Ran 1 test in 0.562s FAILED (failures=1)
-- a stop time at the last line's start itself, no tail: frames tests exit 1, Ran 7 tests in 11.613s FAILED (failures=4) -> DETECTED; pilot test exit 1, Ran 1 test in 0.469s FAILED (failures=1)
-- a stop time only when the transcript ends before the recording does: frames tests exit 1, Ran 7 tests in 18.614s FAILED (failures=4) -> DETECTED; pilot test exit 1, Ran 1 test in 0.689s FAILED (failures=1)
-- the decode loop leaving early when a transcript is given, whatever it says: frames tests exit 1, Ran 7 tests in 18.728s FAILED (failures=5) -> DETECTED; pilot test exit 0, Ran 1 test in 0.920s OK
-- the decode loop leaving after the last phrase that points at the screen, plus its window: frames tests exit 1, Ran 7 tests in 18.511s FAILED (failures=1) -> DETECTED; pilot test exit 0, Ran 1 test in 0.799s OK
-- the command line saying where reading stopped, whatever happened: frames tests exit 1, Ran 7 tests in 20.326s FAILED (failures=1) -> DETECTED; pilot test exit 0, Ran 1 test in 0.931s OK
-- the transcript no longer raising any candidate: frames tests exit 1, Ran 7 tests in 19.500s FAILED (failures=1) -> DETECTED; pilot test exit 0, Ran 1 test in 1.025s OK
-- unmutated: frames tests exit 0, Ran 7 tests in 21.922s OK; pilot test exit 0, Ran 1 test in 0.949s OK
+- the cut as WI10 had it: a stop time, the last line's start plus TRANSCRIPT_TAIL: frames tests exit 1, Ran 7 tests in 24.649s FAILED (failures=4) -> DETECTED; pilot test exit 1, Ran 1 test in 0.813s FAILED (failures=1)
+- a stop time at the last line's start itself, no tail: frames tests exit 1, Ran 7 tests in 16.339s FAILED (failures=4) -> DETECTED; pilot test exit 1, Ran 1 test in 0.665s FAILED (failures=1)
+- a stop time only when the transcript ends before the recording does: frames tests exit 1, Ran 7 tests in 19.727s FAILED (failures=4) -> DETECTED; pilot test exit 1, Ran 1 test in 0.645s FAILED (failures=1)
+- the decode loop leaving early when a transcript is given, whatever it says: frames tests exit 1, Ran 7 tests in 21.605s FAILED (failures=5) -> DETECTED; pilot test exit 0, Ran 1 test in 1.103s OK
+- the decode loop leaving after the last phrase that points at the screen, plus its window: frames tests exit 1, Ran 7 tests in 26.171s FAILED (failures=1) -> DETECTED; pilot test exit 0, Ran 1 test in 1.156s OK
+- the command line saying where reading stopped, whatever happened: frames tests exit 1, Ran 7 tests in 25.119s FAILED (failures=1) -> DETECTED; pilot test exit 0, Ran 1 test in 0.885s OK
+- the transcript no longer raising any candidate: frames tests exit 1, Ran 7 tests in 22.668s FAILED (failures=1) -> DETECTED; pilot test exit 0, Ran 1 test in 1.107s OK
+- unmutated: frames tests exit 0, Ran 7 tests in 24.987s OK; pilot test exit 0, Ran 1 test in 1.119s OK
 all mutations detected
