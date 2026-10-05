@@ -793,6 +793,159 @@ def wi05_p3_8(args, root):
             f"a {compressed // 1024} KB .docx is read whole: {len(blocks[0][1]) // (1024 * 1024)} MB of text, no limit")
 
 
+# --- WI20: the project's data and what was paid ----------------------------------------------
+
+def _wi20_folder(tmp):
+    from tests.test_frames import write_teams_docx
+    from tests import test_qa
+    frames = tmp / "frames"
+    frames.mkdir()
+    write_teams_docx(tmp / "t.docx", test_qa.SPANISH)
+    return frames
+
+
+@entry("WI20-P3-1")
+def wi20_p3_1(args, root):
+    from meetingtool.summary import qa
+    from tests import test_qa
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        frames = _wi20_folder(tmp)
+        paid = []
+        for model in ("gemini-flash-latest", "gemini-pro-latest"):
+            with FakeGemini([test_qa.json_answer(test_qa.verbal())]) as fake:
+                qa.write_register(frames, tmp / "t.docx", KEY, date="2026-09-25", language="es", model=model,
+                                  endpoint=fake.endpoint, sleep=lambda s: None, retry_delays=())
+                paid.append(len(fake.requests))
+    return paid == [1, 0], f"the register's parts paid with one model, then with another: requests {paid}"
+
+
+@entry("WI20-P3-2")
+def wi20_p3_2(args, root):
+    from unittest import mock
+    from meetingtool import disk
+    from meetingtool.report import document
+    from tests import test_report
+    with workspace() as tmp:
+        data = tmp / "data"
+        document.set_template(test_report.company_template(tmp / "a.docx"), data, name="la-de-antes.docx")
+        real = disk.write_text
+
+        def cut(path, *a, **k):
+            if Path(path).name == document.TEMPLATE_RECORD:
+                raise OSError(28, "No space left on device")
+            return real(path, *a, **k)
+
+        with mock.patch.object(disk, "write_text", cut):
+            try:
+                document.set_template(test_report.fields_template(tmp / "b.docx", ["{reunion}"]), data,
+                                      name="la-nueva.docx")
+            except OSError:
+                pass
+        info = document.template_info(data)
+    new_template = bool(info.fields)  # the old template has no field, the new one has one
+    return new_template and info.name == "la-de-antes.docx", (
+        f"after a cut between the two files: the new template in place {new_template}, its name said {info.name!r}")
+
+
+@entry("WI20-P3-3")
+def wi20_p3_3(args, root):
+    from unittest import mock
+    from meetingtool.app import jobs
+    with workspace() as tmp:
+        data = tmp / "data"
+        store.create_project(data, "Planta Demo", "c")
+        with mock.patch.object(store, "rebuild_knowledge"):  # the process died before rewriting the copy
+            store.add_meeting(data, "planta-demo", "Cierre", "2026-09-25", summary="La que no llego a la copia.")
+        before = "La que no llego" in store.knowledge_context(data, "planta-demo")
+        jobs.clear_leftovers(data)
+        after = "La que no llego" in store.knowledge_context(data, "planta-demo")
+    return not before and after, (f"knowledge read before the application starts again holds the meeting: {before}; "
+                                  f"after it starts: {after}")
+
+
+@entry("WI20-P3-4")
+def wi20_p3_4(args, root):
+    from meetingtool.summary import qa
+    from tests import test_qa
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        frames = _wi20_folder(tmp)
+        data = tmp / "data"
+        store.create_project(data, "Planta Demo", "c")
+        store.add_meeting(data, "planta-demo", "Relevamiento", "2026-09-10", summary="Antes.")
+        record = next((data / "planta-demo" / "meetings").glob("*/meeting.json"))
+        record.write_bytes(record.read_bytes()[:40])  # broken by hand
+        with FakeGemini([test_qa.json_answer(test_qa.verbal())]) as fake:
+            try:
+                qa.write_register(frames, tmp / "t.docx", KEY, data_dir=data, project="planta-demo", title="Dudas",
+                                  date="2026-09-25", language="es", endpoint=fake.endpoint, sleep=lambda s: None,
+                                  retry_delays=())
+                said = "saved"
+            except qa.QAError as error:
+                said = error.message.key
+            paid = len(fake.requests)
+    return paid == 1 and said == "summary.not_added", (
+        f"with a record broken by hand: {paid} request(s) paid, then the meeting {said}")
+
+
+@entry("WI20-P3-5")
+def wi20_p3_5(args, root):
+    from meetingtool.reading import gemini
+    from meetingtool.summary import writer
+    from tests import test_summary
+    from tests.test_frames import write_teams_docx
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        frames = tmp / "frames"
+        frames.mkdir()
+        (frames / gemini.OUTPUT_NAME).write_text("# What each frame shows\n\n", encoding="utf-8")
+        write_teams_docx(tmp / "t.docx", test_summary.SPANISH)
+        text = test_summary.summary_text("es")
+        with FakeGemini([test_summary.returning(text)] * 2) as fake:
+            for _ in range(2):
+                writer.write_summary(frames, tmp / "t.docx", KEY, language="es", endpoint=fake.endpoint,
+                                     sleep=lambda s: None, retry_delays=())
+            paid = len(fake.requests)
+    return paid == 1, f"the same summary asked twice in one folder: {paid} request(s) paid"
+
+
+@entry("WI20-P3-6")
+def wi20_p3_6(args, root):
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_d1_*"],
+                            cwd=REPO, capture_output=True, text=True, env=env, timeout=600)
+    skipped = re.search(r"OK \(skipped=(\d+)\)", result.stderr)
+    return bool(skipped) and "Ran 3 tests" in result.stderr, (
+        f"without the kits: {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else '?'}"
+        f" ({result.stderr.count('Ran ')} run line)")
+
+
+@entry("WI20-P3-7")
+def wi20_p3_7(args, root):
+    with workspace() as tmp:
+        from tests.test_data_integrity import KeptRunTest
+        import unittest
+        test = KeptRunTest("test_a_report_that_fails_keeps_the_reading_and_the_summary_and_the_next_run_pays_nothing")
+        kept = {}
+        real = test.process
+
+        def first_only(**fields):
+            job = real(**fields)
+            if not kept:
+                folder = test.data / test.project / "processing" / job["kept"]["run"]
+                kept["files"] = sorted(p.name for p in folder.iterdir())
+            return job
+
+        test.process = first_only
+        result = unittest.TestResult()
+        test.run(result)
+    files = kept.get("files", [])
+    return "transcript.docx" in files and any(n.startswith("frame_") for n in files), (
+        f"a failed run that paid keeps, until it is processed again or discarded: {files}")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))

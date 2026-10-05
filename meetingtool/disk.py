@@ -116,7 +116,10 @@ def locked(folder, wait=None):
     LOCK_WAIT_SECONDS). A thread that already holds it goes on: an operation
     under the lock may call another one that takes it."""
     folder = Path(folder)
-    key = os.path.normcase(os.path.abspath(folder))
+    folder.mkdir(parents=True, exist_ok=True)
+    # The folder's real path: two names of one folder (a link, Windows' short
+    # 8.3 name) are one lock for the thread that holds it (WI20's review, P3-1).
+    key = os.path.normcase(os.path.realpath(folder))
     depth = getattr(_held, "depth", None)
     if depth is None:
         depth = _held.depth = {}
@@ -127,7 +130,6 @@ def locked(folder, wait=None):
         finally:
             depth[key] -= 1
         return
-    folder.mkdir(parents=True, exist_ok=True)
     deadline = time.monotonic() + (LOCK_WAIT_SECONDS if wait is None else wait)
     with open(folder / LOCK_NAME, "a+b") as handle:
         while True:

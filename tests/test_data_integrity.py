@@ -196,6 +196,32 @@ class TwoAtOnceTest(Folder):
         self.assertEqual([p["client"] for p in store.list_projects(self.data) if p["id"] == "proyecto-nuevo"],
                          ["Cliente A"])
 
+    def test_a_folder_of_the_commands_is_not_taken_over_by_a_new_project(self):
+        loose = self.data / "acme"
+        loose.mkdir()
+        (loose / "summary.md").write_text("## Resumen\n", encoding="utf-8")
+        with self.assertRaises(store.ProjectError) as refused:
+            store.create_project(self.data, "Acme", "Cliente Demo")
+        self.assertEqual(refused.exception.message.key, "projects.exists")
+        self.assertEqual(sorted(p.name for p in loose.iterdir()), ["summary.md"])
+
+    def test_a_folder_a_cut_left_empty_is_taken(self):
+        left = self.data / "acme"
+        left.mkdir()
+        (left / ".project.json.0123456789ab.partial").write_text("{", encoding="utf-8")
+        self.assertEqual(store.create_project(self.data, "Acme", "Cliente Demo")["id"], "acme")
+
+    def test_one_thread_takes_the_lock_again_under_another_name_of_the_folder(self):
+        # Windows' short 8.3 name of the same folder (review P3-1).
+        import ctypes
+        long_name = str(self.data.resolve())
+        buffer = ctypes.create_unicode_buffer(1024)
+        if os.name != "nt" or not ctypes.windll.kernel32.GetShortPathNameW(long_name, buffer, 1024) \
+                or buffer.value.lower() == long_name.lower():
+            self.skipTest("this folder has no other name here")
+        with disk.locked(long_name, wait=1), disk.locked(buffer.value, wait=1):
+            pass
+
     def test_two_settings_changed_at_once_keep_both(self):
         with Paused(company, "_write", lambda: company.set_language(self.data, "en")) as paused:
             other = threading.Thread(target=lambda: company.set_company_name(self.data, "Consultora Demo"),
@@ -459,9 +485,42 @@ class KeptRunTest(Processing):
 
     def test_nothing_is_discarded_while_a_meeting_is_processed(self):
         failed = self.fail_at_the_report()
-        with mock.patch.object(self.app.runner, "running", return_value=object()):
+        running = mock.Mock(state="running")
+        with mock.patch.dict(self.app.runner.jobs, {"en-curso": running}):
             self.api("/api/kept/discard", {"project": self.project, "run": failed["kept"]["run"]}, expect=400)
         self.assertEqual(self.processing(), [failed["kept"]["run"]])
+
+    def test_a_run_cut_by_closing_the_application_says_what_it_paid(self):
+        # The process died after the reading was paid: nothing settled the
+        # run, yet the project says what its kept answers cost (review P2-2).
+        failed = self.fail_at_the_report()
+        folder = self.data / self.project / library.PROCESSING_DIR / failed["kept"]["run"]
+        record = json.loads((folder / jobs.KEPT_RECORD).read_text(encoding="utf-8"))
+        record.update(paid_usd=0.0, failed_stage="", failed_utc="")  # as the run's start left it
+        (folder / jobs.KEPT_RECORD).write_text(json.dumps(record), encoding="utf-8")
+        jobs.clear_leftovers(self.data)
+        kept = jobs.kept_runs(self.data, self.project)
+        self.assertEqual(len(kept), 1)
+        self.assertGreater(kept[0]["paid_usd"], 0)
+        self.assertAlmostEqual(kept[0]["paid_usd"], failed["spent_usd"], places=3)
+        self.assertIn(self.app_money(kept[0]["paid_usd"]), self.page(f"/p/{self.project}"))
+
+    def app_money(self, value):
+        from meetingtool.app import pages
+        return pages.View("es").money(value)
+
+    def test_a_resumed_run_keeps_only_what_was_paid_and_says_what_was_paid_before(self):
+        failed = self.fail_at_the_report()
+        folder = self.data / self.project / library.PROCESSING_DIR / failed["kept"]["run"]
+        (folder / "recording.mp4").write_bytes(b"a copy an attempt left")  # review P3-4
+        (folder / qa.READING_NAME).write_text("an attempt's reading", encoding="utf-8")
+        done = self.process()
+        self.assertEqual(done["state"], "done", done["error"])
+        result = self.data / self.project / store.list_meetings(self.data, self.project)[0]["folder"]
+        self.assertFalse((result / "recording.mp4").exists())
+        self.assertFalse((result / qa.READING_NAME).exists())
+        run = json.loads((result / library.RUN_NAME).read_text(encoding="utf-8"))
+        self.assertAlmostEqual(run["paid_before_usd"], failed["spent_usd"], places=3)  # review P3-5
 
 
 class KeptRegisterTest(Processing):

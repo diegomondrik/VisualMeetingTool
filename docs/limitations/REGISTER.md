@@ -138,3 +138,20 @@ Source: `docs/evidence/01M3CSRVTHE26R86125VY676EJ/independent-review.md`.
 | `WI05-P3-6` | No test changes the resolution mid-recording, so that branch of the duplicate check never runs | open | That branch made to raise: tests still pass |
 | `WI05-P3-7` | The WI05 evidence did not measure again the 15- and 18-minute gaps that motivated it, its "before" numbers exist only there, and the seconds of its two runs cannot be compared because they ran at the same time | open | The evidence says the gaps were not measured again; no other evidence file holds the before numbers. The concurrency is stated in the evidence and not reproduced |
 | `WI05-P3-8` | The Word transcript reader has no size limit (a local file the owner chooses, so not a trust issue) | open | A 60 KB file read as 60 MB of text |
+
+## Work item 20, the project's data and what was paid (`01M46KHBYCXMGM0K6N2RM651PE`)
+
+Source: `docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/independent-review.md` (the
+independent and the security reviews of `860751c`, and what was done with
+each finding). The findings fixed in the same review cycle are there, not
+here; these are the ones left open, and three the work item itself declared.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `WI20-P3-1` | The register's kept parts (`qa-parts/`) are found by the text of their request only, not its model: another model would be given the part paid with the first one. Neither the application nor the commands let the model be chosen (review P3-3) | open | The register asked with one model, then with another, in one folder: requests 1 then 0 |
+| `WI20-P3-2` | The template and its record are two files: a cut between them leaves the new template with the old one's name shown (review P3-6; already so before WI20) | open | A disk error on the record: the new template in place, the old name said |
+| `WI20-P3-3` | A process that dies between saving a meeting's record and rewriting `knowledge.md` leaves the copy one meeting behind; the application's next start rewrites it, but a summary made from the commands before that reads it without the meeting | open | The rewrite skipped: the meeting missing from the knowledge until `clear_leftovers` |
+| `WI20-P3-4` | A meeting record broken by hand is found when the meeting is saved, after the summary or register was paid; what was paid is kept, but once the record is fixed the project's knowledge differs, so the request differs and is paid again | open | A record cut by hand: 1 request paid, then the meeting not added |
+| `WI20-P3-5` | The same request is never paid twice in one folder: asking the commands again for the same summary to get a different answer returns the kept one. To pay for a new answer, `paid-answers/` of the folder is deleted | open, by design | The same summary asked twice in one folder: 1 request paid |
+| `WI20-P3-6` | INGOL's pilot tests (`tests/test_d1_*.py`) need INGOL's kits, which are not in this public repository nor in its CI: on GitHub they are skipped, and only the owner's machine runs them | open | `test_d1_*` without the kits: every file skipped |
+| `WI20-P3-7` | A failed run that paid keeps the meeting's transcript, frames and Gemini's answers in the data folder until the meeting is processed again or the run is discarded (before WI20 they were removed at once; the owner approved the change, the security review noted it) | open, by design | A run failed at the report: its folder kept with `transcript.docx` and its frames |

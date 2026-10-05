@@ -104,6 +104,16 @@ def data_lock(data_dir):
         raise ProjectError(error.message) from None
 
 
+def _left_by_a_cut(folder):
+    """True if folder holds nothing but what a write cut short leaves (the
+    hidden temporary files of meetingtool.disk): the creation of a project or
+    a meeting that never got its record. A folder holding anything else (a
+    result made with the commands, say) is not taken over (WI20's review,
+    P2-1)."""
+    return folder.is_dir() and all(entry.name.startswith(".") and entry.name.endswith(".partial")
+                                   for entry in folder.iterdir())
+
+
 def _now_utc():
     return datetime.datetime.now(datetime.timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
 
@@ -138,11 +148,11 @@ def create_project(data_dir, name, client, context=""):
     }
     with data_lock(data_dir):
         # The folder reserves the identifier: made exclusively, under the lock.
-        # One without project.json is what a creation cut short left.
+        # One holding nothing is what a creation cut short left.
         try:
             folder.mkdir(parents=True)
         except FileExistsError:
-            if (folder / "project.json").exists() or not folder.is_dir():
+            if not _left_by_a_cut(folder):
                 raise ProjectError("projects.exists", project=project_id, folder=str(data_dir.resolve())) from None
         _write_json(folder / "project.json", record)
         rebuild_knowledge(data_dir, project_id)
@@ -198,14 +208,14 @@ def add_meeting(data_dir, project_id, title, date, meeting_type="", recording=""
         record["folder"] = meeting_folder
     with data_lock(data_dir):
         # The meeting's folder reserves its identifier, made exclusively under
-        # the lock; one without meeting.json is what a save cut short left.
+        # the lock; one holding nothing is what a save cut short left.
         meeting_id, counter = base_id, 2
         while True:
             try:
                 (meetings / meeting_id).mkdir(parents=True)
                 break
             except FileExistsError:
-                if (meetings / meeting_id).is_dir() and not (meetings / meeting_id / "meeting.json").exists():
+                if _left_by_a_cut(meetings / meeting_id):
                     break
             meeting_id, counter = f"{base_id}-{counter}", counter + 1
         record = {"id": meeting_id, **record}

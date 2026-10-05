@@ -228,6 +228,7 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
         found = _kept_answer(kept, check)
         if found is not None:
             return found
+    spent_before = counters["spent"]
     incomplete_retried = False
     refused = ""  # why the answer before was refused, so a stop by the budget says it (INGOL D-181's run)
     what = what if isinstance(what, texts.Message) else texts.External(what)
@@ -265,7 +266,9 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                 continue
             if kept is not None:
                 text = "".join(part.get("text", "") for part in answer["candidates"][0]["content"]["parts"])
-                disk.write_text(kept, json.dumps({"answer": text, "model": answer.get("modelVersion", "")},
+                # With what it cost (its retries too): a run cut short still says what it paid (WI20's review, P2-2).
+                disk.write_text(kept, json.dumps({"answer": text, "model": answer.get("modelVersion", ""),
+                                                  "cost_usd": round(counters["spent"] - spent_before, 6)},
                                                  ensure_ascii=False) + "\n")
             return value
         if status is not None and status not in RETRYABLE_STATUS:

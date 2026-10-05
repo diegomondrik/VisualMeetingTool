@@ -816,7 +816,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
             found = _stage(stages, counters, name, lambda: gemini.call_checked(
                 url, key, payload, check, worst, texts.Message("qa.what.register_part", part=part, parts=len(windows)),
                 retry_delays,
-                sleep, counters, max_cost_usd, revising), refusals)
+                sleep, counters, max_cost_usd, revising, keep=frames_dir / gemini.KEPT_DIR), refusals)
         found, found_knowledge = found
         questions += found
         if last:

@@ -67,6 +67,26 @@ objective: >
   work items; R07 to R11, the second batch); a button that retries a failed
   run without uploading the files again (processing the same files again
   already pays nothing again); a database; the installer (WI18).
+
+  Corrected after the independent and the security reviews of 860751c
+  (docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/independent-review.md): a
+  folder holding anything but what a cut leaves is not taken over by a new
+  project or meeting (P2-1); each kept answer says what it cost, so a run cut
+  by closing the application still says what it paid (P2-2); the lock knows
+  a folder by its real path (P3-1); a kept run is discarded under the lock
+  that starts a run (P3-2, and the security review's P3); a resumed run
+  keeps only what was paid of the attempt before (P3-4); a run's record says
+  what earlier attempts paid (P3-5).
+
+  Known limitations (docs/limitations/REGISTER.md, WI20-P3-1 to WI20-P3-7):
+  the register's kept parts do not tell one model from another; the
+  template and its record are two files; a process that dies between a
+  meeting's record and the knowledge's copy leaves the copy one meeting
+  behind until the application starts again; a record broken by hand is
+  found when the meeting is saved, after paying; the same request is never
+  paid twice in one folder, so a new answer needs paid-answers/ deleted;
+  INGOL's pilot tests do not run in the CI; a failed run that paid keeps the
+  meeting's files until it is processed again or discarded.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M46KHBYCXMGM0K6N2RM651PE/**

@@ -22,7 +22,6 @@ STORE = "meetingtool/projects/store.py"
 GEMINI = "meetingtool/reading/gemini.py"
 JOBS = "meetingtool/app/jobs.py"
 COMPANY = "meetingtool/app/company.py"
-SERVER = "meetingtool/app/server.py"
 FREE = ["tests.test_data_integrity"]
 AR = "tests.test_d1_hallazgos_arquitecto."
 SWEEP = "tests.test_d1_barrido."
@@ -99,8 +98,17 @@ MUTATIONS = [
     ("a discard that removes any folder named (AC07)",
      [(JOBS, DISCARD_CHECKS, "")], []),
     ("a discard while a meeting is being processed (AC07)",
-     [(SERVER, "            if app.runner.running() is not None:  # it may be continuing in that very folder\n",
-       "            if False:\n")], []),
+     [(JOBS, '            if any(job.state == "running" for job in self.jobs.values()):\n                raise JobError'
+             '("app.run.busy")\n            discard_kept(', "            discard_kept(")], []),
+    ("a folder of the commands taken over by a new project (AC03, review P2-1)",
+     [(STORE, "            if not _left_by_a_cut(folder):\n", "            if (folder / \"project.json\").exists():\n")],
+     []),
+    ("what a cut run paid read only from its record, not from its kept answers (AC07, review P2-2)",
+     [(JOBS, '                      "paid_usd": round(max(paid, kept_cost(run)), 4),',
+       '                      "paid_usd": round(paid, 4),')], []),
+    ("a resumed run that keeps the attempt before's other files (AC06, review P3-4)",
+     [(JOBS, "                    if entry.name in (KEPT_RECORD, gemini.KEPT_DIR, qa.PARTS_DIR):\n",
+       "                    if True:\n")], []),
     ("a save cut half way left as a result no meeting names (AC02, AC07)",
      [(JOBS, "        cut = [run for run in results.iterdir() if (run / KEPT_RECORD).is_file()]\n",
        "        cut = []\n")],

@@ -218,6 +218,19 @@ def holds_paid(folder):
     return any((folder / gemini.KEPT_DIR).glob("*.json")) or any((folder / qa.PARTS_DIR).glob("part-*.json"))
 
 
+def kept_cost(folder):
+    """What the answers kept in a run's folder cost, as each one recorded it:
+    known even when the process that paid for them died before saying so."""
+    total = 0.0
+    for kept in (Path(folder) / gemini.KEPT_DIR).glob("*.json"):
+        try:
+            cost = json.loads(kept.read_text(encoding="utf-8")).get("cost_usd")
+        except (OSError, ValueError, AttributeError):
+            continue
+        total += cost if isinstance(cost, (int, float)) and not isinstance(cost, bool) else 0.0
+    return total
+
+
 def request_fingerprint(request):
     """What makes two requests the same meeting for continuing a kept run:
     the project, the format and the transcript's bytes. Each kept answer is
@@ -249,9 +262,10 @@ def kept_runs(data_dir, project_id):
         if record is None or not library.is_slug(run.name) or not holds_paid(run):
             continue
         paid = record.get("paid_usd")
+        paid = float(paid) if isinstance(paid, (int, float)) and not isinstance(paid, bool) else 0.0
         found.append({"run": run.name, "title": str(record.get("title", "")), "date": str(record.get("date", "")),
                       "format": str(record.get("format", "")), "failed_stage": str(record.get("failed_stage", "")),
-                      "paid_usd": float(paid) if isinstance(paid, (int, float)) else 0.0,
+                      "paid_usd": round(max(paid, kept_cost(run)), 4),
                       "failed_utc": str(record.get("failed_utc", ""))})
     return sorted(found, key=lambda run: run["failed_utc"], reverse=True)
 
@@ -359,6 +373,16 @@ class Runner:
         with self.lock:
             return next((job for job in self.jobs.values() if job.state == "running"), None)
 
+    def discard(self, project_id, run):
+        """Discard a kept run, never while a run is going on: it may be
+        continuing in that very folder. Under the same lock that starts a run,
+        so a run cannot start between the check and the removal (WI20's
+        review, P3-2)."""
+        with self.lock:
+            if any(job.state == "running" for job in self.jobs.values()):
+                raise JobError("app.run.busy")
+            discard_kept(self.data_dir, project_id, run)
+
     def start(self, request, wait=False):
         key = self.read_key()
         if not key:
@@ -406,12 +430,24 @@ class Runner:
             fingerprint = request_fingerprint(request)
             work = _kept_for(project_dir, fingerprint)
             kept = _kept_record(work) if work is not None else None
-            if work is None:
+            if work is not None:
+                # Only what was paid goes on: anything else of the attempt before (its frames, its
+                # readings, a copy of its recording) is not this run's (WI20's review, P3-4).
+                for entry in work.iterdir():
+                    if entry.name in (KEPT_RECORD, gemini.KEPT_DIR, qa.PARTS_DIR):
+                        continue
+                    if entry.is_dir():
+                        shutil.rmtree(entry)
+                    else:
+                        entry.unlink()
+            else:
                 run_id = f"{request['date']}-{store.slugify(request['title'], fallback='meeting')[:40].strip('-')}-" \
                          f"{secrets.token_hex(3)}"
                 work = project_dir / library.PROCESSING_DIR / run_id
                 work.mkdir(parents=True)
                 kept = {"paid_usd": 0.0}
+            paid_before = max(kept.get("paid_usd") if isinstance(kept.get("paid_usd"), (int, float)) else 0.0,
+                              kept_cost(work))
             job.run_id = work.name
             final = project_dir / library.RESULTS_DIR / work.name
             folder_name = f"{library.RESULTS_DIR}/{work.name}"
@@ -429,8 +465,6 @@ class Runner:
             else:
                 job.stages[0].state = "skipped"
                 extracted = None
-                for old in work.glob("frame_*.jpg"):  # an earlier attempt's, with a recording: not this run's
-                    old.unlink()
             if request["format"] == "summary":
                 self._stage(job, "reading", lambda: gemini.read_frames(
                     work, key, endpoint=self.endpoint, retry_delays=self.retry_delays, sleep=self.sleep,
@@ -456,6 +490,8 @@ class Runner:
             run = {"format": request["format"], "language": written.language,
                    "meeting_type": request["meeting_type"] or "", "max_cost_usd": request["max_cost"],
                    "cost_usd": round(job.counters["spent"], 4), "seconds": round(time.monotonic() - job.started, 1),
+                   # what earlier attempts that failed paid for this meeting (WI20's review, P3-5)
+                   "paid_before_usd": round(paid_before, 4),
                    "stages": [stage.as_dict() for stage in job.stages],
                    "models": sorted(job.counters["models"]), "requests": job.counters["attempts"],
                    "frames_kept": len(extracted.kept) if extracted else 0,
@@ -505,8 +541,8 @@ class Runner:
             if holds_paid(work):
                 record = _kept_record(work) or {}
                 paid = record.get("paid_usd") if isinstance(record.get("paid_usd"), (int, float)) else 0.0
-                record.update(paid_usd=round(paid + job.counters["spent"], 4), failed_stage=job.failed_stage,
-                              failed_utc=store._now_utc())
+                record.update(paid_usd=round(max(paid + job.counters["spent"], kept_cost(work)), 4),
+                              failed_stage=job.failed_stage, failed_utc=store._now_utc())
                 disk.write_text(work / KEPT_RECORD, json.dumps(record, ensure_ascii=False, indent=2) + "\n")
                 job.kept = {"run": work.name, "paid_usd": record["paid_usd"]}
             else:

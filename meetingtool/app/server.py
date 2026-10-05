@@ -350,9 +350,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
             company.set_language(data_dir, data.get("language"))
             return self._json({"language": data["language"]})
         if path == "/api/kept/discard":
-            if app.runner.running() is not None:  # it may be continuing in that very folder
-                raise jobs.JobError("app.run.busy")
-            jobs.discard_kept(data_dir, data.get("project"), data.get("run"))
+            app.runner.discard(data.get("project"), data.get("run"))
             return self._json({"discarded": True})
         if path == "/api/process":
             try:
