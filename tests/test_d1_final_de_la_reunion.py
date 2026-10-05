@@ -4,13 +4,12 @@ de imágenes termina TRANSCRIPT_TAIL segundos después del *comienzo* de la
 y lo que se muestra en pantalla mientras tanto se pierde antes de cualquier
 llamada a Gemini.
 
-En rojo mientras el corte exista. Contradice a propósito
-test_frames.MeetingRealityTest.test_with_a_transcript_reading_stops_soon_after_its_last_line,
-que fija el corte: si es un defecto o una decisión de producto lo decide el
-owner (regla del kit: la prueba se escribe en rojo y decide el owner).
+Escrita en rojo en el piloto D1 de INGOL, sobre 03b8573, cuando una prueba
+de WI10 fijaba el corte. El owner decidió el 2026-10-05 que el corte es un
+defecto, y WI21 lo quitó: el video se lee hasta el final, con transcripción o
+sin ella.
 
-En verde si: el final de la reunión no se infiere de una marca de inicio (se
-lee hasta el final del video, o hasta un final que la transcripción dice).
+En verde porque el final de la reunión ya no se infiere de una marca de inicio.
 """
 
 from unittest import mock
