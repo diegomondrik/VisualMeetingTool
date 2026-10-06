@@ -41,6 +41,21 @@ objective: >
   Not done: limits on the size of what a Word package expands to (R08, the
   second batch); whether Word itself would act on a field (not run: no Word
   here, as in the review); R04, R06 and the second batch.
+
+  Corrected after the independent and the security reviews of 6daabab
+  (docs/evidence/01M47ABNKZF02YZ94YKXMQCPQ1/independent-review.md): a
+  field's name has to be written out in the file before any field inside it,
+  and only that name is compared with the refused ones, so a name that
+  nested fields build is refused and a stray word no longer refuses a good
+  template (independent P1, P2-1; security P2); DATABASE and RD are refused
+  too (P2); a hyperlink may go only to http, https, mailto or a place in the
+  document (security P3).
+
+  Known limitations (docs/limitations/REGISTER.md, WI22-P3-1, P3-2, P3-5 to
+  P3-7): Word itself is not run; what a package expands to is not limited
+  (R08); the filter lists refused fields, not allowed ones (an allowed list
+  is the owner's decision); embedded fonts reach the report; a part in a
+  non-UTF multibyte encoding is refused as unreadable.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M47ABNKZF02YZ94YKXMQCPQ1/**
