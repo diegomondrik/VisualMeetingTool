@@ -16,7 +16,7 @@ TEXTS = {
     "transcript.unreadable": "no se puede leer la transcripción {path}: tiene que ser un texto UTF-8[[: {detail}]]",
     "transcript.not_a_file": "la transcripción {path} no es un archivo",
     "transcript.no_timed_line": "la transcripción {path} no tiene ninguna línea con su minuto (la de Teams, «Nombre   "
-                                "M:SS», o «[HH:MM:SS]»)",
+                                "M:SS», la hora sola en su renglón, o «[HH:MM:SS]»)",
 
     # ── Proyectos (meetingtool.projects) ────────────────────────────────────
     "projects.inside_repository": "la carpeta de datos {folder} está dentro del repositorio git {work_tree}; los "
@@ -142,6 +142,9 @@ TEXTS = {
     "qa.stopped.before": "; la respuesta anterior también se rechazó: {refusal:.300}",
     "qa.stopped.done": ", de los cuales {stages}",
     "qa.no_folder": "la carpeta {folder} no existe",
+    "qa.needs_speakers": "la transcripción {path} no dice quién habla, y el registro de preguntas y respuestas "
+                         "necesita saber quién preguntó y quién respondió: escribí el resumen en su lugar (formato "
+                         "resumen)",
 
     # ── El informe en Word (meetingtool.report) ─────────────────────────────
     "layout.marker_not_alone": "{{informe}} tiene que estar solo en su línea, sin nada más",

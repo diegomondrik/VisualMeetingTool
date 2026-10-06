@@ -193,3 +193,19 @@ and `tests/test_d1_r02_plantilla.py`, not here.
 | `WI22-P3-5` | The filter is a list of the fields it refuses, not of those it allows: a field that brings content from outside and is not on the list (or that Word adds in a later version) passes. A list of allowed fields would close it, at the cost of refusing the less common fields a company's template may have (`ADDIN`, `FILLIN`...): the owner's decision | open | A field with an invented name and an address: accepted |
 | `WI22-P3-6` | Embedded fonts (a relationship of type `font` from `fontTable.xml`) are accepted, and they reach the report: they are not loaded from outside, but they are binary data of the template that the client receives, unread | open | A template with an embedded font part: accepted, and the font is in the report |
 | `WI22-P3-7` | A part in a multibyte encoding that is not UTF (Shift_JIS, for instance, in a `customXml` part) cannot be read by the XML parser of the standard library, so the filter refuses the template as one with a part that is not readable XML, although Word saved it | open | A `customXml` part in Shift_JIS: the template is refused, naming the part |
+
+## Work item 24, what stopped the first real meeting (`01M495140RMJM90PFDGBN7XZMF`)
+
+Source: the limitations the contract declares
+(`.ingol/work-items/01M495140RMJM90PFDGBN7XZMF/contract.yaml`) and the ones found
+while building it and left. Their reproductions use a synthetic transcript in the
+shape of the first real meeting (a title, then each time alone on its line and the
+words after it) made up in a temporary folder; nothing from the real meeting is in
+this repository.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `WI24-P3-1` | A transcript that names no one (each time alone on its line) is read and its summary written, but the summary names no one: its participants and who owns each task are inferred from the conversation, not read from it. The register of questions and answers, which needs who asked and who answered, refuses such a transcript before sending anything. Naming the speakers of a transcript that has none is not done (contract WI24) | open | The made-up transcript: every turn with no speaker; the summary's request has them with no name; the register stops with `qa.needs_speakers` after 0 requests |
+| `WI24-P3-2` | Whether the real Gemini now copies the frames' names right, with the name of its frame heading each block of the reading, is not run: the tests are synthetic (a reading of 141 frames, Gemini faked) and show what the request says and that a name that does not exist is never let through, not what the model does with it | not reproducible here: it needs the real Gemini and the owner's meeting. Source: contract WI24 (the owner's run is his use of the application, not this work item's evidence) | — |
+| `WI24-P3-3` | A line of someone's words that is only a time ("10:30") starts a block with no speaker, also in a transcript with speakers: the rule for the time alone on its line does not look at who spoke before. Teams puts a speaker's words in sentences, so it is not expected, but it was not seen against a real transcript | open | "Ana Pérez   0:04", then "El cierre es a las", "10:30", "según dijeron.": two blocks, the second at 630 s and with no speaker |
+| `WI24-P3-4` | The application refuses a register of a transcript that names no one only when the register's stage begins, after the frames of the recording were extracted (minutes, on a long recording), not when the request is made | open | A request for the register with the made-up transcript: accepted by the application's check of the request |

@@ -1118,6 +1118,77 @@ def wi22_p3_7(args, root):
         f"a customXml part in Shift_JIS: {said}")
 
 
+def _wi24_timed(tmp):
+    """A transcript in the shape of the first real meeting, made up: a title, then each time alone on
+    its line and the words after it."""
+    path = tmp / "timed.docx"
+    frames_fixture.write_timed_docx(path, frames_fixture.TIMED)
+    return path
+
+
+@entry("WI24-P3-1")
+def wi24_p3_1(args, root):
+    from meetingtool.summary import qa, writer
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        path = _wi24_timed(tmp)
+        turns = transcript_module.read_turns(path)
+        prompt = writer.build_prompt(turns, "", "es")
+        folder = tmp / "frames"
+        folder.mkdir()
+        with FakeGemini() as fake:
+            try:
+                qa.write_register(folder, path, KEY, language="es", endpoint=fake.endpoint, sleep=lambda s: None)
+                refused = ""
+            except qa.QAError as error:
+                refused = error.message.key
+            sent = len(fake.requests)
+    named = [speaker for _, speaker, _ in turns if speaker]
+    return not named and refused == "qa.needs_speakers" and sent == 0 and "] Buen día" in prompt, (
+        f"{len(turns)} turns, speakers named: {named}; the summary's request has the turns with no name; "
+        f"the register: {refused or 'written'} after {sent} request(s)")
+
+
+@entry("WI24-P3-2")
+def wi24_p3_2(args, root):
+    return None, ("needs the real Gemini and the owner's meeting: the tests here are synthetic (a reading of 141 "
+                  "frames with Gemini faked), which show what the request says and what the check lets through, not "
+                  "whether the real model now copies the names right. The owner's own run will show it")
+
+
+@entry("WI24-P3-3")
+def wi24_p3_3(args, root):
+    with workspace() as tmp:
+        spoken = tmp / "spoken.txt"
+        spoken.write_text("Ana Pérez   0:04\nEl cierre es a las\n10:30\nsegún dijeron.\n", encoding="utf-8")
+        turns = transcript_module.read_turns(spoken)
+    split = [(start, speaker) for start, speaker, _ in turns]
+    return split == [(4, "Ana Pérez"), (630, "")], (
+        f"a line of someone's words that is only a time, in a transcript with speakers: blocks {split}")
+
+
+@entry("WI24-P3-4")
+def wi24_p3_4(args, root):
+    from meetingtool.app import jobs
+    from meetingtool.summary import writer
+    with workspace() as tmp:
+        data = tmp / "data"
+        store.create_project(data, "Planta Demo", "c")
+        uploads = jobs.Uploads(data)
+        path = uploads.new_path(".docx")
+        frames_fixture.write_timed_docx(path, frames_fixture.TIMED)
+        try:
+            request = jobs.check_request({"project": "planta-demo", "title": "Dudas", "date": "2026-10-06",
+                                          "format": "qa", "transcript": path.name}, data, uploads,
+                                         writer.MEETING_TYPES, ("es", "en"))
+            said = f"accepted as a {request['format']} request"
+        except jobs.JobError as error:
+            request, said = None, f"refused: {error.message.key}"
+    return request is not None, (
+        f"the application's request for a register with a transcript that names no one: {said} (the register "
+        f"refuses it when its stage begins, after the frames were extracted)")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))

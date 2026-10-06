@@ -33,6 +33,9 @@ _PHRASE = re.compile(
 )
 # Teams: "Speaker Name   1:22" or "Speaker Name   1:02:03", the text on the lines after.
 _SPEAKER_TIME = re.compile(r"^(.+?)\s{2,}(\d{1,2}:\d{2}(?::\d{2})?)\s*$")
+# Teams without speaker names: the time alone on its line ("0:02", "1:02:03"), the words on the lines after.
+# Minutes and seconds are below 60, so a line such as "10:75" is not a time.
+_TIME_ALONE = re.compile(r"^\d{1,2}:[0-5]\d(?::[0-5]\d)?$")
 # The original's cleaned text: "[01:02:03] Speaker:".
 _BRACKET_TIME = re.compile(r"^\[(\d{1,2}):(\d{2}):(\d{2})\]\s*(.*)$")
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -78,36 +81,13 @@ def _text_lines(path):
         raise TranscriptError("transcript.unreadable", path=str(path), detail=texts.External(str(error))) from error
 
 
-def read_blocks(path):
-    """[(start seconds, text)] in time order, from a Teams .docx or a text
-    file with [HH:MM:SS] lines. Refuses a transcript with no timed line."""
-    path = Path(path)
-    if not path.is_file():
-        raise TranscriptError("transcript.not_a_file", path=str(path))
-    lines = _docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path)
-    blocks = []
-    for raw in lines:
-        line = raw.strip()
-        if not line:
-            continue
-        teams = _SPEAKER_TIME.match(line)
-        bracket = _BRACKET_TIME.match(line)
-        if teams:
-            blocks.append([_seconds(teams.group(2)), []])
-        elif bracket:
-            hours, minutes, seconds, rest = bracket.groups()
-            blocks.append([int(hours) * 3600 + int(minutes) * 60 + int(seconds), [rest] if rest else []])
-        elif blocks:
-            blocks[-1][1].append(line)
-    if not blocks:
-        raise TranscriptError("transcript.no_timed_line", path=str(path))
-    return sorted(((start, "\n".join(text)) for start, text in blocks), key=lambda block: block[0])
-
-
-def read_turns(path):
-    """[(start seconds, speaker, text)] in time order: what read_blocks reads,
-    with the speaker the Teams line names ("" for [HH:MM:SS] lines). The
-    summary needs who said what; the boost only needs when."""
+def _turns(path):
+    """[(start seconds, speaker, text)] in time order: the one parser behind
+    both readers of a transcript. A block starts at a Teams line with a
+    speaker and a time, at a "[HH:MM:SS]" line, or (WI24) at a line that is
+    only a time (M:SS, MM:SS or H:MM:SS), which Teams writes when it names
+    no one; the non-empty lines after it are its text. A time inside a line
+    of words starts nothing."""
     path = Path(path)
     if not path.is_file():
         raise TranscriptError("transcript.not_a_file", path=str(path))
@@ -119,16 +99,33 @@ def read_turns(path):
             continue
         teams = _SPEAKER_TIME.match(line)
         bracket = _BRACKET_TIME.match(line)
+        alone = _TIME_ALONE.match(line)
         if teams:
             turns.append([_seconds(teams.group(2)), teams.group(1).strip(), []])
         elif bracket:
             hours, minutes, seconds, rest = bracket.groups()
             turns.append([int(hours) * 3600 + int(minutes) * 60 + int(seconds), "", [rest] if rest else []])
+        elif alone:
+            turns.append([_seconds(line), "", []])
         elif turns:
             turns[-1][2].append(line)
     if not turns:
         raise TranscriptError("transcript.no_timed_line", path=str(path))
     return sorted(((start, speaker, "\n".join(text)) for start, speaker, text in turns), key=lambda turn: turn[0])
+
+
+def read_blocks(path):
+    """[(start seconds, text)] in time order, from a Teams .docx or a text
+    file with timed lines. Refuses a transcript with no timed line. The same
+    blocks as read_turns, without the speaker: the boost only needs when."""
+    return [(start, text) for start, _, text in _turns(path)]
+
+
+def read_turns(path):
+    """[(start seconds, speaker, text)] in time order: what read_blocks reads,
+    with the speaker the Teams line names ("" for [HH:MM:SS] lines and for a
+    time alone on its line). The summary needs who said what."""
+    return _turns(path)
 
 
 def read_text(path):

@@ -763,6 +763,10 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
         text = read_text(transcript)
     except TranscriptError as error:
         raise QAError(error.message) from error
+    if not any(speaker.strip() for _, speaker, _ in turns):
+        # A transcript with no speaker (WI24): the register is checked by who spoke, and says who asked and
+        # who answered; nothing can be, so it is refused before any request is paid.
+        raise QAError("qa.needs_speakers", path=str(transcript))
     knowledge = ""
     if project:
         if not title or not title.strip() or not date:

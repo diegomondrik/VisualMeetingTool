@@ -65,12 +65,17 @@ class Stage:
     def __init__(self, name):
         self.name = name
         self.state = "pending"  # pending, running, done, skipped, failed
-        self.seconds = 0.0
+        self.seconds = 0.0  # set when the stage ends
+        self.started = None  # time.monotonic() when it began, for the seconds of a stage still running
         self.cost_usd = 0.0
 
     def as_dict(self, language=texts.DEFAULT_LANGUAGE):
+        # While it runs, the time since it began (the page showed 0 s until the stage ended, WI24);
+        # when it ends, its final seconds.
+        running = self.state == "running" and self.started is not None
+        seconds = time.monotonic() - self.started if running else self.seconds
         return {"name": self.name, "label": label(self.name, language), "state": self.state,
-                "seconds": round(self.seconds, 1), "cost_usd": round(self.cost_usd, 4)}
+                "seconds": round(seconds, 1), "cost_usd": round(self.cost_usd, 4)}
 
 
 class Job:
@@ -400,8 +405,9 @@ class Runner:
 
     def _stage(self, job, name, call):
         stage = next(s for s in job.stages if s.name == name)
-        stage.state = "running"
         spent, started = job.counters["spent"], time.monotonic()
+        stage.started = started
+        stage.state = "running"
         try:
             value = call()
         except BaseException:

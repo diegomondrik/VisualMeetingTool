@@ -20,7 +20,7 @@ from meetingtool.reading import gemini
 from meetingtool.report import document
 from meetingtool.summary import qa, writer
 from meetingtool.summary.__main__ import main
-from tests.test_frames import write_teams_docx
+from tests.test_frames import TIMED, write_teams_docx, write_timed_docx
 from tests.test_reading import KEY, FakeGemini, answer_for
 from tests.test_summary import answer
 
@@ -190,6 +190,35 @@ class RequestTest(Workspace):
                 with self.assertRaises(qa.QAError):
                     self.register(fake, meeting_type=meeting_type)
         self.assertEqual(fake.requests, [])
+
+    def test_a_transcript_with_no_speaker_is_refused_before_any_request_in_both_languages(self):
+        """WI24-AC02: the register says who asked and who answered; a transcript that
+        names no one cannot give it, and the refusal comes before anything is paid."""
+        timed = self.tmp / "timed.docx"
+        write_timed_docx(timed, TIMED)
+        brackets = self.tmp / "brackets.txt"
+        brackets.write_text("[00:00:04] Ana: Primera duda\n[00:00:40] Juan: Se carga por mes\n", encoding="utf-8")
+        for source in (timed, brackets):
+            for language in ("es", "en"):
+                with self.subTest(source=source.name, language=language), FakeGemini() as fake:
+                    with self.assertRaises(qa.QAError) as caught:
+                        self.register(fake, source, language=language)
+                    self.assertEqual(fake.requests, [])
+                    self.assertEqual(caught.exception.message.key, "qa.needs_speakers")
+                    self.assertNothingWritten()
+                    self.assertIn("names no speaker", str(caught.exception))
+                    self.assertIn("write the summary instead", caught.exception.text("en"))
+                    self.assertIn("no dice quién habla", caught.exception.text("es"))
+                    self.assertIn("escribí el resumen", caught.exception.text("es"))
+                    self.assertIn(str(source), caught.exception.text("es"))
+
+    def test_a_transcript_where_someone_is_named_is_not_refused_for_lack_of_speakers(self):
+        mixed = self.tmp / "mixed.txt"
+        mixed.write_text("Ana Pérez   0:04\n¿Quién carga los estándares de horas por kilo en la planilla?\n"
+                         "0:40\nLos carga el área de procesos una vez por mes.\n", encoding="utf-8")
+        with FakeGemini([json_answer({"questions": [], "knowledge": REGISTER["knowledge"]})]) as fake:
+            self.register(fake, mixed, language="es")
+        self.assertEqual(len(fake.requests), 1)
 
     def test_without_the_option_the_summary_is_written_as_before(self):
         (self.frames / gemini.OUTPUT_NAME).write_text("# What each frame shows\n\n[FRAME 1]\n- Key Data: 1\n",

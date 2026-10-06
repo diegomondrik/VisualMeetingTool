@@ -5,6 +5,7 @@ projects are invented at test time in a temporary folder."""
 import contextlib
 import io
 import json
+import re
 import shutil
 import subprocess
 import sys
@@ -18,7 +19,7 @@ from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.summary import writer
 from meetingtool.summary.__main__ import main
-from tests.test_frames import write_teams_docx
+from tests.test_frames import TIMED, write_teams_docx, write_timed_docx, write_timed_text
 from tests.test_reading import KEY, FakeGemini
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -112,7 +113,8 @@ class WritingTest(Workspace):
         self.assertEqual(request["headers"]["x-goog-api-key"], KEY)
         self.assertNotIn(KEY, request["path"] + json.dumps(request["body"]))
         self.assertIn("[00:01:22] Juan Gómez: Fijate el total", prompt)
-        self.assertIn("[FRAME 1]\n- Key Data: total 1.250", prompt)
+        # WI24: the block is labelled with its frame's file name (it was "[FRAME 1]").
+        self.assertIn("[frame_001_t00-01-22.jpg]\n- Key Data: total 1.250", prompt)
         self.assertIn("Write the summary in Spanish.", prompt)
         for heading in writer.required_headings("es"):
             self.assertIn(f"## {heading}", prompt)
@@ -757,6 +759,144 @@ NOT_RANGES = ["[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]",
               "[frame_001_t00-01-22.jpg] a la derecha del total",
               "**[frame_001_t00-01-22.jpg]** y **[frame_002_t00-05-00.jpg]**",
               "| [frame_001_t00-01-22.jpg] | - | [frame_002_t00-05-00.jpg] |"]
+
+
+class NoSpeakerTest(Workspace):
+    """WI24-AC01: the summary of a meeting whose transcript names no one."""
+
+    def written(self, kind):
+        path = self.tmp / f"timed.{kind}"
+        (write_timed_docx if kind == "docx" else write_timed_text)(path, TIMED)
+        return path
+
+    def test_the_summary_is_written_and_its_request_has_the_turns_with_no_speaker(self):
+        for kind in ("docx", "txt"):
+            with self.subTest(kind=kind):
+                self.transcript = self.written(kind)
+                self.forget_paid()
+                with FakeGemini([returning(summary_text())]) as fake:
+                    result = self.summarise(fake)
+                prompt = prompt_of(fake.requests[0])
+                self.assertEqual(result.language, "es")
+                self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text())
+                self.assertIn("[00:00:02] Buen día a todos, empezamos con el costo de proceso.\n[00:00:41] Primero el "
+                              "total.\nLuego la columna de kilos, que se cierra a las 10:30.\n[00:12:09] Mirá el "
+                              "tablero.\n[01:02:03] Queda acordado enviar el detalle.\n[02:11:00] Hasta la próxima.",
+                              prompt)
+                self.assertEqual(re.findall(r"^\[\d\d:\d\d:\d\d\] \w+: ", prompt, re.MULTILINE), [])
+
+    def test_turns_with_no_speaker_are_read_by_the_summary_as_by_the_register(self):
+        self.assertEqual([speaker for _, speaker, _ in read_turns(self.written("docx"))], [""] * len(TIMED))
+
+
+def reading_of(count, folder):
+    """A frames folder of `count` frames named as the extractor names them
+    (distinct times) and the reading of them as gemini.read_frames writes it."""
+    names = [f"frame_{n:03d}_t{n * 47 // 3600:02d}-{n * 47 % 3600 // 60:02d}-{n * 47 % 60:02d}.jpg"
+             for n in range(1, count + 1)]
+    for name in names:
+        (folder / name).write_bytes(b"")
+    header = ["# What each frame shows (read by Gemini)", "", f"{count} frames, 3 request(s), model fake.", ""]
+    header += [f"- FRAME {n}: {name}" for n, name in enumerate(names, start=1)] + [""]
+    blocks = [f"[FRAME {n}]\n- Window/App: Excel\n- Key Data: row {n}: 1, 2, 3" for n in range(1, count + 1)]
+    (folder / gemini.OUTPUT_NAME).write_text("\n".join(header) + "\n" + "\n\n".join(blocks) + "\n", encoding="utf-8")
+    return names
+
+
+class FrameLabelsTest(Workspace):
+    """WI24-AC03: with 141 frames Gemini named frame_071_t01-05-36.jpg, the
+    number of one frame with the time of another, because the request listed
+    the names at the top and labelled each block only "[FRAME n]"."""
+
+    def setUp(self):
+        super().setUp()
+        (self.frames / gemini.OUTPUT_NAME).unlink()
+        (self.frames / "frame_001_t00-01-22.jpg").unlink(missing_ok=True)
+        self.names = reading_of(141, self.frames)
+
+    def naming(self, *names):
+        return summary_text().replace("Texto de Lo que se vio en pantalla.",
+                                      "Texto de Lo que se vio en pantalla: " + " y ".join(f"[{n}]" for n in names)
+                                      + ", con el total de la columna.")
+
+    def test_every_block_of_the_reading_is_labelled_with_its_frames_exact_file_name(self):
+        with FakeGemini([returning(summary_text())]) as fake:
+            self.summarise(fake)
+        prompt = prompt_of(fake.requests[0])
+        self.assertEqual(len(self.names), 141)
+        for number, name in enumerate(self.names, start=1):
+            self.assertIn(f"\n[{name}]\n- Window/App: Excel\n- Key Data: row {number}: 1, 2, 3", prompt)
+        self.assertEqual(re.findall(r"\[FRAME \d+\]", prompt), [])
+        self.assertNotIn("- FRAME 71:", prompt)  # the list at the top is no longer needed: the labels carry the names
+        self.assertIn("copy\nthat name exactly, character by character", writer.FRAME_RULE)
+        self.assertIn(writer.FRAME_RULE, prompt)
+
+    def test_the_numbers_of_a_reading_of_141_frames_are_matched_to_the_names_of_the_header(self):
+        # The case of the owner's meeting: frame 71 is not the frame of minute 65.
+        self.assertEqual(self.names[70], "frame_071_t00-55-37.jpg")
+        labelled = writer.label_frames((self.frames / gemini.OUTPUT_NAME).read_text(encoding="utf-8"))
+        self.assertIn("[frame_071_t00-55-37.jpg]\n- Window/App: Excel", labelled)
+        self.assertNotIn("frame_071_t01-05-36", labelled)
+
+    def test_a_label_wrapped_in_bold_or_a_block_the_header_does_not_list_is_handled(self):
+        reading = "- FRAME 1: frame_001_t00-00-10.jpg\n\n**[FRAME 1]**\n- Key Data: a\n\n[FRAME 2]\n- Key Data: b\n"
+        self.assertEqual(writer.label_frames(reading),
+                         "**[frame_001_t00-00-10.jpg]**\n- Key Data: a\n\n[FRAME 2]\n- Key Data: b")
+
+    def test_a_wrong_name_then_only_real_ones_is_accepted_and_the_retry_says_what_was_wrong(self):
+        wrong = "frame_071_t01-05-36.jpg"
+        self.assertNotIn(wrong, self.names)
+        good = self.naming(self.names[70], self.names[100])
+        with FakeGemini([returning(self.naming(wrong)), returning(good)]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), good)
+        first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
+        self.assertNotIn(wrong, first)
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED", second)
+        self.assertIn(f"do not exist: {wrong}.", second)
+        self.assertIn("exactly as it is written in the label of its block", second)
+        # The retry is the same request with the note added, before the material.
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""),
+                         first)
+
+    def test_the_retry_names_every_name_that_does_not_exist(self):
+        with FakeGemini([returning(self.naming("frame_071_t01-05-36.jpg", "frame_072_t02-00-00.jpg")),
+                         returning(self.naming(self.names[70]))]) as fake:
+            self.summarise(fake)
+        self.assertIn("do not exist: frame_071_t01-05-36.jpg, frame_072_t02-00-00.jpg.", prompt_of(fake.requests[1]))
+
+    def test_two_answers_naming_frames_that_do_not_exist_are_refused_and_nothing_is_written(self):
+        for second in (self.naming("frame_071_t01-05-36.jpg"), self.naming(self.names[70], "frame_080_t09-09-09.jpg")):
+            with self.subTest(second=second[-60:]):
+                self.forget_paid()
+                with FakeGemini([returning(self.naming("frame_071_t01-05-36.jpg")), returning(second)]) as fake:
+                    with self.assertRaises(writer.SummaryError) as caught:
+                        self.summarise(fake)
+                self.assertEqual(caught.exception.message.key, "summary.frames_missing")
+                self.assertEqual(len(fake.requests), 2)
+                self.assertFalse(self.output().exists())
+
+    def test_another_refusal_retries_with_the_same_request_as_before(self):
+        with FakeGemini([returning(summary_text(drop="Temas")), returning(summary_text())]) as fake:
+            self.summarise(fake)
+        self.assertEqual(fake.requests[0]["body"], fake.requests[1]["body"])
+
+    def test_the_check_of_the_names_is_as_strict_as_ever(self):
+        names = set(self.names)
+        writer.check_frames(self.naming(self.names[70]), names)
+        for wrong in ("frame_071_t01-05-36.jpg", "frame_071_t00-55-38.jpg", "frame_142_t01-50-00.jpg"):
+            with self.subTest(wrong=wrong), self.assertRaises(writer.SummaryError):
+                writer.check_frames(self.naming(wrong), names)
+
+    def test_the_budget_reserves_the_retrys_note_too(self):
+        prompt = writer.build_prompt(read_turns(self.transcript), (self.frames / gemini.OUTPUT_NAME).read_text(
+            encoding="utf-8"), "es")
+        without_note = gemini.token_cost(len(prompt) / writer.CHARS_PER_TOKEN, writer.MAX_OUTPUT_TOKENS)
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError):
+                self.summarise(fake, max_cost_usd=without_note + 0.00001)
+        self.assertEqual(fake.requests, [])
 
 
 if __name__ == "__main__":

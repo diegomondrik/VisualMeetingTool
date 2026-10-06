@@ -14,7 +14,8 @@ TEXTS = {
     "transcript.word_unreadable": "cannot read the Word transcript {path}[[: {detail}]]",
     "transcript.unreadable": "cannot read the transcript {path}[[: {detail}]]",
     "transcript.not_a_file": "transcript {path} is not a file",
-    "transcript.no_timed_line": "transcript {path} has no timed line (Teams 'Speaker   M:SS' or '[HH:MM:SS]')",
+    "transcript.no_timed_line": "transcript {path} has no timed line (Teams 'Speaker   M:SS', a time alone on its "
+                                "line, or '[HH:MM:SS]')",
 
     # ── Projects (meetingtool.projects) ─────────────────────────────────────
     "projects.inside_repository": "data folder {folder} is inside the git work tree {work_tree}; meeting data must "
@@ -138,6 +139,8 @@ TEXTS = {
     "qa.stopped.before": "; the answer before was refused too: {refusal:.300}",
     "qa.stopped.done": ", of which {stages}",
     "qa.no_folder": "the folder {folder} does not exist",
+    "qa.needs_speakers": "the transcript {path} names no speaker, and the register of questions and answers needs "
+                         "who asked and who answered: write the summary instead (format summary)",
 
     # ── The Word report (meetingtool.report) ────────────────────────────────
     "layout.marker_not_alone": "{{informe}} must be alone on its line, with nothing else on it",
