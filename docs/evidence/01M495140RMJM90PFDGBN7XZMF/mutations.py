@@ -21,7 +21,8 @@ WRITER = "meetingtool/summary/writer.py"
 QA = "meetingtool/summary/qa.py"
 JOBS = "meetingtool/app/jobs.py"
 TESTS = ["tests.test_frames.TranscriptTest", "tests.test_summary.NoSpeakerTest",
-         "tests.test_summary.FrameLabelsTest", "tests.test_qa.RequestTest", "tests.test_app.RunningStageTest"]
+         "tests.test_summary.FrameLabelsTest", "tests.test_qa.RequestTest", "tests.test_app.RunningStageTest",
+         "tests.test_app.NoSpeakerRequestTest"]
 
 # What read_blocks was before WI24: its own loop, with no rule for a time alone on its line.
 OLD_READ_BLOCKS = r'''    path = Path(path)
@@ -54,7 +55,7 @@ MUTATIONS = [
             turns.append([_seconds(line), "", []])
 ''', "")]),
     ("the two readers apart again: read_blocks keeps its old loop, with no rule for a time alone",
-     [(TRANSCRIPT, r'''    return [(start, text) for start, _, text in _turns(path)]
+     [(TRANSCRIPT, r'''    return [(start, text) for start, _, text in _read(path)[0]]
 ''', OLD_READ_BLOCKS)]),
     ("the blocks of the reading labelled by number only, with the list of names at its top, as before WI24",
      [(WRITER, r'''              label_frames(frames_reading)]''', r'''              frames_reading.strip()]''')]),
@@ -70,7 +71,18 @@ MUTATIONS = [
 ''', r'''        running = False
 ''')]),
     ("the register's stop for a transcript with no speaker removed",
-     [(QA, r'''    if not any(speaker.strip() for _, speaker, _ in turns):''', r'''    if False:''')]),
+     [(QA, r'''    if nobody:''', r'''    if False:''')]),
+    # The independent review of 0f6a3a8.
+    ("the register's stop applied also to a transcript with [HH:MM:SS] lines, which have no name in the turn",
+     [(QA, r'''    if nobody:''', r'''    if not any(speaker.strip() for _, speaker, _ in turns):''')]),
+    ("the time-only rule applied although the file has lines with a speaker or [HH:MM:SS] lines",
+     [(TRANSCRIPT, r'''        alone = _TIME_ALONE.match(line) and not labelled
+''', r'''        alone = _TIME_ALONE.match(line)
+''')]),
+    ("the check of the request for a register with a transcript that names no one removed",
+     [(JOBS, r'''        if nobody:
+            raise JobError''', r'''        if False:
+            raise JobError''')]),
 ]
 
 

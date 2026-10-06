@@ -1164,7 +1164,8 @@ def wi24_p3_3(args, root):
         turns = transcript_module.read_turns(spoken)
     split = [(start, speaker) for start, speaker, _ in turns]
     return split == [(4, "Ana Pérez"), (630, "")], (
-        f"a line of someone's words that is only a time, in a transcript with speakers: blocks {split}")
+        f"a line of someone's words that is only a time, in a transcript with speakers: blocks {split} (it "
+        f"reproduces if the second block starts at 630 s with no speaker)")
 
 
 @entry("WI24-P3-4")
@@ -1185,8 +1186,7 @@ def wi24_p3_4(args, root):
         except jobs.JobError as error:
             request, said = None, f"refused: {error.message.key}"
     return request is not None, (
-        f"the application's request for a register with a transcript that names no one: {said} (the register "
-        f"refuses it when its stage begins, after the frames were extracted)")
+        f"the application's request for a register with a transcript that names no one: {said}")
 
 
 # --- Running ---------------------------------------------------------------------------------
