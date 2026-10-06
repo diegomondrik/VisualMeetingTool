@@ -40,6 +40,19 @@ objective: >
 
   Not done: R04, R06 and the second batch; WI23 (the allowed list of
   fields); naming the speakers of a transcript that has none.
+
+  Corrected after the independent review of 0f6a3a8
+  (docs/evidence/01M495140RMJM90PFDGBN7XZMF/independent-review.md): the
+  register stops only for a transcript that names no one in any form, so a
+  .txt of "[HH:MM:SS] Name: text" lines is written as in main (P1-1); a line
+  that is only a time starts a block only in a transcript with no line of
+  the other forms (P3-1); the application refuses a register with no
+  speaker when it is asked for, before any frame is extracted (P3-2).
+
+  Known limitations (docs/limitations/REGISTER.md, WI24-P3-1 and P3-2): a
+  transcript that names no one gives a summary that names no one, and no
+  register; whether the real Gemini now copies the frames' names right is
+  not run here (the owner's own run will show it).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M495140RMJM90PFDGBN7XZMF/**
