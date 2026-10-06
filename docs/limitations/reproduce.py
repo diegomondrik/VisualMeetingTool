@@ -1018,11 +1018,12 @@ def _wi22_template(tmp, **edit):
 
 
 def _wi22_accepted(path, tmp):
+    """(whether the template is accepted, what is said: "accepted", or the refusal's items)."""
     from meetingtool.report import document
     try:
         document.set_template(path, tmp / "data")
     except document.ReportError as error:
-        return False, str(error).splitlines()[0]
+        return False, " ".join(str(error).replace("\n  ", " | ").splitlines()[:1])
     return True, "accepted"
 
 
@@ -1072,6 +1073,49 @@ def wi22_p3_4(args, root):
             "word/document.xml": (b"<w:sectPr", field)})
         accepted, said = _wi22_accepted(path, tmp)
     return accepted, f"a hyperlink (relationship and field) to {address}: {said}"
+
+
+@entry("WI22-P3-5")
+def wi22_p3_5(args, root):
+    from tests import test_template_filter as forms
+    field = forms.complex_field(b' FETCHREMOTE "https://example.invalid/x.png" ')
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", field)})
+        accepted, said = _wi22_accepted(path, tmp)
+    return accepted, f"a field named FETCHREMOTE (invented) with an address: {said}"
+
+
+@entry("WI22-P3-6")
+def wi22_p3_6(args, root):
+    from meetingtool.report import document
+    from tests import test_report
+    font = b"\x00" * 32
+    with workspace() as tmp:
+        path = _wi22_template(tmp, add={
+            "word/fonts/font1.odttf": font,
+            "word/_rels/fontTable.xml.rels": test_report.RELATIONSHIPS % test_report.relationship(
+                "font", "fonts/font1.odttf", external=False)},
+            insert={"[Content_Types].xml": (b"</Types>", b'<Default Extension="odttf" ContentType="application/'
+                                            b'vnd.openxmlformats-officedocument.obfuscatedFont"/>')})
+        accepted, said = _wi22_accepted(path, tmp)
+        frames = tmp / "frames"
+        frames.mkdir()
+        (frames / document.SUMMARY_NAME).write_text(test_report.summary_text(screen="Nada en pantalla."),
+                                                    encoding="utf-8")
+        document.build_report(frames, data_dir=tmp / "data")
+        with zipfile.ZipFile(frames / document.OUTPUT_NAME) as report:
+            arrived = "word/fonts/font1.odttf" in report.namelist()
+    return accepted and arrived, f"a template with an embedded font part: {said}; the font is in the report: {arrived}"
+
+
+@entry("WI22-P3-7")
+def wi22_p3_7(args, root):
+    part = '<?xml version="1.0" encoding="Shift_JIS"?><a>\u65e5\u672c\u8a9e</a>'.encode("shift_jis")
+    with workspace() as tmp:
+        path = _wi22_template(tmp, add={"customXml/item2.xml": part})
+        accepted, said = _wi22_accepted(path, tmp)
+    return not accepted and "customXml/item2.xml: is not readable XML" in said, (
+        f"a customXml part in Shift_JIS: {said}")
 
 
 # --- Running ---------------------------------------------------------------------------------
