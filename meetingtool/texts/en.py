@@ -148,10 +148,13 @@ TEXTS = {
                              "{{proyecto}} {{reunion}} {{fecha}} {{tipo}} (or {{client}} {{project}} {{meeting}} "
                              "{{date}} {{type}})",
     "layout.toc_no_result": "the table of contents cannot be read: its field has no result part",
-    "report.active.unreadable": "{part}: unreadable relationships[[ ({detail})]]",
+    "report.active.unreadable": "{part}: is not readable XML, so what it holds is not known[[ ({detail})]]",
     "report.active.external": "{part}: an external {kind} ({target})",
     "report.active.embedded": "{part}: a {kind} ({target})",
     "report.active.field": "{part}: a {field} field",
+    "report.active.unnamed_field": "{part}: a field whose name is not written out in the file (another field builds it), so what it is cannot be known",
+    "report.active.hyperlink": "{part}: a hyperlink to {target}, which is not a web page (http, https), a mail address or a place in the document",
+    "report.active.macros": "a macro-enabled content type, or a macro project",
     "report.macro_extension": "the template {name} can carry macros ({suffix}); save it in Word as .docx or .dotx",
     "report.not_word": "the template {name} is not a Word document or template (.docx or .dotx)",
     "report.cannot_open": "the template {name} cannot be opened[[: {detail}]]",
@@ -160,6 +163,9 @@ TEXTS = {
                      "opened, and every report would carry it to the client:\n  {items}\nRemove it in Word and save "
                      "the template again (attach the Normal template, embed pictures instead of linking them, delete "
                      "linked fields and embedded objects).",
+    "report.active_in_report": "the report was not written: it would carry content that Word would load or run from "
+                               "outside it when the client opens it:\n  {items}\nThe template that gave it "
+                               "must be corrected.",
     "report.not_a_document": "the template {name} cannot be opened as a Word document[[: {detail}]]",
     "report.template_unusable": "the template {name} cannot be used: {error}",
     "report.problem.range": "line {line}: a range of frames; name each frame on its own: {text}",
