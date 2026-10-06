@@ -828,7 +828,8 @@ class FrameLabelsTest(Workspace):
             self.assertIn(f"\n[{name}]\n- Window/App: Excel\n- Key Data: row {number}: 1, 2, 3", prompt)
         self.assertEqual(re.findall(r"\[FRAME \d+\]", prompt), [])
         self.assertNotIn("- FRAME 71:", prompt)  # the list at the top is no longer needed: the labels carry the names
-        self.assertIn("copy\nthat name exactly, character by character", writer.FRAME_RULE)
+        self.assertIn("every file name exactly, character by character, as it appears next to the block",
+                      " ".join(writer.FRAME_RULE.split()))
         self.assertIn(writer.FRAME_RULE, prompt)
 
     def test_the_numbers_of_a_reading_of_141_frames_are_matched_to_the_names_of_the_header(self):

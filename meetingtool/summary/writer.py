@@ -221,10 +221,10 @@ rows or areas without data, or people on camera; you may describe such a moment 
 frame. Name one frame for each distinct thing shown: when several frames show the same thing (the same table
 scrolled, zoomed, or with another cell selected; the reading notes what changed from the frame before), name only
 the one that shows it best, with its column and row headings visible, the values that were discussed visible and
-the least empty area. Name each frame on its own, never a range of frames: the report cannot show a range. Each
-block of what was read on the screen is labelled with the exact file name of its frame, in square brackets: copy
-that name exactly, character by character, as it appears at the head of the block you are naming, and never put
-together a name from parts of two."""
+the least empty area. Name each frame on its own, never a range of frames: the report cannot show a range. Copy
+every file name exactly, character by character, as it appears next to the block of that frame in what was read
+on the screen, and never put a name together from parts of two (the number of one frame with the time of
+another)."""
 
 ROLE = """You are a senior business analyst and AI integration specialist assisting an independent analytics and
 technology consultant who works with corporate clients on data analytics, BI, AI, planning, supply chain and
