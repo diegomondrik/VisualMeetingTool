@@ -561,7 +561,7 @@ class ReviewCorrectionsTest(Workspace):
         simple = b'<w:fldSimple w:instr=" DDE x y"/>'
         self.assertEqual(document.active_content({"word/header1.xml": word_part(simple)}),
                          ["word/header1.xml: a DDE field"])
-        harmless = b'<w:instrText> PAGE </w:instrText><w:fldSimple w:instr=" HYPERLINK &quot;x&quot;"/>'
+        harmless = b'<w:instrText> PAGE </w:instrText><w:fldSimple w:instr=" HYPERLINK &quot;https://example.invalid/x&quot;"/>'
         self.assertEqual(document.active_content({"word/footer1.xml": word_part(harmless)}), [])
 
     def test_p1_1_a_hyperlink_and_a_template_saved_normally_are_accepted(self):

@@ -20,7 +20,13 @@ Not tests, but changed with them:
   skipped"): the run now counts 7 tests instead of 4, the three of `tests/test_d1_r02_plantilla.py` being
   ones that need no kits (it is the fifth file); its register row says so. The state stays `open`.
 
-After the reviews of `6daabab` (field names written out whole, DATABASE and RD, the schemes of hyperlinks) no other
-test that existed before changed: the tests of that round are new, in `tests/test_template_filter.py`
-(`FieldNameTest`, `HyperlinkTest`), and the list of fields its forms run over grew by two. The entries
-`WI22-P3-3` and `WI22-P3-4` of the register, which showed the two gaps, became `fixed`; `WI22-P3-5` to `P3-7` are new.
+After the reviews of `6daabab` (field names written out whole, DATABASE and RD, the schemes of hyperlinks) one more
+test that existed before changed, and no assertion in it:
+
+| Test | What changed |
+|---|---|
+| `test_report.ReviewCorrectionsTest.test_p1_1_dde_fields_are_found_even_when_split` | Its "harmless" part gave a simple `HYPERLINK` field whose address was `x`: a hyperlink goes now only to a web page, a mail address or a place in the document, and `x` is none of them. The address is `https://example.invalid/x`; the expected result (no finding) is the same. |
+
+The other tests of that round are new, in `tests/test_template_filter.py` (`FieldNameTest`, `HyperlinkTest`), and the
+list of fields its forms run over grew by two. The entries `WI22-P3-3` and `WI22-P3-4` of the register, which showed
+the two gaps, became `fixed`; `WI22-P3-5` to `P3-7` are new.
