@@ -1,0 +1,23 @@
+# WI21-AC04: the same synthetic recording on main and on the branch, no Gemini (owner's decision of 2026-10-05: no real meeting)
+machine: owner's Windows machine, Python 3.12.10; each run from a fresh clone (--no-hardlinks), one after the other
+
+## main: fresh clone at bc24f89
+meetingtool from: C:\Users\Diego\AppData\Local\Temp\vmt-wi21-ac04-204659-11269\main
+cut in the code: yes, TRANSCRIPT_TAIL = 120.0
+duration 480.0s, 641 samples, 107 candidates, 2 frames kept, 6.2s
+frames kept at (s): [0.5, 102.5]
+slides of the frames kept (nearest of A, B, C): ['A', 'B']
+frames kept after the transcript's last line (200s): 0 at []
+slide C kept: False
+
+## branch: fresh clone at 9751fe2
+meetingtool from: C:\Users\Diego\AppData\Local\Temp\vmt-wi21-ac04-204659-11269\branch
+cut in the code: no
+duration 480.0s, 960 samples, 130 candidates, 3 frames kept, 12.0s
+frames kept at (s): [0.5, 102.5, 342.5]
+slides of the frames kept (nearest of A, B, C): ['A', 'B', 'C']
+frames kept after the transcript's last line (200s): 1 at [342.5]
+slide C kept: True
+
+reading: on the branch slide C (shown from 340 s, past main's cut at 200 + 120 = 320 s) reaches the frames; main loses it. Samples read rise 50% (641 to 960); the seconds, 6.2 to 12.0, are one run each, not an average, and the second run is not repeated. The tail after the meeting (a flat still from 390 s) gives no frame in either.
+deleted: both clones and both runs

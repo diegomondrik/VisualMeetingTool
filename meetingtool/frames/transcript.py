@@ -145,12 +145,10 @@ def has_visual_reference(text):
 
 
 class VisualReferences:
-    """The start times of the transcript blocks that point at the screen, and
-    the start time of its last block."""
+    """The start times of the transcript blocks that point at the screen."""
 
     def __init__(self, blocks):
         self.times = sorted(start for start, text in blocks if has_visual_reference(text))
-        self.last = max((start for start, _ in blocks), default=None)
 
     @classmethod
     def from_file(cls, path):

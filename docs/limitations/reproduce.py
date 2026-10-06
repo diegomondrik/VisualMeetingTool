@@ -916,8 +916,9 @@ def wi20_p3_6(args, root):
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_d1_*"],
                             cwd=REPO, capture_output=True, text=True, env=env, timeout=600)
-    skipped = re.search(r"OK \(skipped=(\d+)\)", result.stderr)
-    return bool(skipped) and "Ran 3 tests" in result.stderr, (
+    # four files: three need the kits and are skipped; WI21's (R05) needs none and runs
+    skipped = re.search(r"OK \(skipped=3\)", result.stderr)
+    return bool(skipped) and "Ran 4 tests" in result.stderr, (
         f"without the kits: {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else '?'}"
         f" ({result.stderr.count('Ran ')} run line)")
 
@@ -944,6 +945,69 @@ def wi20_p3_7(args, root):
     files = kept.get("files", [])
     return "transcript.docx" in files and any(n.startswith("frame_") for n in files), (
         f"a failed run that paid keeps, until it is processed again or discarded: {files}")
+
+
+# --- WI21: reading to the end ------------------------------------------------------------------
+
+OLD_TAIL = 120.0  # what WI10 added to the last line's start; the constant is gone, the number is the history
+
+
+def _wi21_meeting(tmp, lines):
+    """A 140 s synthetic recording (slide A to 10 s, B to 130 s, C after) and a transcript of `lines`."""
+    video, transcript = tmp / "meeting.mp4", tmp / "meeting.txt"
+    frames_fixture.write_video(video, [(frames_fixture.SLIDE_A, 10, False), (frames_fixture.SLIDE_B, 120, False),
+                                       (frames_fixture.SLIDE_C, 10, False)])
+    transcript.write_text(lines, encoding="utf-8")
+    return video, transcript
+
+
+@entry("WI21-P3-1")
+def wi21_p3_1(args, root):
+    with workspace() as tmp:
+        video, transcript = _wi21_meeting(tmp, "[00:00:01] Ana:\nhola\n")
+        result = extract_frames(video, tmp / "out", transcript=transcript)
+    old_stop = 1 + OLD_TAIL
+    would_have_read = int(old_stop * 2) + 1
+    return result.samples > would_have_read, (
+        f"a {result.duration:.0f} s recording whose transcript ends at 1 s: {result.samples} samples read, "
+        f"about {would_have_read} if reading still stopped {OLD_TAIL:.0f} s after the last line")
+
+
+@entry("WI21-P3-2")
+def wi21_p3_2(args, root):
+    with workspace() as tmp:
+        video, transcript = _wi21_meeting(tmp, "[00:00:01] Ana:\nhola\n")
+        result = extract_frames(video, tmp / "out", transcript=transcript)
+        slides = kept_slides(result, tmp / "out")
+    after = [(time, slide) for time, slide in zip(result.kept_times, slides) if time > 1 + OLD_TAIL]
+    return bool(after), (f"the slide shown after the transcript's last line and the old stop time is kept: "
+                         f"{[(round(time), slide) for time, slide in after]}")
+
+
+@entry("WI21-P3-3")
+def wi21_p3_3(args, root):
+    with workspace() as tmp:
+        video, transcript = _wi21_meeting(tmp, "[00:00:01] Ana:\nhola\n[00:10:00] Luis:\nchau\n")
+        shown = run_python(["-m", "meetingtool.frames", "--video", str(video), "--out", str(tmp / "out"),
+                            "--transcript", str(transcript)], cwd=REPO)
+        usage = run_python(["-m", "meetingtool.frames", "--help"], cwd=REPO).stdout
+    said = [line for line in shown.stdout.splitlines()
+            if not line.startswith(("duration ", "discarded ", "candidates raised by the transcript"))]
+    options = re.findall(r"^\s+(--[a-z-]+)", usage, flags=re.MULTILINE)
+    return shown.returncode == 0 and not said and not {"--end", "--until", "--stop"} & set(options), (
+        f"a transcript with a line at 10 min on a 140 s recording: exit {shown.returncode}, "
+        f"{len(said)} lines about it; options {options}")
+
+
+@entry("WI21-P3-4")
+def wi21_p3_4(args, root):
+    from meetingtool.summary import qa
+    # An answer whose last turn begins at 0:20 and goes on explaining; a slide shown at 5:00 of that
+    # explanation was extracted (WI21) but is not among the frames the register reads for the answer.
+    frames = [Path(f"frame_001_t00-00-15.jpg"), Path(f"frame_002_t00-05-00.jpg")]
+    span = [path.name for path in qa.span_frames(frames, 10, 20)]
+    return "frame_002_t00-05-00.jpg" not in span, (
+        f"an answer from 0:10 whose last turn begins at 0:20: the register reads {span}, not the slide at 5:00")
 
 
 # --- Running ---------------------------------------------------------------------------------
