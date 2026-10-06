@@ -153,10 +153,11 @@ TEXTS = {
                              "{{proyecto}} {{reunion}} {{fecha}} {{tipo}} (o {{client}} {{project}} {{meeting}} "
                              "{{date}} {{type}})",
     "layout.toc_no_result": "el índice no se puede leer: su campo no tiene resultado",
-    "report.active.unreadable": "{part}: relaciones que no se pueden leer[[ ({detail})]]",
+    "report.active.unreadable": "{part}: no es XML legible, así que no se sabe qué contiene[[ ({detail})]]",
     "report.active.external": "{part}: un {kind} externo ({target})",
     "report.active.embedded": "{part}: un {kind} ({target})",
     "report.active.field": "{part}: un campo {field}",
+    "report.active.macros": "un tipo de contenido con macros, o un proyecto de macros",
     "report.macro_extension": "la plantilla {name} puede llevar macros ({suffix}); guardala en Word como .docx o .dotx",
     "report.not_word": "la plantilla {name} no es un documento ni una plantilla de Word (.docx o .dotx)",
     "report.cannot_open": "la plantilla {name} no se puede abrir: fijate que sea un archivo de Word[[: {detail}]]",
@@ -165,6 +166,9 @@ TEXTS = {
                      "informe, y cada informe se lo llevaría al cliente:\n  {items}\nSacalo en Word y guardá la "
                      "plantilla de nuevo (adjuntá la plantilla Normal, insertá las imágenes en vez de vincularlas, "
                      "borrá los campos vinculados y los objetos incrustados).",
+    "report.active_in_report": "no se escribió el informe: llevaría contenido que Word cargaría o ejecutaría desde "
+                               "afuera cuando el cliente lo abra:\n  {items}\nHay que corregir la plantilla que "
+                               "lo dio.",
     "report.not_a_document": "la plantilla {name} no se puede abrir como documento de Word[[: {detail}]]",
     "report.template_unusable": "la plantilla {name} no se puede usar: {error}",
     "report.problem.range": "línea {line}: un rango de imágenes; nombrá cada imagen por separado: {text}",

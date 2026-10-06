@@ -55,9 +55,19 @@ TEMPLATE_TYPE = b"application/vnd.openxmlformats-officedocument.wordprocessingml
 ACTIVE_RELATIONSHIPS = frozenset({"attachedTemplate", "oleObject", "package", "control", "activeXControl",
                                   "activeXControlBinary", "vbaProject", "wordVbaData", "aFChunk", "subDocument",
                                   "frame"})
+_ACTIVE_RELATIONSHIPS = {kind.lower() for kind in ACTIVE_RELATIONSHIPS}
 ACTIVE_FIELDS = re.compile(r"\b(DDEAUTO|DDE|INCLUDETEXT|INCLUDEPICTURE|INCLUDE|IMPORT|LINK)\b", re.IGNORECASE)
-FIELD_TEXT = re.compile(rb"<w:instrText[^>]*>([^<]*)</w:instrText>")
-FIELD_ATTRIBUTE = re.compile(rb'w:instr="([^"]*)"')
+# WordprocessingML's namespace as Word writes it (Transitional) and as ISO 29500 Strict names it.
+WORD_NAMESPACES = frozenset({"http://schemas.openxmlformats.org/wordprocessingml/2006/main",
+                             "http://purl.oclc.org/ooxml/wordprocessingml/main"})
+# The tags (as ElementTree writes them: {namespace}name) that carry a field, whatever prefix a part gives them.
+FIELD_TAGS = {f"{{{namespace}}}{local}": local for namespace in WORD_NAMESPACES
+              for local in ("fldSimple", "instrText", "delInstrText", "fldChar")}
+# Parts that hold XML even when their name does not say so are found by content type; these are the
+# extensions that always do.
+XML_EXTENSIONS = (".xml", ".rels")
+# What a content type holds when the package carries macros (compared in lower case).
+MACRO_TYPES = ("macroenabled", "vbaproject", "vbadata")
 
 FRAME_REF = re.compile(r"\[(frame_\d+_t(\d{2})-(\d{2})-(\d{2})\.jpg)\]")
 FRAME_LIKE = re.compile(r"\bframes?_", re.IGNORECASE)
@@ -100,33 +110,106 @@ class ReportResult:
 
 # ── The company's template ───────────────────────────────────────────────────
 
+def _word_attribute(element, local):
+    """The value of a WordprocessingML attribute of element, with or without a
+    prefix, or None."""
+    for name, value in element.attrib.items():
+        namespace, _, found = name[1:].partition("}") if name.startswith("{") else ("", "", name)
+        if found == local and (not namespace or namespace in WORD_NAMESPACES):
+            return value
+    return None
+
+
+def field_instructions(root):
+    """The instruction of every field of an XML part, as text and in document
+    order: a simple field's w:instr, and a complex field's w:instrText pieces
+    joined from its begin to its end across runs and paragraphs, each field on
+    its own (a field inside another's instruction is its own). Pieces that no
+    field holds are joined together, so they are still read."""
+    instructions, open_fields, loose = [], [], []
+    for element in root.iter():
+        kind = FIELD_TAGS.get(element.tag)
+        if kind == "fldSimple":
+            instruction = _word_attribute(element, "instr")
+            if instruction is not None:
+                instructions.append(instruction)
+        elif kind in ("instrText", "delInstrText"):  # a tracked deletion comes back when it is rejected
+            (open_fields[-1] if open_fields else loose).append("".join(element.itertext()))
+        elif kind == "fldChar":
+            step = _word_attribute(element, "fldCharType")
+            if step == "begin":
+                open_fields.append([])
+            elif step == "end" and open_fields:
+                instructions.append("".join(open_fields.pop()))
+    instructions.extend("".join(pieces) for pieces in open_fields)
+    instructions.append("".join(loose))
+    return instructions
+
+
+def _content_types(parts):
+    """[(part name or extension, content type)] from [Content_Types].xml read
+    as XML; empty when it cannot be read (active_content says so)."""
+    try:
+        root = ElementTree.fromstring(parts["[Content_Types].xml"])
+    except (KeyError, ElementTree.ParseError, ValueError):
+        return []
+    return [(element.get("PartName") or "." + (element.get("Extension") or ""), element.get("ContentType") or "")
+            for element in root.iter() if element.get("ContentType") is not None]
+
+
+def carries_macros(parts):
+    """Whether the package declares a macro-enabled content type, or holds a
+    macro project (a part named vbaProject...). The content types are read as
+    XML: however they are written, a content type is what the parser decodes."""
+    return (any(Path(name).name.lower().startswith("vbaproject") for name in parts)
+            or any(macro in content_type.lower() for _, content_type in _content_types(parts)
+                   for macro in MACRO_TYPES))
+
+
+def _is_xml(name, types):
+    """Whether a part is XML: by its extension, or by a content type that says
+    so (Word reads a part by its content type, not by its name)."""
+    name = name.lower()
+    if name.endswith(XML_EXTENSIONS):
+        return True
+    declared = {part.lower(): content_type for part, content_type in types}
+    content_type = declared.get("/" + name) or declared.get(name) or declared.get(Path(name).suffix, "")
+    return content_type.lower().endswith("xml")
+
+
 def active_content(parts):
     """What in a Word package would be loaded or run from outside it when the
     document opens, one message each: an external relationship other than a
     hyperlink (an attached template, which may be a .dotm with macros; a
     linked picture), a relationship to an embedded object, control or macro
     project, and a field that pulls or runs outside content (DDE, INCLUDE...).
-    The fields of a part are joined before matching, so a field code split
-    across runs is still found."""
+    Every XML part is read as XML, with its namespaces, so the same
+    instruction written in any equivalent way (a character reference, single
+    quotes, another prefix, CDATA, a comment in the middle) is read alike;
+    one that cannot be read is said, naming the part, since what it holds is
+    not known."""
     found = []
+    types = _content_types(parts)
     for name, data in sorted(parts.items()):
-        if name.endswith(".rels"):
-            try:
-                relationships = ElementTree.fromstring(data)
-            except ElementTree.ParseError as error:
-                found.append(texts.Message("report.active.unreadable", part=name, detail=texts.External(str(error))))
-                continue
-            for relationship in relationships:
+        if not _is_xml(name, types):
+            continue
+        try:
+            root = ElementTree.fromstring(data)
+        except (ElementTree.ParseError, ValueError) as error:
+            found.append(texts.Message("report.active.unreadable", part=name, detail=texts.External(str(error))))
+            continue
+        if name.lower().endswith(".rels"):
+            for relationship in root:
                 kind = relationship.get("Type", "").rsplit("/", 1)[-1]
                 target = relationship.get("Target", "")
-                if relationship.get("TargetMode") == "External" and kind != "hyperlink":
+                if relationship.get("TargetMode", "").lower() == "external" and kind.lower() != "hyperlink":
                     found.append(texts.Message("report.active.external", part=name, kind=kind, target=target))
-                elif kind in ACTIVE_RELATIONSHIPS:
+                elif kind.lower() in _ACTIVE_RELATIONSHIPS:
                     found.append(texts.Message("report.active.embedded", part=name, kind=kind, target=target))
-        elif name.startswith("word/") and name.endswith(".xml"):
-            codes = b" ".join(FIELD_ATTRIBUTE.findall(data)) + b" " + b"".join(FIELD_TEXT.findall(data))
-            for field in sorted({match.upper() for match in ACTIVE_FIELDS.findall(codes.decode("utf-8", "replace"))}):
-                found.append(texts.Message("report.active.field", part=name, field=field))
+        fields = {match.upper() for instruction in field_instructions(root)
+                  for match in ACTIVE_FIELDS.findall(instruction)}
+        for field in sorted(fields):
+            found.append(texts.Message("report.active.field", part=name, field=field))
     return found
 
 
@@ -147,7 +230,7 @@ def template_bytes(path):
             parts = {name: archive.read(name) for name in names}
     except (OSError, KeyError, zipfile.BadZipFile) as error:
         raise ReportError("report.cannot_open", name=path.name, detail=texts.External(str(error))) from None
-    if b"macroEnabled" in types or any(Path(name).name.lower().startswith("vbaproject") for name in names):
+    if carries_macros(parts):
         raise ReportError("report.macros", name=path.name)
     active = active_content(parts)
     if active:
@@ -433,12 +516,28 @@ def _body_images(document):
     return digests
 
 
+def check_active_content(path):
+    """ReportError unless the package at path is free of what a template is
+    refused for (macros, content loaded or run from outside, a field that
+    pulls it, a part that is not readable XML). A template is checked when it
+    is set, but a report is what the client opens, so it is checked again,
+    read as it is written now, and not delivered if it fails."""
+    with zipfile.ZipFile(path) as archive:
+        parts = {name: archive.read(name) for name in archive.namelist()}
+    found = [texts.Message("report.active.macros")] if carries_macros(parts) else []
+    found += active_content(parts)
+    if found:
+        raise ReportError("report.active_in_report", items=texts.Joined(found, "\n  "))
+
+
 def check_report(path, headings, cover_images, frames, *, start=0, contents=()):
     """ReportError unless the document at path has every summary heading, in
     order, after its first `start` body elements (the cover, whose table of
     contents repeats the headings); exactly the cover's images plus one of
     each cited frame; each table of contents of the cover listing exactly
-    what `contents` says, in order; and no known field left unfilled."""
+    what `contents` says, in order; no known field left unfilled; and no
+    active content (check_active_content)."""
+    check_active_content(path)
     document = docx.Document(str(path))
     children = layout.body_children(document)
     texts = iter(layout.paragraph_text(child).strip() for child in children[start:] if child.tag == qn("w:p"))
