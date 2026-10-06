@@ -1,0 +1,21 @@
+mutation run for 01M47ABNKZF02YZ94YKXMQCPQ1: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_d1_r02_plantilla tests.test_template_filter` (no kits, what the CI runs) must fail
+commit: c8576fe2ae29daf15e5051d52d0f01737a35bb34 (clean working tree)
+- the namespace ignored: instructions looked for by the prefix w: in the raw bytes, as before WI22: exit 1, Ran 40 tests in 27.110s FAILED (failures=79, errors=1) -> DETECTED
+- the decoding skipped: instructions taken from the raw bytes of an element with any prefix, not decoded: exit 1, Ran 40 tests in 23.849s FAILED (failures=44, errors=1) -> DETECTED
+- the case kept: a field's name matched only in upper case: exit 1, Ran 40 tests in 22.798s FAILED (failures=14) -> DETECTED
+- the simple fields (fldSimple) not read: exit 1, Ran 40 tests in 23.149s FAILED (failures=22) -> DETECTED
+- the complex fields (instrText) not read: exit 1, Ran 40 tests in 26.893s FAILED (failures=131) -> DETECTED
+- a deleted instruction (delInstrText) not read: exit 1, Ran 40 tests in 24.993s FAILED (failures=7) -> DETECTED
+- the pieces of every field run together, not each field on its own: exit 1, Ran 40 tests in 22.645s FAILED (failures=1) -> DETECTED
+- the headers and footers skipped: exit 1, Ran 40 tests in 22.602s FAILED (failures=19) -> DETECTED
+- the footnotes skipped: exit 1, Ran 40 tests in 23.460s FAILED (failures=7) -> DETECTED
+- only the body read: exit 1, Ran 40 tests in 8.257s FAILED (failures=38) -> DETECTED
+- a part Word reads by its content type, not by its name, not read: exit 1, Ran 40 tests in 22.439s FAILED (failures=1) -> DETECTED
+- the Strict namespace not read: exit 1, Ran 40 tests in 22.639s FAILED (failures=7) -> DETECTED
+- the report not checked again before it is delivered: exit 1, Ran 40 tests in 21.899s FAILED (failures=4) -> DETECTED
+- the content types checked as bytes again (macroEnabled, as written): exit 1, Ran 40 tests in 22.880s FAILED (failures=5) -> DETECTED
+- a part that is not XML let through without a word: exit 1, Ran 40 tests in 22.746s FAILED (failures=10) -> DETECTED
+- the relationships compared in the case they are written (type and mode): exit 1, Ran 40 tests in 22.837s FAILED (failures=2) -> DETECTED
+- unmutated: exit 0, Ran 40 tests in 22.802s OK
+all mutations detected
