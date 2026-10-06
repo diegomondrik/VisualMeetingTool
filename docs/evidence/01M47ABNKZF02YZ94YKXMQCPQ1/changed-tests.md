@@ -19,3 +19,8 @@ Not tests, but changed with them:
 - `docs/limitations/reproduce.py`, entry `WI20-P3-6` ("`test_d1_*` without the kits: the files that need them are
   skipped"): the run now counts 7 tests instead of 4, the three of `tests/test_d1_r02_plantilla.py` being
   ones that need no kits (it is the fifth file); its register row says so. The state stays `open`.
+
+After the reviews of `6daabab` (field names written out whole, DATABASE and RD, the schemes of hyperlinks) no other
+test that existed before changed: the tests of that round are new, in `tests/test_template_filter.py`
+(`FieldNameTest`, `HyperlinkTest`), and the list of fields its forms run over grew by two. The entries
+`WI22-P3-3` and `WI22-P3-4` of the register, which showed the two gaps, became `fixed`; `WI22-P3-5` to `P3-7` are new.

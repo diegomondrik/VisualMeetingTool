@@ -3,7 +3,7 @@ undoes one part of what WI22 added, in a copy of the working tree, and runs the
 tests that guard it. Every mutation must make them fail. None needs INGOL's
 kits: the tests are the ones the CI runs.
 
-    python docs/evidence/01M47ABNKZF02YZ94YKXMQCPQ1/mutations.py <repository> <empty folder outside it> [label part]
+    python docs/evidence/01M47ABNKZF02YZ94YKXMQCPQ1/mutations.py <repository> <a folder outside it, which must not exist yet> [label part]
 
 With a label part, only the mutations whose label holds it are run. The
 repository must be a clean checkout: the script prints its commit, and the
@@ -22,21 +22,22 @@ TESTS = ["tests.test_d1_r02_plantilla", "tests.test_template_filter"]
 # (label, [(file, old, new)], note on what is expected to catch it)
 MUTATIONS = [
     ("the namespace ignored: instructions looked for by the prefix w: in the raw bytes, as before WI22",
-     [(DOCUMENT, '''        fields = {match.upper() for instruction in field_instructions(root)
-                  for match in ACTIVE_FIELDS.findall(instruction)}
-''', '''        codes = (b" ".join(re.findall(rb'w:instr="([^"]*)"', data)) + b" "
-                 + b"".join(re.findall(rb"<w:instrText[^>]*>([^<]*)</w:instrText>", data)))
-        fields = {match.upper() for match in ACTIVE_FIELDS.findall(codes.decode("utf-8", "replace"))}
+     [(DOCUMENT, '''        for field in field_instructions(root):
+''', '''        codes = [b" ".join(re.findall(rb'w:instr="([^"]*)"', data)),
+                 b"".join(re.findall(rb"<w:instrText[^>]*>([^<]*)</w:instrText>", data))]
+        for field in [_field(text, text, False) for text in (code.decode("utf-8", "replace") for code in codes)]:
 ''')]),
     ("the decoding skipped: instructions taken from the raw bytes of an element with any prefix, not decoded",
-     [(DOCUMENT, '''        fields = {match.upper() for instruction in field_instructions(root)
-                  for match in ACTIVE_FIELDS.findall(instruction)}
-''', '''        codes = (b" ".join(re.findall(rb"""instr=["']([^"']*)["']""", data)) + b" "
-                 + b"".join(re.findall(rb"<(?:\\w+:)?instrText[^>]*>([^<]*)</(?:\\w+:)?instrText>", data)))
-        fields = {match.upper() for match in ACTIVE_FIELDS.findall(codes.decode("utf-8", "replace"))}
+     [(DOCUMENT, '''        for field in field_instructions(root):
+''', '''        codes = [b" ".join(re.findall(rb"instr=.([^<>]*?)\\s*/?>", data)),
+                 b"".join(re.findall(rb"<(?:\\w+:)?instrText[^>]*>([^<]*)</(?:\\w+:)?instrText>", data))]
+        for field in [_field(text, text, False) for text in (code.decode("utf-8", "replace") for code in codes)]:
 ''')]),
     ("the case kept: a field's name matched only in upper case",
-     [(DOCUMENT, '''IMPORT|LINK)\\b", re.IGNORECASE)''', '''IMPORT|LINK)\\b")''')]),
+     [(DOCUMENT, '''RD)\\b",
+                           re.IGNORECASE)''', '''RD)\\b",
+                           0)'''),
+      (DOCUMENT, '''word = word.group().upper() if word else ""''', '''word = word.group() if word else ""''')]),
     ("the simple fields (fldSimple) not read",
      [(DOCUMENT, '''        if kind == "fldSimple":
 ''', '''        if False:
@@ -46,7 +47,7 @@ MUTATIONS = [
     ("a deleted instruction (delInstrText) not read",
      [(DOCUMENT, '''        elif kind in ("instrText", "delInstrText"):''', '''        elif kind in ("instrText",):''')]),
     ("the pieces of every field run together, not each field on its own",
-     [(DOCUMENT, '''            (open_fields[-1] if open_fields else loose).append(''', '''            loose.append(''')]),
+     [(DOCUMENT, '''            (loose if top is None or top["separated"] else top["pieces"]).append(''', '''            loose.append(''')]),
     ("the headers and footers skipped",
      [(DOCUMENT, '''        if not _is_xml(name, types):
             continue
@@ -87,6 +88,28 @@ MUTATIONS = [
      [(DOCUMENT, '''relationship.get("TargetMode", "").lower() == "external" and kind.lower() != "hyperlink"''',
        '''relationship.get("TargetMode", "") == "External" and kind != "hyperlink"'''),
       (DOCUMENT, '''elif kind.lower() in _ACTIVE_RELATIONSHIPS:''', '''elif kind in ACTIVE_RELATIONSHIPS:''')]),
+    # The review of 6daabab: the name of a field is written out whole in the file; DATABASE and RD; the schemes.
+    ("the name rule off: a refused name looked for in all the text of a field, as before the review of 6daabab",
+     [(DOCUMENT, '''            if ACTIVE_FIELDS.fullmatch(word):
+                names.add(word)
+''', '''            names.update(match.upper() for match in ACTIVE_FIELDS.findall(field.text))
+            if False:
+                names.add(word)
+''')]),
+    ("a field with no name written out in the file let through",
+     [(DOCUMENT, '''            unnamed = unnamed or field.unnamed
+''', '''            unnamed = False
+''')]),
+    ("DATABASE and RD taken off the list of refused fields",
+     [(DOCUMENT, '''LINK|DATABASE|RD)\\b",''', '''LINK)\\b",''')]),
+    ("the schemes of a hyperlink relationship not checked",
+     [(DOCUMENT, '''                elif kind.lower() == "hyperlink" and not HYPERLINK_ALLOWED.match(target):''',
+       '''                elif False:''')]),
+    ("the scheme of a HYPERLINK field's address not checked",
+     [(DOCUMENT, '''                elif destination is not None and not HYPERLINK_ALLOWED.match(destination):''',
+       '''                elif False:''')]),
+    ("a HYPERLINK whose address another field builds let through",
+     [(DOCUMENT, '''                if destination is None and field.nested and not anchor:''', '''                if False:''')]),
 ]
 
 

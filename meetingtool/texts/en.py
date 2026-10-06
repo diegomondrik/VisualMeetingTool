@@ -152,6 +152,8 @@ TEXTS = {
     "report.active.external": "{part}: an external {kind} ({target})",
     "report.active.embedded": "{part}: a {kind} ({target})",
     "report.active.field": "{part}: a {field} field",
+    "report.active.unnamed_field": "{part}: a field whose name is not written out in the file (another field builds it), so what it is cannot be known",
+    "report.active.hyperlink": "{part}: a hyperlink to {target}, which is not a web page (http, https), a mail address or a place in the document",
     "report.active.macros": "a macro-enabled content type, or a macro project",
     "report.macro_extension": "the template {name} can carry macros ({suffix}); save it in Word as .docx or .dotx",
     "report.not_word": "the template {name} is not a Word document or template (.docx or .dotx)",

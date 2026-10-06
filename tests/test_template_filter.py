@@ -19,14 +19,17 @@ import xml.dom.minidom
 import zipfile
 from unittest import mock
 
+import docx
+from docx.oxml.ns import qn
+
 from meetingtool.report import document
-from tests.test_report import REL, Workspace, company_template, edit_package, package_parts, relationship
+from tests.test_report import MEETING, REL, Workspace, company_template, edit_package, package_parts, relationship
 
 # Written here, not taken from the product: a test that borrowed the product's
 # constants would agree with it even where it is wrong.
 WORD = "http://schemas.openxmlformats.org/wordprocessingml/2006/main"
 STRICT = "http://purl.oclc.org/ooxml/wordprocessingml/main"
-FIELDS = ["DDEAUTO", "DDE", "INCLUDETEXT", "INCLUDEPICTURE", "INCLUDE", "IMPORT", "LINK"]
+FIELDS = ["DDEAUTO", "DDE", "INCLUDETEXT", "INCLUDEPICTURE", "INCLUDE", "IMPORT", "LINK", "DATABASE", "RD"]
 TARGET = b' "\\\\inventado.invalid\\share\\x.png" '  # a UNC path to a made-up host
 
 BODY = ("word/document.xml", b"<w:sectPr")
@@ -70,7 +73,7 @@ FORMS = {
     "a character reference in the name": lambda f: (
         BODY, complex_field(b" &#" + str(ord(f[0])).encode() + b";" + name(f)[1:] + TARGET)),
     "a hexadecimal character reference in the name": lambda f: (
-        BODY, complex_field(b" " + name(f)[:2] + b"&#x" + hex(ord(f[2]))[2:].encode() + b";" + name(f)[3:] + TARGET)),
+        BODY, complex_field(b" " + name(f)[:1] + b"&#x" + hex(ord(f[1]))[2:].encode() + b";" + name(f)[2:] + TARGET)),
     "lower case": lambda f: (BODY, complex_field(b" " + name(f.lower()) + TARGET)),
     "mixed case": lambda f: (BODY, complex_field(b" " + name(f.capitalize()) + TARGET)),
     "simple, with single quotes": lambda f: (
@@ -250,6 +253,211 @@ def _form_test(form):
 for _form in FORMS:  # one test per form, each over every field
     setattr(FieldFormsTest, "test_refused_" + "_".join(_form.replace(",", "").split()), _form_test(_form))
 del _form
+
+
+def _inside(items):
+    return b"".join(instruction(item) if isinstance(item, bytes) else mark(b"begin") + _inside(item) + mark(b"end")
+                    for item in items)
+
+
+def nested(*pieces):
+    """A complex field whose instruction is made of these pieces in order: bytes
+    are its own text, a list is a field inside it (made the same way)."""
+    return paragraph(mark(b"begin"), _inside(pieces), mark(b"separate"), RESULT, mark(b"end"))
+
+
+def quote(text):
+    return [b" QUOTE " + text + b" "]
+
+
+# What a field's name has to be: written out whole in the file (WI22, the review of 6daabab, P1).
+UNNAMED = {
+    "the review's template: the name is the result of QUOTE with character codes": nested(
+        quote(b"68 68 69 65 85 84 79"), b' "c:\\inventado\\x.exe" '),
+    "the name built by two QUOTE fields": nested(quote(b'"INCL"'), quote(b'"UDEPICTURE"'),
+                                                   b' "https://example.invalid/x.png" '),
+    "a name that touches the field inside it": nested(b"IN", quote(b'"CLUDETEXT"'), TARGET),
+    "a name that touches the field inside it, with spaces before": nested(b"   LIN", quote(b'"K"'), TARGET),
+    "a field with nothing written and one inside it": nested(quote(b'"INCLUDETEXT"')),
+}
+# Fields that name an active field and also have another inside: refused for the name they write.
+NAMED_ACTIVE = {
+    "INCLUDEPICTURE with a field for the address": nested(b" INCLUDEPICTURE ", quote(b'"https://example.invalid/x.png"')),
+    "DDE with a field inside": nested(b"DDE ", quote(b'"x"'), b" y"),
+}
+ACCEPTED = {
+    "a formula with spaces": nested(b" = ", [b" NUMPAGES "], b" - 1 "),
+    "a formula without spaces": nested(b"=", [b"NUMPAGES"], b"-1"),
+    "an IF over a field": nested(b" IF ", [b" PAGE "], b' > 1 "a" "b" '),
+    "a table of contents": nested(b' TOC \\o "1-3" \\h \\z \\u '),
+    "PAGEREF": nested(b" PAGEREF _Toc100 \\h "),
+    "HYPERLINK": nested(b' HYPERLINK "https://example.invalid/a" '),
+    "a HYPERLINK with LINK in its address": nested(b' HYPERLINK "https://example.invalid/link/x" '),
+    "DOCPROPERTY with the word Link": nested(b' DOCPROPERTY "Link" '),
+    "MERGEFIELD with the word Import": nested(b" MERGEFIELD Import "),
+    "a field with nothing written": paragraph(mark(b"begin"), mark(b"separate"), RESULT, mark(b"end")),
+    "an empty instruction": nested(b""),
+    "a name followed by a field after a space": nested(b"DOCPROPERTY ", [b" PAGE "]),
+}
+
+
+class FieldNameTest(Workspace):
+    """The name of a field is the one written out in the file; only it is
+    compared with the list of fields that are refused."""
+
+    def setUp(self):
+        super().setUp()
+        self.clean = company_template(self.tmp / "clean.docx")
+        self.base = package_parts(self.clean)
+
+    def parts_with(self, fragment):
+        parts = dict(self.base)
+        parts["word/document.xml"] = parts["word/document.xml"].replace(b"<w:sectPr", fragment + b"<w:sectPr", 1)
+        return parts
+
+    def refused(self, fragment):
+        with self.assertRaises(document.ReportError) as raised:
+            document.set_template(write_package(self.parts_with(fragment), self.tmp / "variant.docx"), self.data)
+        self.assertIsNone(document.stored_template(self.data))
+        return str(raised.exception)
+
+    def test_a_field_without_a_name_written_out_is_refused(self):
+        for label, fragment in UNNAMED.items():
+            with self.subTest(label):
+                self.assertIn("word/document.xml: a field whose name is not written out", self.refused(fragment))
+
+    def test_a_field_that_names_an_active_field_is_refused_whatever_is_inside_it(self):
+        for label, fragment in NAMED_ACTIVE.items():
+            with self.subTest(label):
+                self.assertRegex(self.refused(fragment), r"word/document.xml: a (INCLUDEPICTURE|DDE) field")
+
+    def test_the_fields_a_template_has_are_accepted(self):
+        for label, fragment in ACCEPTED.items():
+            with self.subTest(label):
+                self.assertEqual(document.active_content(self.parts_with(fragment)), [])
+        every = b"".join(ACCEPTED.values())
+        document.set_template(write_package(self.parts_with(every), self.tmp / "every.docx"), self.data)
+        self.assertIsNotNone(document.stored_template(self.data))
+
+    def test_the_words_around_the_name_are_not_the_name(self):
+        # Only the name is compared: LINK in an address, a document property or a data field is not the field.
+        for text in (b' HYPERLINK "https://example.invalid/LINK/INCLUDE" ', b' DOCPROPERTY INCLUDETEXT ',
+                     b' MERGEFIELD DDE ', b' IF "LINK" = "RD" "a" "b" '):
+            with self.subTest(text=text):
+                self.assertEqual(document.active_content(self.parts_with(complex_field(text))), [])
+
+    def test_a_simple_field_is_named_by_its_instruction(self):
+        simple = b'<w:p><w:fldSimple w:instr=" %s">' + RESULT + b"</w:fldSimple></w:p>"
+        for text, expected in ((b"LINK x", ["a LINK field"]), (b"HYPERLINK https://example.invalid/x", []), (b"DOCPROPERTY Link", []),
+                               (b"", [])):
+            with self.subTest(text=text):
+                found = document.active_content(self.parts_with(simple % text))
+                self.assertEqual(found, [f"word/document.xml: {item}" for item in expected])
+
+    def test_the_review_templates_do_not_reach_the_report(self):
+        # The report is checked again (WI22-AC04): with the template's own check off, they fail there.
+        for label, fragment in {**UNNAMED, **NAMED_ACTIVE}.items():
+            with self.subTest(label):
+                path = write_package(self.parts_with(fragment), self.tmp / "slipped.docx")
+                with mock.patch.object(document, "template_bytes", side_effect=lambda p: p.read_bytes()):
+                    with self.assertRaisesRegex(document.ReportError, "the report was not written"):
+                        self.build(template=path)
+                self.assertNothingWritten()
+
+    def test_the_accepted_ones_reach_the_report(self):
+        path = write_package(self.parts_with(b"".join(ACCEPTED.values())), self.tmp / "good.docx")
+        document.set_template(path, self.data)
+        self.build()
+        self.assertEqual(document.active_content(package_parts(self.output())), [])
+
+
+HYPERLINK_REFUSED = [b"file://inventado.invalid/share/x.docm", b"\\\\inventado.invalid\\share\\x.docx",
+                     b"javascript:alert(1)", b"ftp://inventado.invalid/x", b"FILE:///c:/inventado/x.docm",
+                     b"x.docm", b"  file:x", b"data:text/html,x"]
+HYPERLINK_ALLOWED = [b"https://example.invalid/a", b"HTTP://example.invalid/a", b"http://example.invalid/a",
+                     b"mailto:alguien@example.invalid", b"#_Toc100"]
+
+
+class HyperlinkTest(Workspace):
+    """A hyperlink goes to a web page, a mail address or a place in the
+    document, and nowhere else (the security review of 6daabab, P3)."""
+
+    def setUp(self):
+        super().setUp()
+        self.clean = company_template(self.tmp / "clean.docx")
+        self.base = package_parts(self.clean)
+
+    def with_relationship(self, target):
+        item = relationship("hyperlink", target.decode(), external=True)
+        parts = dict(self.base)
+        parts["word/_rels/document.xml.rels"] = parts["word/_rels/document.xml.rels"].replace(
+            b"</Relationships>", item + b"</Relationships>")
+        return parts
+
+    def with_field(self, text):
+        parts = dict(self.base)
+        parts["word/document.xml"] = parts["word/document.xml"].replace(
+            b"<w:sectPr", complex_field(text) + b"<w:sectPr", 1)
+        return parts
+
+    def test_a_hyperlink_relationship_to_anything_but_a_page_a_mail_or_a_place_is_refused(self):
+        for target in HYPERLINK_REFUSED:
+            with self.subTest(target=target):
+                found = document.active_content(self.with_relationship(target.replace(b"&", b"&amp;")))
+                self.assertEqual(len(found), 1, found)
+                self.assertIn("a hyperlink to", found[0])
+
+    def test_a_hyperlink_relationship_to_a_page_a_mail_or_a_place_is_accepted(self):
+        for target in HYPERLINK_ALLOWED:
+            with self.subTest(target=target):
+                self.assertEqual(document.active_content(self.with_relationship(target)), [])
+
+    def test_a_hyperlink_field_to_anything_but_a_page_a_mail_or_a_place_is_refused(self):
+        for target in HYPERLINK_REFUSED:
+            for form in (b' HYPERLINK "%s" ', b" HYPERLINK %s ", b' HYPERLINK "%s" \\l "x" ', b' HYPERLINK \\o "tip" "%s" ',
+                         b'HYPERLINK"%s"'):
+                if b" " in target and form == b" HYPERLINK %s ":
+                    continue  # unquoted, a word cannot hold a space
+                with self.subTest(target=target, form=form):
+                    found = document.active_content(self.with_field(form % target))
+                    self.assertEqual(len(found), 1, found)
+                    self.assertIn("a hyperlink to", found[0])
+
+    def test_a_hyperlink_field_to_a_page_a_mail_or_a_place_is_accepted(self):
+        forms = [b' HYPERLINK "%s" ', b" HYPERLINK %s ", b' HYPERLINK "%s" \\o "tip" ', b' HYPERLINK "%s" \\l "x" ']
+        for target in HYPERLINK_ALLOWED:
+            for form in forms:
+                with self.subTest(target=target, form=form):
+                    self.assertEqual(document.active_content(self.with_field(form % target)), [])
+        for text in (b' HYPERLINK \\l "_Toc100" ', b' HYPERLINK \\l _Toc100 ', b" HYPERLINK ", b' HYPERLINK \\o "tip" '):
+            with self.subTest(text=text):
+                self.assertEqual(document.active_content(self.with_field(text)), [])
+
+    def test_a_hyperlink_whose_address_another_field_builds_is_refused(self):
+        parts = dict(self.base)
+        parts["word/document.xml"] = parts["word/document.xml"].replace(
+            b"<w:sectPr", nested(b" HYPERLINK ", quote(b'"file://inventado.invalid/x"')) + b"<w:sectPr", 1)
+        found = document.active_content(parts)
+        self.assertEqual(len(found), 1, found)
+        self.assertIn("an address that another field builds", found[0])
+
+    def test_a_template_with_a_hyperlink_to_a_file_is_refused_when_set(self):
+        path = write_package(self.with_relationship(b"file://inventado.invalid/share/x.docm"), self.tmp / "h.docx")
+        with self.assertRaises(document.ReportError) as raised:
+            document.set_template(path, self.data)
+        self.assertIn("a hyperlink to file://inventado.invalid/share/x.docm", str(raised.exception))
+        self.assertIsNone(document.stored_template(self.data))
+
+    def test_the_reports_own_links_pass_its_check(self):
+        # A table of contents makes w:hyperlink elements with an anchor, no relationship: the report built from
+        # a template that has one is delivered.
+        from tests.test_report import owner_shaped
+        document.set_template(owner_shaped(self.tmp / "toc.docx"), self.data)
+        self.build(**MEETING)
+        report = docx.Document(str(self.output()))
+        anchors = [link.get(qn("w:anchor")) for link in report.element.body.iter(qn("w:hyperlink"))]
+        self.assertTrue(anchors and all(anchors), anchors)
+        self.assertEqual(document.active_content(package_parts(self.output())), [])
 
 
 class PackageTest(Workspace):

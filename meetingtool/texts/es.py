@@ -157,6 +157,8 @@ TEXTS = {
     "report.active.external": "{part}: un {kind} externo ({target})",
     "report.active.embedded": "{part}: un {kind} ({target})",
     "report.active.field": "{part}: un campo {field}",
+    "report.active.unnamed_field": "{part}: un campo cuyo nombre no está escrito completo en el archivo (lo arma otro campo), así que no se sabe qué es",
+    "report.active.hyperlink": "{part}: un hipervínculo a {target}, que no es una página web (http, https), una dirección de correo ni un lugar del documento",
     "report.active.macros": "un tipo de contenido con macros, o un proyecto de macros",
     "report.macro_extension": "la plantilla {name} puede llevar macros ({suffix}); guardala en Word como .docx o .dotx",
     "report.not_word": "la plantilla {name} no es un documento ni una plantilla de Word (.docx o .dotx)",

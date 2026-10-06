@@ -148,4 +148,7 @@ class PlantillaBuenaAceptada(unittest.TestCase):
         self.assertTrue(resultado.cover)
         self.assertGreater(resultado.contents, 0)  # its table of contents was filled
         self.assertTrue((carpeta / document.OUTPUT_NAME).is_file())
+        informe = docx.Document(str(carpeta / document.OUTPUT_NAME))
+        anclas = [enlace.get(qn("w:anchor")) for enlace in informe.element.body.iter(qn("w:hyperlink"))]
+        self.assertTrue(any(anclas))  # the links of the table of contents the report writes pass its own check
         self.assertEqual(document.active_content(test_report.package_parts(carpeta / document.OUTPUT_NAME)), [])

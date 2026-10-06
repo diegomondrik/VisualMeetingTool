@@ -56,7 +56,14 @@ ACTIVE_RELATIONSHIPS = frozenset({"attachedTemplate", "oleObject", "package", "c
                                   "activeXControlBinary", "vbaProject", "wordVbaData", "aFChunk", "subDocument",
                                   "frame"})
 _ACTIVE_RELATIONSHIPS = {kind.lower() for kind in ACTIVE_RELATIONSHIPS}
-ACTIVE_FIELDS = re.compile(r"\b(DDEAUTO|DDE|INCLUDETEXT|INCLUDEPICTURE|INCLUDE|IMPORT|LINK)\b", re.IGNORECASE)
+# The fields that pull content from outside the document or run it (a list of what is refused, not of what is
+# allowed: see WI22-P3-5 of the limitations register).
+ACTIVE_FIELDS = re.compile(r"\b(DDEAUTO|DDE|INCLUDETEXT|INCLUDEPICTURE|INCLUDE|IMPORT|LINK|DATABASE|RD)\b",
+                           re.IGNORECASE)
+# Where a hyperlink may go: a web page, a mail address, or a place in the same document.
+HYPERLINK_ALLOWED = re.compile(r"\s*(?:(?:https?|mailto):|#)", re.IGNORECASE)
+# The switches of a HYPERLINK field that take the next word as their argument.
+SWITCHES_WITH_ARGUMENT = frozenset({"\\l", "\\o", "\\t"})
 # WordprocessingML's namespace as Word writes it (Transitional) and as ISO 29500 Strict names it.
 WORD_NAMESPACES = frozenset({"http://schemas.openxmlformats.org/wordprocessingml/2006/main",
                              "http://purl.oclc.org/ooxml/wordprocessingml/main"})
@@ -120,30 +127,81 @@ def _word_attribute(element, local):
     return None
 
 
+Field = collections.namedtuple("Field", "name text unnamed nested")
+
+
+def _field(prefix, text, nested):
+    """A field from the text of its instruction written before any field inside
+    it (prefix), all the text it writes itself (text), and whether another field
+    sits in its instruction. Its name is the first word of the prefix, which has
+    to be written out whole: a prefix that is empty, or whose word touches the
+    field inside it (IN{QUOTE "CLUDETEXT"}), leaves the field unnamed, since
+    what Word would call it is not in the file. A formula (=) is named by its
+    sign, and may go on with anything."""
+    lead = prefix.lstrip()
+    if not lead:
+        return Field("", text, nested, nested)
+    if lead.startswith("="):
+        return Field("=", text, False, nested)
+    word = lead.split(None, 1)[0]
+    return Field(word, text, nested and lead == word, nested)
+
+
+def _closed(open_field):
+    text = "".join(open_field["pieces"])
+    return _field(open_field["prefix"] if open_field["nested"] else text, text, open_field["nested"])
+
+
 def field_instructions(root):
-    """The instruction of every field of an XML part, as text and in document
-    order: a simple field's w:instr, and a complex field's w:instrText pieces
-    joined from its begin to its end across runs and paragraphs, each field on
-    its own (a field inside another's instruction is its own). Pieces that no
-    field holds are joined together, so they are still read."""
-    instructions, open_fields, loose = [], [], []
+    """Every field of an XML part, as Field, in document order: a simple field
+    (w:fldSimple) by its w:instr, and a complex one by the w:instrText pieces
+    joined from its begin up to its separate or end, across runs and
+    paragraphs, each field on its own (a field inside another's instruction is
+    its own, and its text is not the outer's). Text that no field holds, or that
+    a field writes after its separate, is joined and read as one more field."""
+    fields, open_fields, loose = [], [], []
     for element in root.iter():
         kind = FIELD_TAGS.get(element.tag)
         if kind == "fldSimple":
             instruction = _word_attribute(element, "instr")
             if instruction is not None:
-                instructions.append(instruction)
+                fields.append(_field(instruction, instruction, False))
         elif kind in ("instrText", "delInstrText"):  # a tracked deletion comes back when it is rejected
-            (open_fields[-1] if open_fields else loose).append("".join(element.itertext()))
+            top = open_fields[-1] if open_fields else None
+            (loose if top is None or top["separated"] else top["pieces"]).append("".join(element.itertext()))
         elif kind == "fldChar":
             step = _word_attribute(element, "fldCharType")
             if step == "begin":
-                open_fields.append([])
+                top = open_fields[-1] if open_fields else None
+                if top is not None and not top["separated"] and not top["nested"]:
+                    top["nested"], top["prefix"] = True, "".join(top["pieces"])
+                open_fields.append({"pieces": [], "prefix": None, "nested": False, "separated": False})
+            elif step == "separate" and open_fields:
+                open_fields[-1]["separated"] = True
             elif step == "end" and open_fields:
-                instructions.append("".join(open_fields.pop()))
-    instructions.extend("".join(pieces) for pieces in open_fields)
-    instructions.append("".join(loose))
-    return instructions
+                fields.append(_closed(open_fields.pop()))
+    fields.extend(_closed(open_field) for open_field in open_fields)
+    text = "".join(loose)
+    fields.append(_field(text, text, False))
+    return fields
+
+
+def hyperlink_destination(field):
+    """(where a HYPERLINK field goes, whether it names a place in the document
+    with \\l): the first word or quoted text that is not a switch or a switch's
+    argument; None when it has none."""
+    rest = re.sub(r"^\s*\w+", "", field.text, count=1)
+    destination, anchor, skip = None, False, False
+    for match in re.finditer(r'"([^"]*)"|(\S+)', rest):
+        value = match.group(1) if match.group(1) is not None else match.group(2)
+        if skip:
+            skip = False
+        elif match.group(2) is not None and re.fullmatch(r"\\[A-Za-z]", value):
+            skip = value.lower() in SWITCHES_WITH_ARGUMENT
+            anchor = anchor or value.lower() == "\\l"
+        elif destination is None:
+            destination = value
+    return destination, anchor
 
 
 def _content_types(parts):
@@ -182,8 +240,10 @@ def active_content(parts):
     document opens, one message each: an external relationship other than a
     hyperlink (an attached template, which may be a .dotm with macros; a
     linked picture), a relationship to an embedded object, control or macro
-    project, and a field that pulls or runs outside content (DDE, INCLUDE...).
-    Every XML part is read as XML, with its namespaces, so the same
+    project, a field that pulls or runs outside content (DDE, INCLUDE...; only
+    the field's name is compared, as written out in the file) or whose name
+    another field builds, and a hyperlink to anything but a web page, a mail
+    address or a place in the document. Every XML part is read as XML, with its namespaces, so the same
     instruction written in any equivalent way (a character reference, single
     quotes, another prefix, CDATA, a comment in the middle) is read alike;
     one that cannot be read is said, naming the part, since what it holds is
@@ -206,10 +266,27 @@ def active_content(parts):
                     found.append(texts.Message("report.active.external", part=name, kind=kind, target=target))
                 elif kind.lower() in _ACTIVE_RELATIONSHIPS:
                     found.append(texts.Message("report.active.embedded", part=name, kind=kind, target=target))
-        fields = {match.upper() for instruction in field_instructions(root)
-                  for match in ACTIVE_FIELDS.findall(instruction)}
-        for field in sorted(fields):
-            found.append(texts.Message("report.active.field", part=name, field=field))
+                elif kind.lower() == "hyperlink" and not HYPERLINK_ALLOWED.match(target):
+                    found.append(texts.Message("report.active.hyperlink", part=name, target=target))
+        names, links, unnamed = set(), set(), False
+        for field in field_instructions(root):
+            unnamed = unnamed or field.unnamed
+            word = re.match(r"\w+", field.name)
+            word = word.group().upper() if word else ""
+            if ACTIVE_FIELDS.fullmatch(word):
+                names.add(word)
+            elif word == "HYPERLINK" and not field.unnamed:
+                destination, anchor = hyperlink_destination(field)
+                if destination is None and field.nested and not anchor:
+                    links.add("an address that another field builds")
+                elif destination is not None and not HYPERLINK_ALLOWED.match(destination):
+                    links.add(destination)
+        for word in sorted(names):
+            found.append(texts.Message("report.active.field", part=name, field=word))
+        if unnamed:
+            found.append(texts.Message("report.active.unnamed_field", part=name))
+        for target in sorted(links):
+            found.append(texts.Message("report.active.hyperlink", part=name, target=target))
     return found
 
 
