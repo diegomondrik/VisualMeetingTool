@@ -220,6 +220,20 @@ class FieldFormsTest(Workspace):
         path = edit_package(self.clean, self.tmp / "words.docx", insert={"word/document.xml": (b"<w:sectPr", words)})
         self.assertEqual(document.active_content(package_parts(path)), [])
 
+    def test_a_name_written_with_an_entity_of_the_parts_own_dtd_is_refused(self):
+        parts = dict(self.base)
+        parts["word/document.xml"] = parts["word/document.xml"].replace(
+            b"<w:document ", b'<!DOCTYPE w:document [<!ENTITY inc "INCLUDE">]>\n<w:document ', 1).replace(
+            b"<w:sectPr", complex_field(b" &inc;TEXT" + TARGET) + b"<w:sectPr", 1)
+        self.assertIn("word/document.xml: a INCLUDETEXT field",
+                      self.refused(write_package(parts, self.tmp / "entity.docx")))
+
+    def test_an_entity_bomb_is_refused_as_a_part_that_cannot_be_read(self):
+        entities = "".join(f'<!ENTITY e{n + 1} "' + f"&e{n};" * 10 + '">' for n in range(6))
+        bomb = f'<!DOCTYPE a [<!ENTITY e0 "aaaaaaaaaa">{entities}]><a>&e6;</a>'.encode()
+        parts = dict(self.base, **{"customXml/item2.xml": bomb})
+        self.assertIn("customXml/item2.xml: is not readable XML", self.refused(write_package(parts, self.tmp / "b.docx")))
+
     def test_every_part_under_word_is_checked(self):
         # Not only the body, the headers and the footers: a comments part, a glossary one.
         for part in ("word/comments.xml", "word/endnotes.xml", "word/glossary/document.xml"):

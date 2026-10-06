@@ -916,9 +916,9 @@ def wi20_p3_6(args, root):
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_d1_*"],
                             cwd=REPO, capture_output=True, text=True, env=env, timeout=600)
-    # four files: three need the kits and are skipped; WI21's (R05) needs none and runs
+    # five files: three need the kits and are skipped; WI21's (R05) and WI22's (R02) need none and run
     skipped = re.search(r"OK \(skipped=3\)", result.stderr)
-    return bool(skipped) and "Ran 4 tests" in result.stderr, (
+    return bool(skipped) and "Ran 7 tests" in result.stderr, (
         f"without the kits: {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else '?'}"
         f" ({result.stderr.count('Ran ')} run line)")
 
@@ -1008,6 +1008,70 @@ def wi21_p3_4(args, root):
     span = [path.name for path in qa.span_frames(frames, 10, 20)]
     return "frame_002_t00-05-00.jpg" not in span, (
         f"an answer from 0:10 whose last turn begins at 0:20: the register reads {span}, not the slide at 5:00")
+
+
+# --- WI22: the Word template's filter ---------------------------------------------------------
+
+def _wi22_template(tmp, **edit):
+    from tests import test_report
+    return test_report.edit_package(test_report.company_template(tmp / "clean.docx"), tmp / "variant.docx", **edit)
+
+
+def _wi22_accepted(path, tmp):
+    from meetingtool.report import document
+    try:
+        document.set_template(path, tmp / "data")
+    except document.ReportError as error:
+        return False, str(error).splitlines()[0]
+    return True, "accepted"
+
+
+@entry("WI22-P3-1")
+def wi22_p3_1(args, root):
+    return None, ("needs Word: there is none here, as in the external review (contract WI22, not done). The forms "
+                  "the filter refuses are shown to be real fields by a second reader of the XML "
+                  "(tests/test_template_filter.py), not by Word")
+
+
+@entry("WI22-P3-2")
+def wi22_p3_2(args, root):
+    with workspace() as tmp:
+        part = b'<?xml version="1.0"?><a>' + b"x" * (40 * 1024 * 1024) + b"</a>"
+        path = _wi22_template(tmp, add={"customXml/item2.xml": part})
+        stored = path.stat().st_size
+        accepted, said = _wi22_accepted(path, tmp)
+    return accepted and stored < 1_000_000, (
+        f"a package of {stored / 1024:.0f} KB holding one part of {len(part) / 2 ** 20:.0f} MB: {said}")
+
+
+@entry("WI22-P3-3")
+def wi22_p3_3(args, root):
+    from meetingtool.report import document
+    from tests import test_report, test_template_filter as forms
+    first, second = b' QUOTE "INCLUDETE" ', b' QUOTE "XT" '
+    built = forms.paragraph(forms.mark(b"begin"), forms.mark(b"begin"), forms.instruction(first), forms.mark(b"end"),
+                            forms.mark(b"begin"), forms.instruction(second), forms.mark(b"end"),
+                            forms.instruction(forms.TARGET), forms.mark(b"end"))
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", built)})
+        accepted, said = _wi22_accepted(path, tmp)
+        found = document.active_content(test_report.package_parts(path))
+    return accepted and not found, (
+        f"a field whose name is the result of two QUOTE fields (INCLUDETE + XT): {said}; the filter found {found}")
+
+
+@entry("WI22-P3-4")
+def wi22_p3_4(args, root):
+    from tests import test_report
+    from tests import test_template_filter as forms
+    address = "file://inventado.invalid/share/x.docm"
+    field = forms.complex_field(b' HYPERLINK "' + address.encode() + b'" ')
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={
+            "word/_rels/document.xml.rels": (b"</Relationships>", test_report.relationship("hyperlink", address)),
+            "word/document.xml": (b"<w:sectPr", field)})
+        accepted, said = _wi22_accepted(path, tmp)
+    return accepted, f"a hyperlink (relationship and field) to {address}: {said}"
 
 
 # --- Running ---------------------------------------------------------------------------------

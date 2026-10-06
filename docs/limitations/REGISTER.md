@@ -153,7 +153,7 @@ here; these are the ones left open, and three the work item itself declared.
 | `WI20-P3-3` | A process that dies between saving a meeting's record and rewriting `knowledge.md` leaves the copy one meeting behind; the application's next start rewrites it, but a summary made from the commands before that reads it without the meeting | open | The rewrite skipped: the meeting missing from the knowledge until `clear_leftovers` |
 | `WI20-P3-4` | A meeting record broken by hand is found when the meeting is saved, after the summary or register was paid; what was paid is kept, but once the record is fixed the project's knowledge differs, so the request differs and is paid again | open | A record cut by hand: 1 request paid, then the meeting not added |
 | `WI20-P3-5` | The same request is never paid twice in one folder: asking the commands again for the same summary to get a different answer returns the kept one. To pay for a new answer, `paid-answers/` of the folder is deleted | open, by design | The same summary asked twice in one folder: 1 request paid |
-| `WI20-P3-6` | INGOL's pilot tests (`tests/test_d1_*.py`) need INGOL's kits, which are not in this public repository nor in its CI: on GitHub they are skipped, and only the owner's machine runs them | open | `test_d1_*` without the kits: the three files that need them skipped (the fourth, WI21's pilot test of R05, needs none and runs) |
+| `WI20-P3-6` | INGOL's pilot tests (`tests/test_d1_*.py`) need INGOL's kits, which are not in this public repository nor in its CI: on GitHub they are skipped, and only the owner's machine runs them | open | `test_d1_*` without the kits: the three files that need them skipped (the fourth, WI21's pilot test of R05, and the fifth, WI22's of R02, need none and run) |
 | `WI20-P3-7` | A failed run that paid keeps the meeting's transcript, frames and Gemini's answers in the data folder until the meeting is processed again or the run is discarded (before WI20 they were removed at once; the owner approved the change, the security review noted it) | open, by design | A run failed at the report: its folder kept with `transcript.docx` and its frames |
 
 ## Work item 21, reading to the end (`01M474JN9F7N86SHHSKZ41Q1VY`)
@@ -174,3 +174,19 @@ the time, the recording running 35 minutes past the last line.
 | `WI21-P3-2` | The frames shown in that tail can reach the report, since nothing leaves them out (camera close-ups are still never candidates, since WI10) | open | The slide shown from 130 s on, after the last line plus 120 s, is kept |
 | `WI21-P3-3` | The person cannot set where the recording ends, and nothing says when the transcript and the recording seem misaligned (a transcript whose times run past the recording, or end long before it): the command prints no warning and has no option for an end | open | A transcript with a line at 10 min on a 140 s recording: the command ends well, says nothing about it, and its options hold no end |
 | `WI21-P3-4` | The questions-and-answers register reads, for each answer, the frames until its last turn began (at most 10 minutes after it began): a slide shown during a long last explanation is now extracted but not read for that answer. The summary reads every frame. Already so before WI21 (review P3-4) | open | An answer from 0:10 whose last turn begins at 0:20: the frame at 5:00 is not among those read |
+
+## Work item 22, the Word template's filter (`01M47ABNKZF02YZ94YKXMQCPQ1`)
+
+Source: the limitations the contract declares
+(`.ingol/work-items/01M47ABNKZF02YZ94YKXMQCPQ1/contract.yaml`), and the two
+gaps found while building it and left. Their reproductions build synthetic
+templates in a temporary folder (a made-up host, `example.invalid` or a UNC path to one).
+What the filter refuses, in each equivalent form, is in `tests/test_template_filter.py`
+and `tests/test_d1_r02_plantilla.py`, not here.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `WI22-P3-1` | Whether Word itself would act on each field the filter refuses, written in each form it reads (and whether it would on a form the filter does not know), is not run: there is no Word here, as in the external review. The forms are shown to be real fields by a second reader of the XML, not by Word | not reproducible here: it needs Word. Source: contract WI22 (not done) and the external review of 2026-10-02 | — |
+| `WI22-P3-2` | What a Word package expands to is not limited: a few kilobytes of compressed XML are read whole into memory by the filter, as they are by the library that opens the template (review R08, second batch) | open | A package of a few KB holding one 40 MB part: accepted |
+| `WI22-P3-3` | A field whose name does not appear in the file, because other fields build it when Word evaluates them (two `QUOTE` fields giving `INCLUDETEXT`), is not recognised: the filter reads the names written, not their results. Whether Word acts on it is `WI22-P3-1` | open | A field whose name is the result of two `QUOTE` fields: accepted |
+| `WI22-P3-4` | A hyperlink (an external relationship of that type, or a `HYPERLINK` field) is accepted to any address, a `file:` one or a network path included: nothing is loaded when the document opens, and the client's click opens it. A hyperlink is part of a good template | open, by design | A hyperlink to a `file:` address of a made-up host: accepted |

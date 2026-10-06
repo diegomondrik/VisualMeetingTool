@@ -155,6 +155,10 @@ python -m meetingtool.report template remove
 python -m meetingtool.report template example <new file.docx>
 ```
 
+A template that would load or run something from outside when a report is opened (a field such as
+`INCLUDEPICTURE` or `DDE`, a linked picture, an attached template, an embedded object) is refused, however
+the field is written in the file, and each report is checked for the same before it is delivered.
+
 Where the template has a field name in braces, in its body, header or
 footer, the report puts that meeting's data with the template's format:
 `{cliente}`, `{proyecto}`, `{reunion}`, `{fecha}` (written in the report's
