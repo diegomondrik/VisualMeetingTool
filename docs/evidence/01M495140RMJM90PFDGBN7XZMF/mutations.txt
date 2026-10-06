@@ -1,0 +1,16 @@
+mutation run for 01M495140RMJM90PFDGBN7XZMF: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_frames.TranscriptTest tests.test_summary.NoSpeakerTest tests.test_summary.FrameLabelsTest tests.test_qa.RequestTest tests.test_app.RunningStageTest tests.test_app.NoSpeakerRequestTest` (no kits, what the CI runs) must fail
+commit: 53a784d4002812ecc2aa39e67ba144cc9ff141eb (clean working tree)
+- unmutated: exit 0, Ran 33 tests in 25.638s OK
+- the time-only rule removed: a line that is only a time starts no block: exit 1, Ran 33 tests in 25.197s FAILED (failures=4, errors=11) -> DETECTED
+- the two readers apart again: read_blocks keeps its old loop, with no rule for a time alone: exit 1, Ran 33 tests in 25.210s FAILED (failures=1, errors=7) -> DETECTED
+- the blocks of the reading labelled by number only, with the list of names at its top, as before WI24: exit 1, Ran 33 tests in 25.524s FAILED (failures=1) -> DETECTED
+- the retry without what was wrong: the same request sent again after a refusal: exit 1, Ran 33 tests in 25.876s FAILED (failures=2) -> DETECTED
+- the retry's note without the names that do not exist: exit 1, Ran 33 tests in 25.635s FAILED (failures=2) -> DETECTED
+- the running stage's time frozen at 0: its seconds only when it ends: exit 1, Ran 33 tests in 25.494s FAILED (failures=2) -> DETECTED
+- the register's stop for a transcript with no speaker removed: exit 1, Ran 33 tests in 25.719s FAILED (failures=2) -> DETECTED
+- the register's stop applied also to a transcript with [HH:MM:SS] lines, which have no name in the turn: exit 1, Ran 33 tests in 26.003s FAILED (errors=1) -> DETECTED
+- the time-only rule applied although the file has lines with a speaker or [HH:MM:SS] lines: exit 1, Ran 33 tests in 26.250s FAILED (failures=3) -> DETECTED
+- the check of the request for a register with a transcript that names no one removed: exit 1, Ran 33 tests in 25.721s FAILED (failures=1) -> DETECTED
+- unmutated again: exit 0, Ran 33 tests in 26.215s OK
+all mutations detected

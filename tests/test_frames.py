@@ -324,6 +324,48 @@ def write_teams_docx(path, blocks):
         archive.writestr("word/document.xml", document)
 
 
+def write_timed_docx(path, turns, title="Reunión de costos"):
+    """A minimal Word file shaped like a Teams transcript that names no one (the
+    shape of the first real meeting, WI24): a title line and a date stamp, then,
+    for each turn, a line that is only its time, the words on the lines after
+    it, and an empty line. Even turns share one paragraph, the lines split by
+    line breaks (<w:br/>), as Word writes them; odd turns are one paragraph
+    per line, the time with spaces around it."""
+    def paragraph(lines):
+        runs = "<w:br/>".join(f'<w:t xml:space="preserve">{line}</w:t>' for line in lines)
+        return f"<w:p><w:r>{runs}</w:r></w:p>"
+
+    paragraphs = [paragraph([title]), paragraph(["6 de octubre de 2026, 10:30"])]
+    for number, (clock, text) in enumerate(turns):
+        lines = [clock, *text.split("\n"), ""]
+        if number % 2 == 0:
+            paragraphs.append(paragraph(lines))
+        else:
+            paragraphs += [paragraph([f"  {lines[0]} "]), *(paragraph([line]) for line in lines[1:])]
+    document = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
+                '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+                f'<w:body>{"".join(paragraphs)}</w:body></w:document>')
+    with zipfile.ZipFile(path, "w") as archive:
+        archive.writestr("word/document.xml", document)
+
+
+def write_timed_text(path, turns, title="Reunión de costos"):
+    """The same transcript as a UTF-8 text file (no byte order mark)."""
+    lines = [title, "6 de octubre de 2026, 10:30"]
+    for clock, text in turns:
+        lines += [clock, *text.split("\n"), ""]
+    Path(path).write_text("\n".join(lines) + "\n", encoding="utf-8")
+
+
+# Times of M:SS, MM:SS and H:MM:SS; a turn of two lines, one holding a time inside its words.
+TIMED = [("0:02", "Buen día a todos, empezamos con el costo de proceso."),
+         ("0:41", "Primero el total.\nLuego la columna de kilos, que se cierra a las 10:30."),
+         ("12:09", "Mirá el tablero."),
+         ("1:02:03", "Queda acordado enviar el detalle."),
+         ("2:11:00", "Hasta la próxima.")]
+TIMED_BLOCKS = [(2, TIMED[0][1]), (41, TIMED[1][1]), (729, TIMED[2][1]), (3723, TIMED[3][1]), (7860, TIMED[4][1])]
+
+
 BLOCKS = [("Ana Pérez", "0:04", "Buen día a todos."),
           ("Juan Gómez", "1:22", "Fijate el total de la columna."),
           ("Ana Pérez", "1:02:03", "Es verdad, hay que volver a eso.")]
@@ -356,6 +398,73 @@ class TranscriptTest(Workspace):
         self.assertEqual([start for start, _ in from_text], [4, 82, 3723])
         self.assertEqual([transcript.has_visual_reference(t) for _, t in from_docx], [False, True, False])
         self.assertEqual([transcript.has_visual_reference(t) for _, t in from_text], [False, True, False])
+
+    def test_a_time_alone_on_its_line_starts_a_block_with_no_speaker_in_a_docx_and_in_a_text(self):
+        """WI24-AC01: the owner's transcript, where Teams names no one."""
+        docx = self.tmp / "timed.docx"
+        write_timed_docx(docx, TIMED)
+        text = self.tmp / "timed.txt"
+        write_timed_text(text, TIMED)
+        for source in (docx, text):
+            with self.subTest(source=source.suffix):
+                self.assertEqual(transcript.read_blocks(source), TIMED_BLOCKS)
+                self.assertEqual(transcript.read_turns(source), [(start, "", said) for start, said in TIMED_BLOCKS])
+
+    def test_both_readers_read_every_shape_the_same_way(self):
+        """WI24-AC01: read_blocks is read_turns without the speaker, whatever the shape."""
+        docx = self.tmp / "teams.docx"
+        write_teams_docx(docx, BLOCKS)
+        bracket = self.tmp / "bracket.txt"
+        bracket.write_text("[00:00:05] Ana: hola\nsigue\n[00:01:00] chau\n", encoding="utf-8")
+        mixed = self.tmp / "mixed.txt"
+        mixed.write_text("Título\nAna Pérez   0:04\nBuen día.\n0:30\nSin nombre.\n[00:01:00] Luis:\nchau\n",
+                         encoding="utf-8")
+        timed = self.tmp / "timed.docx"
+        write_timed_docx(timed, TIMED)
+        for source in (docx, bracket, mixed, timed):
+            with self.subTest(source=source.name):
+                self.assertEqual(transcript.read_blocks(source),
+                                 [(start, said) for start, _, said in transcript.read_turns(source)])
+        # In a transcript with named lines a time alone on its line is words of the turn (as in main).
+        self.assertEqual([(speaker, start) for start, speaker, _ in transcript.read_turns(mixed)],
+                         [("Ana Pérez", 4), ("", 60)])
+        self.assertEqual(transcript.read_turns(mixed)[0][2], "Buen día.\n0:30\nSin nombre.")
+
+    def test_a_time_alone_is_a_block_only_in_a_transcript_with_no_other_timed_line(self):
+        """WI24's review, P3-1, and what names_no_one says (P1-1)."""
+        cases = {"teams.txt": ("Ana Pérez   0:04\nHola\n10:30\nsigue\n", False, [(4, "Hola\n10:30\nsigue")]),
+                 "bracket.txt": ("[00:00:05] Ana: hola\n10:30\nsigue\n", False, [(5, "Ana: hola\n10:30\nsigue")]),
+                 "alone.txt": ("Título\n0:04\nHola\n10:30\nsigue\n", True, [(4, "Hola"), (630, "sigue")])}
+        for name, (written, nobody, blocks) in cases.items():
+            with self.subTest(name=name):
+                path = self.tmp / name
+                path.write_text(written, encoding="utf-8")
+                self.assertEqual(transcript.read_blocks(path), blocks)
+                self.assertEqual(transcript.names_no_one(path), nobody)
+        docx = self.tmp / "named.docx"
+        write_teams_docx(docx, BLOCKS)
+        self.assertFalse(transcript.names_no_one(docx))
+        timed = self.tmp / "timed.docx"
+        write_timed_docx(timed, TIMED)
+        self.assertTrue(transcript.names_no_one(timed))
+
+    def test_a_time_inside_a_line_or_a_line_that_is_not_a_time_starts_nothing(self):
+        written = self.tmp / "text.txt"
+        written.write_text("Título\n0:02\nSe cierra\na las 10:30\n12:30 hs\n10:75\n3:7\n1:2:3:4\n\n0:09\nFin\n",
+                           encoding="utf-8")
+        self.assertEqual(transcript.read_blocks(written),
+                         [(2, "Se cierra\na las 10:30\n12:30 hs\n10:75\n3:7\n1:2:3:4"), (9, "Fin")])
+
+    def test_a_title_before_the_first_time_is_not_a_block_and_a_time_with_no_words_is_an_empty_one(self):
+        written = self.tmp / "text.txt"
+        written.write_text("Reunión de costos\n6 de octubre de 2026\n\n0:05\n\n0:20\nHola\n", encoding="utf-8")
+        self.assertEqual(transcript.read_blocks(written), [(5, ""), (20, "Hola")])
+        self.assertEqual(transcript.read_text(written), "Reunión de costos\n6 de octubre de 2026\n\n0:05\n\n0:20\nHola")
+
+    def test_the_boost_reads_the_blocks_of_a_transcript_with_no_speaker(self):
+        docx = self.tmp / "timed.docx"
+        write_timed_docx(docx, TIMED)
+        self.assertEqual(transcript.VisualReferences.from_file(docx).times, [729])
 
     def test_a_sample_below_the_minimum_becomes_a_candidate_only_next_to_a_phrase(self):
         near = self.tmp / "near.txt"

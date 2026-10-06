@@ -14,7 +14,8 @@ TEXTS = {
     "transcript.word_unreadable": "cannot read the Word transcript {path}[[: {detail}]]",
     "transcript.unreadable": "cannot read the transcript {path}[[: {detail}]]",
     "transcript.not_a_file": "transcript {path} is not a file",
-    "transcript.no_timed_line": "transcript {path} has no timed line (Teams 'Speaker   M:SS' or '[HH:MM:SS]')",
+    "transcript.no_timed_line": "transcript {path} has no timed line (Teams 'Speaker   M:SS', a time alone on its "
+                                "line, or '[HH:MM:SS]')",
 
     # ── Projects (meetingtool.projects) ─────────────────────────────────────
     "projects.inside_repository": "data folder {folder} is inside the git work tree {work_tree}; meeting data must "
@@ -138,6 +139,8 @@ TEXTS = {
     "qa.stopped.before": "; the answer before was refused too: {refusal:.300}",
     "qa.stopped.done": ", of which {stages}",
     "qa.no_folder": "the folder {folder} does not exist",
+    "qa.needs_speakers": "the transcript {path} names no speaker, and the register of questions and answers needs "
+                         "who asked and who answered: write the summary instead (format summary)",
 
     # ── The Word report (meetingtool.report) ────────────────────────────────
     "layout.marker_not_alone": "{{informe}} must be alone on its line, with nothing else on it",
@@ -381,6 +384,9 @@ TEXTS = {
     "app.request.no_format": "there is no format {value!r}",
     "app.request.no_transcript": "the transcript is missing (a Teams .docx or a .txt with [HH:MM:SS] lines)",
     "app.request.video_gone": "the uploaded video is no longer there: upload it again",
+    "app.request.qa_needs_speakers": "the register of questions and answers needs who asked and who answered, and "
+                                     "this transcript names no speaker (each time stands alone on its line): "
+                                     "choose the summary format",
     "app.request.summary_needs_video": "the summary needs the video, to read what was shown; without a video, choose "
                                        "the questions and answers format",
     "app.request.bad_ceiling": "the spending ceiling must be a number of dollars greater than 0 and up to 5",

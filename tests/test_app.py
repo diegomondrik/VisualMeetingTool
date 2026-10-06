@@ -31,7 +31,7 @@ from meetingtool.report import document
 from meetingtool.summary import qa, writer
 from meetingtool.summary.__main__ import main as summary_main
 from tests import test_qa, test_report, test_summary
-from tests.test_frames import SLIDES, write_teams_docx, write_video
+from tests.test_frames import SLIDES, TIMED, write_teams_docx, write_timed_docx, write_video
 from tests.test_reading import KEY, FakeGemini, answer_for
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -1073,6 +1073,93 @@ class ReviewFixesTest(Processing):
 
 
 # ── The command ───────────────────────────────────────────────────────────────
+
+class RunningStageTest(Processing):
+    """WI24-AC04: the page showed 0 s for a stage until it ended; now a stage
+    that runs reports the time since it began, and the final seconds once it
+    ends."""
+
+    def script(self):
+        self.reading_began, self.release = threading.Event(), threading.Event()
+
+        def held(first, count):
+            self.reading_began.set()
+            self.release.wait(60)
+            return answer_for(first, count)
+        return [held, test_summary.returning(test_summary.summary_text("es", "requirements"))]
+
+    def stage(self, job_id, name):
+        status, _, body = self.request("GET", f"/api/jobs/{job_id}")
+        self.assertEqual(status, 200)
+        return next(stage for stage in json.loads(body)["stages"] if stage["name"] == name)
+
+    def wait(self, job_id):
+        try:
+            self.assertTrue(self.reading_began.wait(120), "the reading never began")
+            self.during = [self.stage(job_id, name) for name in ("frames", "reading", "summary")]
+            time.sleep(0.8)
+            self.later = [self.stage(job_id, name) for name in ("frames", "reading", "summary")]
+        finally:
+            self.release.set()
+        return super().wait(job_id)
+
+    def test_a_stage_that_runs_reports_its_seconds_going_up_and_its_final_seconds_when_it_ends(self):
+        job = self.process()
+        self.assertEqual(job["state"], "done", job["error"])
+        (frames, reading, summary), (frames_later, reading_later, summary_later) = self.during, self.later
+        self.assertEqual((reading["state"], reading_later["state"]), ("running", "running"))
+        self.assertGreaterEqual(reading_later["seconds"] - reading["seconds"], 0.6)  # held in its request, going up
+        self.assertGreaterEqual(reading_later["seconds"], 0.7)
+        # A stage that ended keeps its final seconds; one that has not begun has none.
+        self.assertEqual((frames["state"], frames_later["state"]), ("done", "done"))
+        self.assertEqual(frames["seconds"], frames_later["seconds"])
+        self.assertEqual((summary["state"], summary["seconds"], summary_later["seconds"]), ("pending", 0.0, 0.0))
+        ended = job["stages"][1]
+        self.assertEqual(ended["state"], "done")
+        self.assertGreaterEqual(ended["seconds"], reading_later["seconds"])
+        self.assertEqual(ended["seconds"], round(ended["seconds"], 1))
+
+    def test_the_seconds_of_a_stage_follow_its_state(self):
+        stage = jobs.Stage("reading")
+        self.assertEqual(stage.as_dict()["seconds"], 0.0)
+        stage.state = "running"
+        self.assertEqual(stage.as_dict()["seconds"], 0.0)  # running, with no start yet: nothing to count
+        stage.started = time.monotonic() - 5
+        self.assertGreaterEqual(stage.as_dict()["seconds"], 5.0)
+        self.assertLess(stage.as_dict()["seconds"], 8.0)
+        stage.state, stage.seconds = "done", 7.0
+        self.assertEqual(stage.as_dict()["seconds"], 7.0)
+        stage.state = "failed"
+        self.assertEqual(stage.as_dict()["seconds"], 7.0)
+
+
+class NoSpeakerRequestTest(Processing):
+    """WI24's review, P3-2: a register asked for with a transcript that names no one is refused when it is
+    asked for, not after the frames were extracted."""
+
+    def script(self):
+        return [lambda first, count: answer_for(first, count),
+                test_summary.returning(test_summary.summary_text("es", "requirements"))]
+
+    def test_a_register_of_a_transcript_with_no_speaker_is_refused_at_the_request_and_nothing_runs(self):
+        self.transcript = self.tmp / "solo horas.docx"
+        write_timed_docx(self.transcript, TIMED)
+        refused = self.process(with_recording=True, expect=400, format="qa")
+        self.assertIn("el registro de preguntas y respuestas necesita saber quién preguntó", refused["error"])
+        self.assertEqual(self.app.runner.jobs, {})
+        self.assertEqual(self.fake.requests, [])
+        self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
+        self.assertEqual(store.list_meetings(self.data, self.project), [])
+        said = jobs.JobError("app.request.qa_needs_speakers")
+        self.assertIn("names no speaker", said.text("en"))
+        self.assertIn("choose the summary format", said.text("en"))
+
+    def test_the_same_transcript_is_accepted_for_the_summary(self):
+        self.transcript = self.tmp / "solo horas.docx"
+        write_timed_docx(self.transcript, TIMED)
+        job = self.process(format="summary")
+        self.assertEqual(job["state"], "done", job["error"])
+
 
 class CommandTest(unittest.TestCase):
     def test_meetingtool_app_serves_its_page_on_this_machine(self):

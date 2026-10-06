@@ -70,7 +70,18 @@ meetings, and the meeting is added to the project with its key points, so
 the next summary knows them. The transcript is sent to Gemini's paid tier. A
 summary that is cut short, missing a section, in the wrong language, or
 naming a frame the report could not embed is retried once and never
-delivered.
+delivered; when the refusal is a frame that does not exist, the retry says
+which names do not exist and that names are copied exactly as each block of
+the reading labels them.
+
+A transcript may be a Teams `.docx` or a `.txt` in any of three forms:
+`Speaker   M:SS` with the words after it, `[HH:MM:SS] Speaker:`, or, when
+Teams names no one, each time alone on its line (`0:02`, `1:02:03`) with the
+words on the lines after it (a time alone counts only in a file with no
+`Speaker   M:SS` or `[HH:MM:SS]` line). The summary of a transcript with no
+speaker names no one; the question-and-answer register needs who asked and who
+answered, so it refuses such a transcript, when it is asked for and before
+sending anything.
 
 Every frame the summary names goes into the report, so the summary is asked
 to name only the screens that were shared to show content someone would

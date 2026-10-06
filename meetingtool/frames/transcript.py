@@ -33,6 +33,10 @@ _PHRASE = re.compile(
 )
 # Teams: "Speaker Name   1:22" or "Speaker Name   1:02:03", the text on the lines after.
 _SPEAKER_TIME = re.compile(r"^(.+?)\s{2,}(\d{1,2}:\d{2}(?::\d{2})?)\s*$")
+# Teams without speaker names: the time alone on its line ("0:02", "1:02:03"), the words on the lines after.
+# It starts a block only in a transcript with no "Speaker   M:SS" or "[HH:MM:SS]" line.
+# Minutes and seconds are below 60, so a line such as "10:75" is not a time.
+_TIME_ALONE = re.compile(r"^\d{1,2}:[0-5]\d(?::[0-5]\d)?$")
 # The original's cleaned text: "[01:02:03] Speaker:".
 _BRACKET_TIME = re.compile(r"^\[(\d{1,2}):(\d{2}):(\d{2})\]\s*(.*)$")
 _W = "{http://schemas.openxmlformats.org/wordprocessingml/2006/main}"
@@ -78,57 +82,62 @@ def _text_lines(path):
         raise TranscriptError("transcript.unreadable", path=str(path), detail=texts.External(str(error))) from error
 
 
-def read_blocks(path):
-    """[(start seconds, text)] in time order, from a Teams .docx or a text
-    file with [HH:MM:SS] lines. Refuses a transcript with no timed line."""
+def _read(path):
+    """([(start seconds, speaker, text)] in time order, labelled): the one
+    parser behind both readers of a transcript. A block starts at a Teams
+    line with a speaker and a time, or at a "[HH:MM:SS]" line (a transcript
+    with either is `labelled`); and (WI24), in a transcript with neither, at
+    a line that is only a time (M:SS, MM:SS or H:MM:SS), which Teams writes
+    when it names no one. The non-empty lines after it are its text; in a
+    labelled transcript a line that is only a time is text, as it always
+    was. A time inside a line of words starts nothing."""
     path = Path(path)
     if not path.is_file():
         raise TranscriptError("transcript.not_a_file", path=str(path))
-    lines = _docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path)
-    blocks = []
-    for raw in lines:
-        line = raw.strip()
-        if not line:
-            continue
-        teams = _SPEAKER_TIME.match(line)
-        bracket = _BRACKET_TIME.match(line)
-        if teams:
-            blocks.append([_seconds(teams.group(2)), []])
-        elif bracket:
-            hours, minutes, seconds, rest = bracket.groups()
-            blocks.append([int(hours) * 3600 + int(minutes) * 60 + int(seconds), [rest] if rest else []])
-        elif blocks:
-            blocks[-1][1].append(line)
-    if not blocks:
-        raise TranscriptError("transcript.no_timed_line", path=str(path))
-    return sorted(((start, "\n".join(text)) for start, text in blocks), key=lambda block: block[0])
-
-
-def read_turns(path):
-    """[(start seconds, speaker, text)] in time order: what read_blocks reads,
-    with the speaker the Teams line names ("" for [HH:MM:SS] lines). The
-    summary needs who said what; the boost only needs when."""
-    path = Path(path)
-    if not path.is_file():
-        raise TranscriptError("transcript.not_a_file", path=str(path))
-    lines = _docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path)
+    lines = [line.strip() for line in (_docx_lines(path) if path.suffix.lower() == ".docx" else _text_lines(path))]
+    labelled = any(_SPEAKER_TIME.match(line) or _BRACKET_TIME.match(line) for line in lines)
     turns = []
-    for raw in lines:
-        line = raw.strip()
+    for line in lines:
         if not line:
             continue
         teams = _SPEAKER_TIME.match(line)
         bracket = _BRACKET_TIME.match(line)
+        alone = _TIME_ALONE.match(line) and not labelled
         if teams:
             turns.append([_seconds(teams.group(2)), teams.group(1).strip(), []])
         elif bracket:
             hours, minutes, seconds, rest = bracket.groups()
             turns.append([int(hours) * 3600 + int(minutes) * 60 + int(seconds), "", [rest] if rest else []])
+        elif alone:
+            turns.append([_seconds(line), "", []])
         elif turns:
             turns[-1][2].append(line)
     if not turns:
         raise TranscriptError("transcript.no_timed_line", path=str(path))
-    return sorted(((start, speaker, "\n".join(text)) for start, speaker, text in turns), key=lambda turn: turn[0])
+    return sorted(((start, speaker, "\n".join(text)) for start, speaker, text in turns),
+                  key=lambda turn: turn[0]), labelled
+
+
+def names_no_one(path):
+    """True if the transcript has no line that can name a speaker: no Teams
+    "Speaker   M:SS" line and no "[HH:MM:SS]" line, only times alone on their
+    lines. (A "[HH:MM:SS] Name: text" file is not: the register accepts it and
+    checks no name, as it always did.)"""
+    return not _read(path)[1]
+
+
+def read_blocks(path):
+    """[(start seconds, text)] in time order, from a Teams .docx or a text
+    file with timed lines. Refuses a transcript with no timed line. The same
+    blocks as read_turns, without the speaker: the boost only needs when."""
+    return [(start, text) for start, _, text in _read(path)[0]]
+
+
+def read_turns(path):
+    """[(start seconds, speaker, text)] in time order: what read_blocks reads,
+    with the speaker the Teams line names ("" for [HH:MM:SS] lines and for a
+    time alone on its line). The summary needs who said what."""
+    return _read(path)[0]
 
 
 def read_text(path):

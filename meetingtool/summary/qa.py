@@ -35,7 +35,7 @@ import unicodedata
 from pathlib import Path
 
 from meetingtool import disk, texts
-from meetingtool.frames.transcript import TranscriptError, read_text, read_turns
+from meetingtool.frames.transcript import TranscriptError, names_no_one, read_text, read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.summary import writer
@@ -761,8 +761,14 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     try:
         turns = read_turns(transcript)
         text = read_text(transcript)
+        nobody = names_no_one(transcript)
     except TranscriptError as error:
         raise QAError(error.message) from error
+    if nobody:
+        # A transcript with only times alone on their lines (WI24): the register says who asked and who
+        # answered, and checks it by who spoke; nothing can be, so it is refused before any request is paid.
+        # One with "[HH:MM:SS] Name: text" lines is not: it names them, and no name is checked.
+        raise QAError("qa.needs_speakers", path=str(transcript))
     knowledge = ""
     if project:
         if not title or not title.strip() or not date:
