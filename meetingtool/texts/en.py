@@ -384,6 +384,9 @@ TEXTS = {
     "app.request.no_format": "there is no format {value!r}",
     "app.request.no_transcript": "the transcript is missing (a Teams .docx or a .txt with [HH:MM:SS] lines)",
     "app.request.video_gone": "the uploaded video is no longer there: upload it again",
+    "app.request.qa_needs_speakers": "the register of questions and answers needs who asked and who answered, and "
+                                     "this transcript names no speaker (each time stands alone on its line): "
+                                     "choose the summary format",
     "app.request.summary_needs_video": "the summary needs the video, to read what was shown; without a video, choose "
                                        "the questions and answers format",
     "app.request.bad_ceiling": "the spending ceiling must be a number of dollars greater than 0 and up to 5",

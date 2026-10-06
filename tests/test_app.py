@@ -31,7 +31,7 @@ from meetingtool.report import document
 from meetingtool.summary import qa, writer
 from meetingtool.summary.__main__ import main as summary_main
 from tests import test_qa, test_report, test_summary
-from tests.test_frames import SLIDES, write_teams_docx, write_video
+from tests.test_frames import SLIDES, TIMED, write_teams_docx, write_timed_docx, write_video
 from tests.test_reading import KEY, FakeGemini, answer_for
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -1131,6 +1131,34 @@ class RunningStageTest(Processing):
         self.assertEqual(stage.as_dict()["seconds"], 7.0)
         stage.state = "failed"
         self.assertEqual(stage.as_dict()["seconds"], 7.0)
+
+
+class NoSpeakerRequestTest(Processing):
+    """WI24's review, P3-2: a register asked for with a transcript that names no one is refused when it is
+    asked for, not after the frames were extracted."""
+
+    def script(self):
+        return [lambda first, count: answer_for(first, count),
+                test_summary.returning(test_summary.summary_text("es", "requirements"))]
+
+    def test_a_register_of_a_transcript_with_no_speaker_is_refused_at_the_request_and_nothing_runs(self):
+        self.transcript = self.tmp / "solo horas.docx"
+        write_timed_docx(self.transcript, TIMED)
+        refused = self.process(with_recording=True, expect=400, format="qa")
+        self.assertIn("el registro de preguntas y respuestas necesita saber quién preguntó", refused["error"])
+        self.assertEqual(self.app.runner.jobs, {})
+        self.assertEqual(self.fake.requests, [])
+        self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
+        self.assertEqual(store.list_meetings(self.data, self.project), [])
+        said = jobs.JobError("app.request.qa_needs_speakers")
+        self.assertIn("names no speaker", said.text("en"))
+        self.assertIn("choose the summary format", said.text("en"))
+
+    def test_the_same_transcript_is_accepted_for_the_summary(self):
+        self.transcript = self.tmp / "solo horas.docx"
+        write_timed_docx(self.transcript, TIMED)
+        job = self.process(format="summary")
+        self.assertEqual(job["state"], "done", job["error"])
 
 
 class CommandTest(unittest.TestCase):

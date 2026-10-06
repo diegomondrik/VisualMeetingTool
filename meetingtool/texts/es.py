@@ -387,6 +387,9 @@ TEXTS = {
     "app.request.no_format": "no hay un formato {value!r}",
     "app.request.no_transcript": "falta la transcripción (un .docx de Teams o un .txt con líneas [HH:MM:SS])",
     "app.request.video_gone": "el video subido ya no está: subilo de nuevo",
+    "app.request.qa_needs_speakers": "el registro de preguntas y respuestas necesita saber quién preguntó y quién "
+                                     "respondió, y esta transcripción no dice quién habla (cada hora está sola en "
+                                     "su renglón): elegí el formato resumen",
     "app.request.summary_needs_video": "el resumen necesita el video, para leer lo que se mostró; sin video, elegí el "
                                        "formato preguntas y respuestas",
     "app.request.bad_ceiling": "el techo de gasto tiene que ser un número de dólares mayor que 0 y hasta 5",

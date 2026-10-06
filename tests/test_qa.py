@@ -196,9 +196,7 @@ class RequestTest(Workspace):
         names no one cannot give it, and the refusal comes before anything is paid."""
         timed = self.tmp / "timed.docx"
         write_timed_docx(timed, TIMED)
-        brackets = self.tmp / "brackets.txt"
-        brackets.write_text("[00:00:04] Ana: Primera duda\n[00:00:40] Juan: Se carga por mes\n", encoding="utf-8")
-        for source in (timed, brackets):
+        for source in (timed,):
             for language in ("es", "en"):
                 with self.subTest(source=source.name, language=language), FakeGemini() as fake:
                     with self.assertRaises(qa.QAError) as caught:
@@ -212,12 +210,25 @@ class RequestTest(Workspace):
                     self.assertIn("escribí el resumen", caught.exception.text("es"))
                     self.assertIn(str(source), caught.exception.text("es"))
 
+    def test_a_text_with_timed_lines_and_names_is_written_as_in_main(self):
+        """WI24's review, P1-1: "[HH:MM:SS] Name: text" names its speakers, and the register of such a file
+        was written before WI24 (spoke() lets every name pass there): it still is."""
+        bracketed = self.tmp / "bracketed.txt"
+        bracketed.write_text("\n".join(f"[00:{clock.rjust(5, '0')}] {speaker}: {text}"
+                                       for speaker, clock, text in SPANISH), encoding="utf-8")
+        with FakeGemini([json_answer(verbal())]) as fake:
+            result = self.register(fake, bracketed, language="es")
+        self.assertEqual(len(fake.requests), 1)
+        self.assertEqual(result.questions, 2)
+        self.assertTrue(self.output().exists())
+
     def test_a_transcript_where_someone_is_named_is_not_refused_for_lack_of_speakers(self):
-        mixed = self.tmp / "mixed.txt"
-        mixed.write_text("Ana Pérez   0:04\n¿Quién carga los estándares de horas por kilo en la planilla?\n"
+        # A time alone on its line inside a transcript that names speakers is words of the turn (WI24's review, P3-1).
+        named = self.tmp / "named.txt"
+        named.write_text("Ana Pérez   0:04\n¿Quién carga los estándares de horas por kilo en la planilla?\n"
                          "0:40\nLos carga el área de procesos una vez por mes.\n", encoding="utf-8")
         with FakeGemini([json_answer({"questions": [], "knowledge": REGISTER["knowledge"]})]) as fake:
-            self.register(fake, mixed, language="es")
+            self.register(fake, named, language="es")
         self.assertEqual(len(fake.requests), 1)
 
     def test_without_the_option_the_summary_is_written_as_before(self):

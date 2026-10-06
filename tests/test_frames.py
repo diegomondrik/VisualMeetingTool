@@ -425,7 +425,28 @@ class TranscriptTest(Workspace):
             with self.subTest(source=source.name):
                 self.assertEqual(transcript.read_blocks(source),
                                  [(start, said) for start, _, said in transcript.read_turns(source)])
-        self.assertEqual([speaker for _, speaker, _ in transcript.read_turns(mixed)], ["Ana Pérez", "", ""])
+        # In a transcript with named lines a time alone on its line is words of the turn (as in main).
+        self.assertEqual([(speaker, start) for start, speaker, _ in transcript.read_turns(mixed)],
+                         [("Ana Pérez", 4), ("", 60)])
+        self.assertEqual(transcript.read_turns(mixed)[0][2], "Buen día.\n0:30\nSin nombre.")
+
+    def test_a_time_alone_is_a_block_only_in_a_transcript_with_no_other_timed_line(self):
+        """WI24's review, P3-1, and what names_no_one says (P1-1)."""
+        cases = {"teams.txt": ("Ana Pérez   0:04\nHola\n10:30\nsigue\n", False, [(4, "Hola\n10:30\nsigue")]),
+                 "bracket.txt": ("[00:00:05] Ana: hola\n10:30\nsigue\n", False, [(5, "Ana: hola\n10:30\nsigue")]),
+                 "alone.txt": ("Título\n0:04\nHola\n10:30\nsigue\n", True, [(4, "Hola"), (630, "sigue")])}
+        for name, (written, nobody, blocks) in cases.items():
+            with self.subTest(name=name):
+                path = self.tmp / name
+                path.write_text(written, encoding="utf-8")
+                self.assertEqual(transcript.read_blocks(path), blocks)
+                self.assertEqual(transcript.names_no_one(path), nobody)
+        docx = self.tmp / "named.docx"
+        write_teams_docx(docx, BLOCKS)
+        self.assertFalse(transcript.names_no_one(docx))
+        timed = self.tmp / "timed.docx"
+        write_timed_docx(timed, TIMED)
+        self.assertTrue(transcript.names_no_one(timed))
 
     def test_a_time_inside_a_line_or_a_line_that_is_not_a_time_starts_nothing(self):
         written = self.tmp / "text.txt"

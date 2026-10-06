@@ -35,6 +35,7 @@ from pathlib import Path
 
 from meetingtool import disk, texts
 from meetingtool.app import library
+from meetingtool.frames import transcript as transcript_module
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.summary import qa
@@ -151,6 +152,13 @@ def check_request(data, data_dir, uploads, meeting_types, languages):
             raise JobError("app.request.video_gone")
     if kind == "summary" and recording is None:
         raise JobError("app.request.summary_needs_video")
+    if kind == "qa":
+        try:
+            nobody = transcript_module.names_no_one(transcript)
+        except transcript_module.TranscriptError:
+            nobody = False  # an unreadable transcript fails where it always did, in the run
+        if nobody:
+            raise JobError("app.request.qa_needs_speakers")
     max_cost = data.get("max_cost", DEFAULT_MAX_COST_USD)
     if isinstance(max_cost, bool) or not isinstance(max_cost, (int, float)) or not 0 < max_cost <= 5:
         raise JobError("app.request.bad_ceiling")
