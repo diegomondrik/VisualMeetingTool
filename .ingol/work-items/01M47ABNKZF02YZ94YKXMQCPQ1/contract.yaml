@@ -1,0 +1,95 @@
+schema_version: "1"
+id: 01M47ABNKZF02YZ94YKXMQCPQ1
+objective: >
+  WI22. A company's Word template that carries active content is refused
+  in every form Word would read it in, and the report the client receives is
+  checked too (finding R02, P1, of the external review of 2026-10-02, at
+  03b8573). Third work item of the correction of that review and of INGOL's
+  D1 pilot, approved by the owner on 2026-10-06; it starts from main (59343c9) and does not touch the installer's
+  branch (WI18, PR #19).
+
+  Today the check of a template (report.document.active_content) looks for
+  field instructions in the raw bytes of each part with regular expressions:
+  `w:instrText` only with the prefix `w:`, `w:instr` only between double
+  quotes, and the field's name as written. The same instruction written in
+  an equivalent form of XML (a character reference such as I&#78;CLUDEPICTURE,
+  single quotes, another prefix bound to the same namespace) passes, the
+  template is kept, and the field reaches the client's report. The content
+  types are checked the same way, so a macro-enabled type written with a
+  character reference passes too.
+
+  After this work item every XML part of the package is read as XML, with
+  its namespaces: field instructions are those of the WordprocessingML
+  namespace whatever their prefix, simple (fldSimple/@instr) and complex
+  (instrText, joined in order across runs and paragraphs), read after the
+  XML is decoded (character references, CDATA, comments between pieces);
+  their names are matched without regard to case; the content types are read
+  as XML too. A part that cannot be read as XML is refused, saying which.
+  Headers, footers, footnotes and every other word/ part are checked as the
+  body is. The report built from a template is checked again with the same
+  rules before it is delivered: a field that slipped through cannot reach the
+  client. A good template (with ordinary fields such as PAGE or TOC, the
+  company's {placeholders} and hyperlinks) is still accepted.
+
+  The test that shows the defect comes from INGOL's pilot package, failing
+  on 03b8573: AR04FiltroDeCamposEludible, copied unchanged apart from where
+  it imports from, with the reviewer of that package's note applied: a good
+  template that must still be accepted (a negative control) is added beside
+  it, so refusing every template cannot pass. It needs INGOL's kits only if
+  its file does; if not, it runs in the CI.
+
+  Not done: limits on the size of what a Word package expands to (R08, the
+  second batch); whether Word itself would act on a field (not run: no Word
+  here, as in the review); R04, R06 and the second batch.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M47ABNKZF02YZ94YKXMQCPQ1/**
+  - docs/evidence/01M47ABNKZF02YZ94YKXMQCPQ1/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI22-AC01
+    description: >
+      AR04FiltroDeCamposEludible from INGOL's pilot package is in tests/,
+      its code unchanged (checked by a script in the evidence), and passes;
+      beside it, a good template with PAGE, TOC, the company's placeholders
+      and a hyperlink is accepted and its report built.
+  - id: WI22-AC02
+    description: >
+      Each active field (DDEAUTO, DDE, INCLUDETEXT, INCLUDEPICTURE, INCLUDE,
+      IMPORT, LINK) is refused in each equivalent form: as written, with a
+      character reference in its name, in lower case, simple with single
+      quotes, complex split across runs and across paragraphs, with another
+      prefix for the same namespace, inside CDATA, split by a comment, and
+      in a header, a footer and a footnote. One test per form, generated
+      for every field; a test that each form is a real field once decoded
+      (so the test cannot pass by refusing nonsense).
+  - id: WI22-AC03
+    description: >
+      A macro-enabled content type is refused however its XML writes it; a
+      part of the package that is not readable XML is refused naming it.
+  - id: WI22-AC04
+    description: >
+      The report built from a template is checked with the same rules before
+      it is delivered: with the template's check switched off on purpose, a
+      template with an active field makes the report fail instead of
+      delivering it.
+  - id: WI22-AC05
+    description: >
+      Mutations of what this work item adds (the namespace ignored, the
+      decoding skipped, case kept, simple or complex fields not read, a part
+      skipped, the report not checked again) each make a test fail; the
+      script and its output are in the evidence.
+  - id: WI22-AC06
+    description: >
+      An independent review and a security review through INGOL's mailbox
+      before the pull request; the whole suite passes with `python -m
+      unittest discover -s tests -v` in a fresh clone of the tested commit
+      on the owner's machine, with INGOL's kits on the import path, its
+      complete output committed under docs/evidence/01M47ABNKZF02YZ94YKXMQCPQ1/
+      before the pull request (INGOL D-163); every test that existed before
+      passes or is named in the evidence with the rule that changed it; the
+      limitations register gets this work item's known limitations, each
+      reproduced by docs/limitations/reproduce.py.
