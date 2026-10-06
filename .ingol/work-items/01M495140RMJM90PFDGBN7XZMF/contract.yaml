@@ -1,0 +1,87 @@
+schema_version: "1"
+id: 01M495140RMJM90PFDGBN7XZMF
+objective: >
+  WI24. What stopped the owner's first real meeting processed with the
+  application (2026-10-06): a Teams transcript the application could not
+  read, and a summary refused twice, twice, because Gemini named frames that
+  do not exist. Ahead of WI23 by the owner's decision, and approved by the owner on 2026-10-06 to be built by a construction-role agent (Sonnet); starts from main
+  (bde64df) and does not touch the installer's branch (WI18, PR #19).
+
+  The transcript. Teams also writes a transcript with no speaker: each time
+  alone on its line ("0:02", "1:02:03"), the words on the lines after it.
+  Today the application knows only "Speaker   0:02" and "[00:00:02] text",
+  so such a transcript is refused as having no timed line. After this work
+  item a line that is only a time starts a block with no speaker, in a .docx
+  and in a .txt alike. The two readers of a transcript (read_blocks for the
+  frames, read_turns for the summary and the register) read the same lines
+  the same way, from one parser. A transcript with no speaker gives a summary
+  that names no one; the register of questions and answers, which needs who
+  asked and who answered, says so before paying instead of failing later.
+
+  The frames the summary names. The summary's request lists the frames'
+  file names at the top of what was read on the screen, and labels each
+  block below only by its number ([FRAME 71]); to name a frame Gemini has to
+  match the number with the list. With the owner's 141 frames it got it
+  wrong in both attempts of both runs (frame_071_t01-05-36.jpg: the number
+  of one frame with the time of another), and the retry sent the same
+  request again, without saying what was wrong. After this work item each
+  block of the reading in the summary's request is labelled with the frame's
+  exact file name, and a retry after a refused answer says which names do
+  not exist and that names are copied as written. The check of the frames
+  named stays as it is: a name that does not exist is never let through.
+
+  While a stage runs, the page shows its time going up (today it shows 0 s
+  until the stage ends).
+
+  Built by a construction-role agent, gated by the criterion; one
+  independent review through INGOL's mailbox. The owner's own run of his
+  meeting, after the merge, is his use of the application, not this work
+  item's evidence; synthetic tests only.
+
+  Not done: R04, R06 and the second batch; WI23 (the allowed list of
+  fields); naming the speakers of a transcript that has none.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M495140RMJM90PFDGBN7XZMF/**
+  - docs/evidence/01M495140RMJM90PFDGBN7XZMF/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI24-AC01
+    description: >
+      A synthetic transcript in the owner's shape (a title line, then time
+      alone on a line and the words after it, in a .docx with line breaks
+      and in a .txt) is read by both readers into the same blocks, with no
+      speaker; times of M:SS and H:MM:SS; every existing transcript test
+      passes unchanged; the summary of such a meeting is written (Gemini
+      faked) and its request has the turns with no speaker.
+  - id: WI24-AC02
+    description: >
+      The register of questions and answers, given a transcript with no
+      speaker, stops before any request is sent, saying why, in both
+      languages.
+  - id: WI24-AC03
+    description: >
+      The summary's request labels every block of the reading with its
+      frame's exact file name (shown on a reading of 141 frames); a first
+      answer naming a frame that does not exist makes the retry's request
+      say which names do not exist; with Gemini faked, a second answer that
+      names only real frames is accepted, and one that does not is still
+      refused.
+  - id: WI24-AC04
+    description: >
+      While a stage runs, the job's page reports its seconds going up; when
+      it ends, its final seconds.
+  - id: WI24-AC05
+    description: >
+      Mutations (the time-only rule removed; the two readers apart again;
+      the blocks labelled by number only; the retry without what was wrong;
+      the running stage's time frozen at 0) each make a test fail; the
+      script and its output in the evidence. An independent review through
+      INGOL's mailbox before the pull request; the whole suite passes in a
+      fresh clone of the tested commit with INGOL's kits, its output
+      committed under docs/evidence/01M495140RMJM90PFDGBN7XZMF/; tests
+      changed are named with why; the register gets the known limitations,
+      each reproduced.
