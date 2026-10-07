@@ -168,12 +168,14 @@ TEXTS = {
     "report.cannot_open": "la plantilla {name} no se puede abrir: fijate que sea un archivo de Word[[: {detail}]]",
     "report.macros": "la plantilla {name} lleva macros; guardala en Word como .docx o .dotx",
     "report.active": "la plantilla {name} tiene contenido que Word cargaría o ejecutaría desde afuera al abrir un "
-                     "informe, y cada informe se lo llevaría al cliente:\n  {items}\nSacalo en Word y guardá la "
-                     "plantilla de nuevo (adjuntá la plantilla Normal, insertá las imágenes en vez de vincularlas, "
-                     "borrá los campos vinculados y los objetos incrustados).",
+                     "informe, o un campo que una plantilla no puede tener, y cada informe se lo llevaría al "
+                     "cliente:\n  {items}\nSacalo en Word y guardá la plantilla de nuevo (adjuntá la plantilla "
+                     "Normal, insertá las imágenes en vez de vincularlas, borrá los campos vinculados y los objetos "
+                     "incrustados). Los únicos campos que una plantilla puede tener son {allowed}.",
     "report.active_in_report": "no se escribió el informe: llevaría contenido que Word cargaría o ejecutaría desde "
-                               "afuera cuando el cliente lo abra:\n  {items}\nHay que corregir la plantilla que "
-                               "lo dio.",
+                               "afuera cuando el cliente lo abra, o un campo que una plantilla no puede tener:\n"
+                               "  {items}\nHay que corregir la plantilla que lo dio. Los únicos campos que una "
+                               "plantilla puede tener son {allowed}.",
     "report.not_a_document": "la plantilla {name} no se puede abrir como documento de Word[[: {detail}]]",
     "report.template_unusable": "la plantilla {name} no se puede usar: {error}",
     "report.problem.range": "línea {line}: un rango de imágenes; nombrá cada imagen por separado: {text}",

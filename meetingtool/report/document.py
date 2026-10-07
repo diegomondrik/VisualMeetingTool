@@ -56,10 +56,15 @@ ACTIVE_RELATIONSHIPS = frozenset({"attachedTemplate", "oleObject", "package", "c
                                   "activeXControlBinary", "vbaProject", "wordVbaData", "aFChunk", "subDocument",
                                   "frame"})
 _ACTIVE_RELATIONSHIPS = {kind.lower() for kind in ACTIVE_RELATIONSHIPS}
-# The fields that pull content from outside the document or run it (a list of what is refused, not of what is
-# allowed: see WI22-P3-5 of the limitations register).
-ACTIVE_FIELDS = re.compile(r"\b(DDEAUTO|DDE|INCLUDETEXT|INCLUDEPICTURE|INCLUDE|IMPORT|LINK|DATABASE|RD)\b",
-                           re.IGNORECASE)
+# The only fields a template may hold (WI23): the page, the section, the table of contents and the references
+# inside the document, the date and the document's properties, a condition, a sequence and the formula (=). Every
+# other field is refused, so a field that brings outside content and that no list knew of cannot pass (WI22-P3-5
+# of the limitations register). Compared in upper case.
+ALLOWED_FIELDS = frozenset({"PAGE", "NUMPAGES", "SECTIONPAGES", "SECTION", "TOC", "PAGEREF", "REF", "NOTEREF",
+                            "STYLEREF", "HYPERLINK", "DATE", "TIME", "CREATEDATE", "SAVEDATE", "PRINTDATE",
+                            "DOCPROPERTY", "TITLE", "SUBJECT", "AUTHOR", "IF", "SEQ", "="})
+# The longest name of a refused field that a message says: what comes from the file is not given whole.
+NAME_SHOWN = 40
 # Where a hyperlink may go: a web page, a mail address, or a place in the same document.
 HYPERLINK_ALLOWED = re.compile(r"\s*(?:(?:https?|mailto):|#)", re.IGNORECASE)
 # The switches of a HYPERLINK field that take the next word as their argument.
@@ -240,10 +245,10 @@ def active_content(parts):
     document opens, one message each: an external relationship other than a
     hyperlink (an attached template, which may be a .dotm with macros; a
     linked picture), a relationship to an embedded object, control or macro
-    project, a field that pulls or runs outside content (DDE, INCLUDE...; only
-    the field's name is compared, as written out in the file) or whose name
-    another field builds, and a hyperlink to anything but a web page, a mail
-    address or a place in the document. Every XML part is read as XML, with its namespaces, so the same
+    project, a field that is not one of ALLOWED_FIELDS (only the field's name is
+    compared, as written out in the file) or whose name another field builds,
+    and a hyperlink to anything but a web page, a mail address or a place in
+    the document. Every XML part is read as XML, with its namespaces, so the same
     instruction written in any equivalent way (a character reference, single
     quotes, another prefix, CDATA, a comment in the middle) is read alike;
     one that cannot be read is said, naming the part, since what it holds is
@@ -272,9 +277,14 @@ def active_content(parts):
         for field in field_instructions(root):
             unnamed = unnamed or field.unnamed
             word = re.match(r"\w+", field.name)
-            word = word.group().upper() if word else ""
-            if ACTIVE_FIELDS.fullmatch(word):
-                names.add(word)
+            # A name that does not start with a word (a quote, a dash) is judged as written, not as no name.
+            word = word.group() if word else field.name.strip()
+            # Upper-cased only when ASCII: "ſEQ" is not SEQ, though Python's upper() would make it so.
+            word = word.upper() if word.isascii() else word
+            if not word:  # nothing written, or the text no field holds: there is no name to judge
+                continue
+            if word not in ALLOWED_FIELDS:
+                names.add(word[:NAME_SHOWN])
             elif word == "HYPERLINK" and not field.unnamed:
                 destination, anchor = hyperlink_destination(field)
                 if destination is None and field.nested and not anchor:
@@ -311,7 +321,8 @@ def template_bytes(path):
         raise ReportError("report.macros", name=path.name)
     active = active_content(parts)
     if active:
-        raise ReportError("report.active", name=path.name, items=texts.Joined(active, "\n  "))
+        raise ReportError("report.active", name=path.name, items=texts.Joined(active, "\n  "),
+                          allowed=", ".join(sorted(ALLOWED_FIELDS)))
     if TEMPLATE_TYPE in types:
         buffer = io.BytesIO()
         with zipfile.ZipFile(buffer, "w", zipfile.ZIP_DEFLATED) as archive:
@@ -595,8 +606,8 @@ def _body_images(document):
 
 def check_active_content(path):
     """ReportError unless the package at path is free of what a template is
-    refused for (macros, content loaded or run from outside, a field that
-    pulls it, a part that is not readable XML). A template is checked when it
+    refused for (macros, content loaded or run from outside, a field that is
+    not an allowed one, a part that is not readable XML). A template is checked when it
     is set, but a report is what the client opens, so it is checked again,
     read as it is written now, and not delivered if it fails."""
     with zipfile.ZipFile(path) as archive:
@@ -604,7 +615,8 @@ def check_active_content(path):
     found = [texts.Message("report.active.macros")] if carries_macros(parts) else []
     found += active_content(parts)
     if found:
-        raise ReportError("report.active_in_report", items=texts.Joined(found, "\n  "))
+        raise ReportError("report.active_in_report", items=texts.Joined(found, "\n  "),
+                          allowed=", ".join(sorted(ALLOWED_FIELDS)))
 
 
 def check_report(path, headings, cover_images, frames, *, start=0, contents=()):

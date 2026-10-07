@@ -163,12 +163,14 @@ TEXTS = {
     "report.cannot_open": "the template {name} cannot be opened[[: {detail}]]",
     "report.macros": "the template {name} carries macros; save it in Word as .docx or .dotx",
     "report.active": "the template {name} has content that Word would load or run from outside it when a report is "
-                     "opened, and every report would carry it to the client:\n  {items}\nRemove it in Word and save "
-                     "the template again (attach the Normal template, embed pictures instead of linking them, delete "
-                     "linked fields and embedded objects).",
+                     "opened, or a field a template may not hold, and every report would carry it to the client:\n"
+                     "  {items}\nRemove it in Word and save the template again (attach the Normal template, embed "
+                     "pictures instead of linking them, delete linked fields and embedded objects). The only fields "
+                     "a template may hold are {allowed}.",
     "report.active_in_report": "the report was not written: it would carry content that Word would load or run from "
-                               "outside it when the client opens it:\n  {items}\nThe template that gave it "
-                               "must be corrected.",
+                               "outside it when the client opens it, or a field a template may not hold:\n  {items}\n"
+                               "The template that gave it must be corrected. The only fields a template may hold are "
+                               "{allowed}.",
     "report.not_a_document": "the template {name} cannot be opened as a Word document[[: {detail}]]",
     "report.template_unusable": "the template {name} cannot be used: {error}",
     "report.problem.range": "line {line}: a range of frames; name each frame on its own: {text}",
