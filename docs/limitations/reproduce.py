@@ -1146,6 +1146,28 @@ def wi23_p3_2(args, root):
         f"an alternative with PAGE in its Choice and a whole ADDIN field in its Fallback: {said}")
 
 
+@entry("WI23-P3-3")
+def wi23_p3_3(args, root):
+    from meetingtool.report import document
+    from tests import test_markup_compatibility as compat
+    from tests import test_template_filter as forms
+    # The begin is in a branch of an alternative; the instruction, outside, is loose text joined with the one
+    # before it, so only its first word (an allowed one) is read.
+    arranged = (compat.alternate(forms.mark(b"begin"), forms.run(b"<w:t>y</w:t>"))
+                + forms.paragraph(forms.instruction(b" PAGE "), forms.instruction(b" ADDIN x "), forms.mark(b"end")))
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", arranged)})
+        accepted, said = _wi22_accepted(path, tmp)
+        try:
+            document.check_active_content(path)
+            checked = True
+        except document.ReportError:
+            checked = False
+    return accepted and checked, (
+        f"a field whose begin is in a branch of an alternative and whose instruction is outside, an ADDIN field with "
+        f"no address: the template is {said}; the report's last check lets it through: {checked}")
+
+
 def _wi24_timed(tmp):
     """A transcript in the shape of the first real meeting, made up: a title, then each time alone on
     its line and the words after it."""
