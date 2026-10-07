@@ -1,0 +1,25 @@
+schema_version: "1"
+work_item: 01M48RAZZ5MGGHYTJNYR2VQP0Z
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M48RAZZ5MGGHYTJNYR2VQP0Z-allowed-fields
+steps:
+  - every-allowed-field-accepted-wi23-ac01
+  - every-other-field-refused-naming-it-wi23-ac02
+  - mutations-wi23-ac03
+  - review-suite-register-wi23-ac04
+evaluations:
+  - criterion: WI23-AC01
+    method: deterministic
+    control: one test per allowed field, simple and complex; the application's report, the example template and a template in the owner's shape.
+  - criterion: WI23-AC02
+    method: adversarial
+    control: every refused field in the forms of WI22-AC02, at the template and at the report's last check.
+  - criterion: WI23-AC03
+    method: adversarial
+    control: docs/evidence/01M48RAZZ5MGGHYTJNYR2VQP0Z/mutations.py and mutations.txt.
+  - criterion: WI23-AC04
+    method: deterministic
+    control: the review's transcription, local-test-run.txt, reproduce.py.
