@@ -1399,6 +1399,19 @@ def wi26_p3_1(args, root):
     return read != said, f"a file saved in cp850 (no mark, not UTF-8) is read as cp1252: {said!r} reads {read!r}"
 
 
+@entry("WI26-P3-2")
+def wi26_p3_2(args, root):
+    with workspace() as tmp:
+        path = tmp / "utf32.txt"
+        path.write_bytes("[00:00:04] Hola, ¿cómo están?\n".encode("utf-32"))
+        try:
+            transcript_module.read_turns(path)
+            said = "read"
+        except transcript_module.TranscriptError as error:
+            said = error.message.key
+    return said == "transcript.no_timed_line", f"a transcript saved as UTF-32: {said}"
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))

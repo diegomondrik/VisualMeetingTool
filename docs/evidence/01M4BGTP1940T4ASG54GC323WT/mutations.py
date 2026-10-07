@@ -23,7 +23,12 @@ TESTS = ["tests.test_transcript_encodings", "tests.test_frames.TranscriptTest"]
 MUTATIONS = [
     ("the byte order mark kept: a UTF-8 file with a mark is read as plain UTF-8, U+FEFF before its first line",
      [(TRANSCRIPT, r"""        return data[len(codecs.BOM_UTF8):].decode("utf-8")""",
-       r"""        return data.decode("utf-8")""")]),
+       r"""        return data.decode("utf-8")"""),
+      (TRANSCRIPT, r"""        return _decode(Path(path).read_bytes()).lstrip("\ufeff").splitlines()""",
+       r"""        return _decode(Path(path).read_bytes()).splitlines()""")]),
+    ("a second mark kept: a file saved with its mark twice keeps U+FEFF before its first line (review P3-1)",
+     [(TRANSCRIPT, r"""        return _decode(Path(path).read_bytes()).lstrip("\ufeff").splitlines()""",
+       r"""        return _decode(Path(path).read_bytes()).splitlines()""")]),
     ("UTF-16 not detected: a file with a UTF-16 mark goes through the UTF-8 and cp1252 readings",
      [(TRANSCRIPT, r"""    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):""", r"""    if False:""")]),
     ("no cp1252 fallback: a file that is not valid UTF-8 is refused",

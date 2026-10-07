@@ -96,7 +96,9 @@ def _decode(data):
 
 def _text_lines(path):
     try:
-        return _decode(Path(path).read_bytes()).splitlines()
+        # A second mark (a file saved with its mark twice) would stay before the first line and hide it
+        # (WI26's review, P3-1).
+        return _decode(Path(path).read_bytes()).lstrip("\ufeff").splitlines()
     except (OSError, UnicodeDecodeError) as error:
         raise TranscriptError("transcript.unreadable", path=str(path), detail=texts.External(str(error))) from error
 

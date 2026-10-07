@@ -64,6 +64,15 @@ class TextEncodingsTest(unittest.TestCase):
                 self.assertEqual(transcript.read_turns(path)[0], turns[0])
                 self.assertFalse(transcript.read_text(path).startswith("﻿"))
 
+    def test_a_mark_written_twice_does_not_hide_the_first_turn(self):
+        """WI26's review, P3-1: a file saved with its mark twice."""
+        text, turns = SHAPES["[HH:MM:SS]"]
+        for name, data in {"UTF-8, two marks": codecs.BOM_UTF8 * 2 + text.encode("utf-8"),
+                           "UTF-16 LE, a mark inside": codecs.BOM_UTF16_LE + ("\ufeff" + text).encode("utf-16-le"),
+                           }.items():
+            with self.subTest(file=name):
+                self.assertEqual(transcript.read_turns(self.save(data)), turns)
+
     def test_a_transcript_with_one_timed_line_and_a_mark_is_read_not_refused(self):
         one = {"Teams, with names": ("Ana Pérez   0:04\nHola, ¿cómo están?\n", [(4, "Ana Pérez", "Hola, ¿cómo están?")]),
                "[HH:MM:SS]": ("[00:00:04] Hola, ¿cómo están?\n", [(4, "", "Hola, ¿cómo están?")]),
