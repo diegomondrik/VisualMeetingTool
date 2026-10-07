@@ -194,6 +194,7 @@ _DATES = (
     (re.compile(rf"\b({_YEAR})-(\d{{1,2}})-(\d{{1,2}})\b"), lambda m: (m.group(3), m.group(2), m.group(1))),
     (re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})\b"),
      lambda m: (m.group(1), m.group(2), m.group(3) if len(m.group(3)) == 4 else "20" + m.group(3))),
+    (re.compile(rf"\b(\d{{1,2}})([.-])(\d{{1,2}})\2({_YEAR})\b"), lambda m: (m.group(1), m.group(3), m.group(4))),
     (re.compile(r"\b(?:el|al|del|hasta el|desde el|para el|antes del|después del|on|by|until|before|after|from)"
                 r"\s+(\d{1,2})/(\d{1,2})\b"), lambda m: (m.group(1), m.group(2), None)),
     (re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th|º|°)?\s+(?:de\s+|of\s+)?({_MONTH_AFTER_DAY})\b{_YEAR_AFTER}"),
@@ -299,7 +300,12 @@ def written_years(text):
 
 # A number as a figure writes it: with thousands separators (48.000, 48,000, 48 000) or decimals (1,5, 1.5). Not one
 # inside a code ("A12", "T3"); a unit may follow it ("10kg").
-_NUMBERS = re.compile(r"(?<![\w.,])(\d{1,3}(?:[ \xa0]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*)(?!\d)")
+_NUMBER = r"(?<![\w.,])(\d{1,3}(?:[ \xa0]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*)(?!\d)"
+_NUMBERS = re.compile(_NUMBER)
+# A number said with its scale ("48 mil", "1,5 millones", "3 million", "48k"): the figure written out is its
+# value multiplied (WI25).
+SCALES = {"mil": 1000, "thousand": 1000, "k": 1000, "millon": 10 ** 6, "millones": 10 ** 6, "million": 10 ** 6}
+_SCALED = re.compile(_NUMBER + r"[ \xa0]?(mil|thousand|k|mill[oó]n(?:es)?|million)\b")
 _TIMES = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
 
 
@@ -321,6 +327,13 @@ def number(token):
     return Decimal(token)
 
 
+def scaled(text):
+    """[(start, end, value)] of the numbers of `text` (lower case) said with
+    their scale ("48 mil" is 48000)."""
+    return [(match.start(), match.end(), number(match.group(1)) * SCALES[match.group(2).replace("ó", "o")])
+            for match in _SCALED.finditer(text)]
+
+
 def _values(token):
     """The numbers a token of the transcript may have been said as: itself and,
     when its thousands are spaced ("5 100"), also its parts, which may be two
@@ -339,7 +352,10 @@ def figures_in(text, said):
     for start, end, _ in reversed(_dates_in(lowered)):
         lowered = lowered[:start] + " " + lowered[end:]
     lowered = _TIMES.sub(" ", lowered)
-    return [token.group() for token in _NUMBERS.finditer(lowered) if number(token.group()) not in said]
+    # A number written with its scale is the scaled value, whichever way the transcript said it.
+    values = {start: value for start, end, value in scaled(lowered)}
+    return [token.group() for token in _NUMBERS.finditer(lowered)
+            if values.get(token.start(), number(token.group())) not in said]
 
 
 def parse_clock(value):
@@ -416,8 +432,9 @@ class Transcript:
             day = datetime.date.fromisoformat(date)
             dates.add((day.day, day.month))
             years.add(day.year)
-        clockless = _TIMES.sub(" ", spoken)
+        clockless = _TIMES.sub(" ", spoken.casefold())
         figures = {value for token in _NUMBERS.finditer(clockless) for value in _values(token.group())}
+        figures |= {value for _, _, value in scaled(clockless)}
         return cls(words, speakers, max(start for start, _, _ in turns), frozenset(dates), frozenset(years),
                    frozenset(figures))
 
@@ -487,6 +504,11 @@ def _check_text(text, where, transcript):
     if invented:
         dates = ", ".join("/".join(str(part) for part in date if part) for date in invented)
         raise QAError("qa.invented_date", where=where, dates=dates)
+    # A year written however it is written ("del año 2030", "Q3 de 2030", "(2030)") is a year, with or without a
+    # date next to it (WI25's review).
+    years = sorted(written_years(text) - transcript.years)
+    if years:
+        raise QAError("qa.invented_year", where=where, years=", ".join(str(year) for year in years))
 
 
 def _check_language(text, what, language):

@@ -36,3 +36,17 @@ The messages `summary.empty_sections` and `qa.invented_figure` are new in both l
 holds in this repository's copy; it reports `TrazabilidadDelRegistro` as one that is not WI20's (WI25 added it, and
 `docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/compare_pilot_tests.py` checks it against INGOL's). WI20's script was not
 changed: it is that work item's evidence.
+
+## After the independent review of `d19f8a6` (P2-1, P2-2, P3-a)
+
+The review asked for a year to be refused whichever way it is written ("del año 2030", "(2030)", "Q3 de 2030"), a
+figure said with its scale ("48 mil", "3 millones") to match the figure written in digits, and the retry of a summary
+refused for several reasons to name them all. `written_years` is now also applied to every text of the register
+(`qa.invented_year`, a new message in both languages), `25-09-2030` and `25.09.2030` are dates, `qa.scaled` reads the
+scales, and `writer.check_summary` keeps the reasons it did not raise first (`error.others`) for `writer.revise`, which
+puts them in one note (`writer.retry_note`; `RETRY_NOTE_CHARS` is 2000 now, to hold three reasons at their longest).
+
+No test that existed before changed in this round: every one passes as it was, including those that pin the notes of
+one reason (`FrameLabelsTest`, `EmptySectionTest`), whose sentences `retry_note` writes the same for a single reason.
+The new tests are `SeveralReasonsTest` (in `tests/test_summary.py`) and `YearsAnywhereAndScalesTest` (in
+`tests/test_qa.py`).

@@ -917,5 +917,95 @@ class YearsAndFiguresTest(Workspace):
                 self.assertIsNone(refusal)
 
 
+class YearsAnywhereAndScalesTest(Workspace):
+    """WI25's review: a year is a year whichever way it is written (P2-1), and a figure said with its scale
+    ("48 mil") is the figure written out (P2-2)."""
+
+    said = YearsAndFiguresTest.said
+    run_register = YearsAndFiguresTest.run_register
+    cause = YearsAndFiguresTest.cause
+    figures = YearsAndFiguresTest.figures
+
+    def test_a_year_nobody_said_is_refused_whichever_way_it_is_written(self):
+        for value, shown in (("del año 2030", "year the transcript does not say (2030)"),
+                             ("para (2030)", "year the transcript does not say (2030)"),
+                             ("el 25 de Sept. de 2030", "year the transcript does not say (2030)"),
+                             ("Sept. 25, 2030", "year the transcript does not say (2030)"),
+                             ("el 25 sep 2030", "year the transcript does not say (2030)"),
+                             ("en septiembre de 2030", "year the transcript does not say (2030)"),
+                             ("para 2030", "year the transcript does not say (2030)"),
+                             ("en el Q3 de 2030", "year the transcript does not say (2030)"),
+                             ("el 25-09-2030", "date the transcript does not say (25/9/2030)"),
+                             ("el 25.09.2030", "date the transcript does not say (25/9/2030)"),
+                             ("el 25 de septiembre de 2030", "date the transcript does not say (25/9/2030)")):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value), date="2026-09-25")
+                self.assertIn(f"question 2 writes a {shown}", str(refusal))
+
+    def test_a_year_is_refused_in_every_place_text_is_written(self):
+        year = "para el año 2030"
+        for data in (changed(verbal(), 2, pending=year), changed(verbal(), 2, agreement=year),
+                     changed(verbal(), 2, answers=[{"speaker": "Juan Gómez", "text": f"Se manda {year}."}]),
+                     changed(verbal(), knowledge=dict(REGISTER["knowledge"], scope=[f"Se entrega {year}."])),
+                     self.figures("Se procesan 2030 kilos.")):
+            with self.subTest(data=str(data)[-70:]):
+                refusal, _ = self.run_register(data, date="2026-09-25")
+                self.assertIn("writes a year the transcript does not say (2030)", str(refusal))
+
+    def test_a_year_the_transcript_or_the_meeting_says_is_accepted_whichever_way_it_is_written(self):
+        transcript = self.said("Son 2030 cajas.")
+        for value in ("del año 2030", "(2030)", "Sept. 25, 2030", "el 25 sep 2030", "en septiembre de 2030",
+                      "para 2030", "en el Q3 de 2030", "el 25-09-2030", "el 25.09.2030"):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value), transcript, date="2026-09-25")
+                self.assertIsNone(refusal)
+        for value in ("del año 2026", "para 2026", "el 25-09-2026", "el 25.09.2026", "en el Q3 de 2026"):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value), date="2026-09-25")
+                self.assertIsNone(refusal)
+
+    def test_a_quantity_that_is_not_a_year_or_that_the_transcript_says_is_not_refused(self):
+        transcript = self.said("Son 2030 cajas y 1500 kilos.")
+        for entry in ("Hay 2030 cajas.", "Hay 1500 kilos.", "Son 3.500 cajas.", "Son 1.2030 cajas."):
+            with self.subTest(entry=entry):
+                answers = [{"speaker": "Juan Gómez", "text": entry}]
+                refusal, _ = self.run_register(changed(verbal(), 2, answers=answers), transcript, date="2026-09-25")
+                self.assertIsNone(refusal)
+        answers = [{"speaker": "Juan Gómez", "text": "Hay 1500 kilos."}]
+        refusal, _ = self.run_register(changed(verbal(), 2, answers=answers), date="2026-09-25")
+        self.assertIsNone(refusal, "1500 is not a year, and what an answer says about quantities is not checked")
+
+    def test_written_years_are_every_year_whichever_its_writing(self):
+        self.assertEqual(qa.written_years("del año 2030, (2031), Q3 de 2032, 25-09-2033 y 2034."),
+                         {2030, 2031, 2032, 2033, 2034})
+        self.assertEqual(qa.written_years("2.500, 2,40, 1.2030, 12030 y 1850"), set())
+        self.assertEqual(qa.written_dates("25-09-2030 y 25.09.2031 y 25-09-2030"), {(25, 9, 2030), (25, 9, 2031)})
+
+    def test_a_figure_said_with_its_scale_is_the_figure_written_out(self):
+        transcript = self.said("Procesamos 48 mil kilos, con 3 millones de pesos y 1,5 millones de dólares.",
+                               "Son 2 million de unidades y 5k de stock.")
+        for entry in ("Se procesan 48.000 kilos.", "Se procesan 48 mil kilos.", "Son 3.000.000 de pesos.",
+                      "Son 3 millones de pesos.", "Son 1.500.000 dólares.", "Son 1,5 millones de dólares.",
+                      "Son 2.000.000 de unidades.", "Son 2 million de unidades.", "Hay 5.000 de stock.",
+                      "Hay 5k de stock."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript)
+                self.assertIsNone(refusal)
+
+    def test_a_figure_that_is_not_the_scaled_one_is_refused(self):
+        transcript = self.said("Procesamos 48 mil kilos, con 3 millones de pesos y 1,5 millones de dólares.")
+        for entry in ("Se procesan 49.000 kilos.", "Se procesan 49 mil kilos.", "Son 30.000.000 de pesos.",
+                      "Son 3 mil de pesos.", "Son 1.500 dólares.", "Son 15 millones de dólares."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript)
+                self.assertEqual(self.cause(refusal).key, "qa.invented_figure")
+
+    def test_the_scales_are_read_as_numbers(self):
+        spans = qa.scaled("48 mil kilos, 1,5 millones, 3 million, 48k y 5 km y 2 millón")
+        self.assertEqual([value for _, _, value in spans], [48000, 1500000, 3000000, 48000, 2000000])
+        self.assertEqual(qa.figures_in("48.000 y 3.000.000 y 1.500.000 y 48 mil y 7",
+                                       {qa.number("48000"), qa.number("3000000"), qa.number("1500000")}), ["7"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -74,8 +74,10 @@ delivered; when the refusal is a frame that does not exist, the retry says
 which names do not exist and that names are copied exactly as each block of
 the reading labels them. Every section must say something: one with nothing
 under its heading is refused naming it, and the retry says which sections were
-empty; a line saying plainly that there was nothing (no decisions, no screen
-shared) is content.
+empty, and an answer refused for several reasons (an empty section, no key
+point, a frame that does not exist) is retried with all of them named; a line
+saying plainly that there was nothing (no decisions, no screen shared) is
+content.
 
 A transcript may be a Teams `.docx` or a `.txt` in any of three forms:
 `Speaker   M:SS` with the words after it, `[HH:MM:SS] Speaker:`, or, when
@@ -133,11 +135,11 @@ only the frames of its own span read, and what they show is written apart
 from what was said. With no answer on screen, no frame is read, and the
 folder may hold no frames at all. Every answer carries a verbatim fragment,
 speakers, minutes, status and written dates that are checked against the
-transcript: a date written with a year needs that year said in the transcript
-(or be the meeting's own year), and every figure of "figures said" needs to
-have been said, whichever way it is written (48.000, 48,000 and 48000 are the
-same number; the figures of any other place are not checked, so that a sum is
-not refused). A register that fails is asked once more and then not delivered.
+transcript: a date, or any other year, written however it is written needs that year said
+in the transcript (or be the meeting's own year), and every figure of
+"figures said" needs to have been said, whichever way it is written (48.000,
+48,000, 48000 and "48 mil" are the same number; the figures of any other place
+are not checked, so that a sum is not refused). A register that fails is asked once more and then not delivered.
 It is written to `summary.md` (with `qa.json`), and the Word report is built
 from it as from a summary.
 

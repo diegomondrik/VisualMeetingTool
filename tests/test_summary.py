@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from meetingtool import texts
 from meetingtool.frames.transcript import read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
@@ -1065,6 +1066,82 @@ class EmptySectionTest(Workspace):
                     after = writer.revise(payload, error)["contents"][0]["parts"][0]["text"]
                     self.assertLessEqual(len(after) - len(before), writer.RETRY_NOTE_CHARS)
                     self.assertIn(headings[-1], after)
+
+
+class SeveralReasonsTest(Workspace):
+    """WI25's review (P3-a): an answer refused for more than one reason is
+    retried with every reason in one note, not only the first one."""
+
+    MISSING = "frame_999_t09-09-09.jpg"
+
+    def broken(self, empty=True, points=False, frame=True):
+        headings = writer.required_headings("es")
+        text = summary_text("es", empty=headings[2] if empty else None, points=points)
+        if frame:
+            text = text.replace(f"Texto de {headings[6]}.", f"Texto de {headings[6]} [{self.MISSING}].")
+        return text
+
+    def retry_of(self, text):
+        with FakeGemini([returning(text), returning(summary_text())]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        return prompt_of(fake.requests[1]), prompt_of(fake.requests[0])
+
+    def test_the_first_refusal_is_the_one_it_always_was_and_the_others_travel_with_it(self):
+        headings = writer.required_headings("es")
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(self.broken()), headings, "es", frame_names=set())
+        self.assertEqual(caught.exception.message.key, "summary.no_key_points")
+        self.assertEqual([message.key for message in caught.exception.others],
+                         ["summary.empty_sections", "summary.frames_missing"])
+
+    def test_the_retry_names_the_empty_sections_the_missing_key_points_and_the_frames_that_do_not_exist(self):
+        headings = writer.required_headings("es")
+        second, first = self.retry_of(self.broken())
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED, for 3 reasons: ", second)
+        self.assertIn(f"(1) its '{headings[-1]}' section had no bullet point", second)
+        self.assertIn(f"(2) these sections had nothing under their heading: {headings[2]}", second)
+        self.assertIn(f"(3) it named frame(s) that do not exist: {self.MISSING}", second)
+        for advice in ("Write 3 to 8 bullet points", "Every section must have content under its heading",
+                       "Name only frames whose label appears in the material below"):
+            self.assertIn(advice, second)
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""),
+                         first)
+
+    def test_two_reasons_in_any_pair_are_named_and_one_reason_is_named_as_before(self):
+        headings = writer.required_headings("es")
+        cases = [(dict(points=True), "for 2 reasons", (headings[2], self.MISSING)),
+                 (dict(empty=False), "for 2 reasons", (headings[-1], self.MISSING)),
+                 (dict(frame=False), "for 2 reasons", (headings[-1], headings[2])),
+                 (dict(points=True, frame=False), "REFUSED: these sections", (headings[2],))]
+        for options, wanted, named in cases:
+            with self.subTest(options=options):
+                self.forget_paid()
+                second, _ = self.retry_of(self.broken(**options))
+                self.assertIn(wanted, second)
+                for name in named:
+                    self.assertIn(name, second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)])
+
+    def test_two_answers_with_several_reasons_are_refused_with_the_first_one_and_nothing_is_written(self):
+        with FakeGemini([returning(self.broken()), returning(self.broken())]) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertEqual(caught.exception.message.key, "summary.no_key_points")
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_the_note_with_three_reasons_at_their_longest_fits_what_the_budget_reserves(self):
+        for language in ("es", "en"):
+            for meeting_type in (None, *writer.MEETING_TYPES):
+                headings = writer.required_headings(language, meeting_type)
+                messages = [texts.Message("summary.no_key_points", heading=headings[-1]),
+                            texts.Message("summary.empty_sections", headings=", ".join(headings[:-1])),
+                            texts.Message("summary.frames_missing",
+                                          names=", ".join(f"frame_{n:03d}_t01-02-03.jpg" for n in range(100)))]
+                with self.subTest(language=language, meeting_type=meeting_type):
+                    note = writer.retry_note(messages)
+                    self.assertLessEqual(len(note), writer.RETRY_NOTE_CHARS)
+                    self.assertIn(headings[2], note)
 
 
 if __name__ == "__main__":

@@ -1264,7 +1264,7 @@ def _wi25_shown(refusal):
     """What a refusal of the register says: the piece that names the date or the figure."""
     if refusal is None:
         return "accepted"
-    found = re.search(r"writes a (?:date|figure)[^()]*\([^)]*\)", refusal)
+    found = re.search(r"writes a (?:date|figure|year)[^()]*\([^)]*\)", refusal)
     return f"refused ({found.group() if found else refusal[-80:]})"
 
 
@@ -1342,6 +1342,49 @@ def wi25_p3_6(args, root):
     return refusal is not None and "(1,25)" in refusal, (
         f"the transcript says '1,250 kilos' (read as 1250) and the figure is 'Pesa 1,25 kilos': "
         f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-7")
+def wi25_p3_7(args, root):
+    from tests import test_qa
+    answers = [{"speaker": "Juan Gómez", "text": "Se procesan 52.000 kilos por mes."}]
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, [], test_qa.changed(test_qa.verbal(), 2, answers=answers), "2026-09-25")
+    return refusal is None, (
+        f"an answer that says 'Se procesan 52.000 kilos por mes.', which the transcript does not: "
+        f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-8")
+def wi25_p3_8(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, deadline="el 15 de enero de 2027")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Lo mandamos el 15 de enero del 27."], data, "2026-12-10")
+    return refusal is not None and "15/1/2027" in refusal, (
+        f"the transcript says 'el 15 de enero del 27', the deadline is 'el 15 de enero de 2027', a meeting of "
+        f"2026-12-10: {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-9")
+def wi25_p3_9(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), knowledge=dict(test_qa.REGISTER["knowledge"],
+                                                           figures=["Hay 1.000 kilos."]))
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Hay mil kilos."], data, "2026-09-25")
+    return refusal is not None and "(1.000)" in refusal, (
+        f"the transcript says 'Hay mil kilos.' and the figure is 'Hay 1.000 kilos.': {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-10")
+def wi25_p3_10(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, pending="Se mandan 2000 cajas.")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, [], data, "2026-09-25")
+    return refusal is not None and "(2000)" in refusal, (
+        f"a pending item 'Se mandan 2000 cajas.' over a transcript that says no 2000: {_wi25_shown(refusal)}")
 
 
 # --- Running ---------------------------------------------------------------------------------

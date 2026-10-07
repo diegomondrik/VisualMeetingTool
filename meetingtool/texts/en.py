@@ -99,6 +99,7 @@ TEXTS = {
     "qa.not_text": "{where}: '{key}' is not text",
     "qa.mentions_frame": "{where} mentions a frame",
     "qa.invented_date": "{where} writes a date the transcript does not say ({dates})",
+    "qa.invented_year": "{where} writes a year the transcript does not say ({years})",
     "qa.invented_figure": "{where} writes a figure nobody said in the meeting ({figures})",
     "qa.question_not_object": "{where} is not a JSON object",
     "qa.no_question": "{where} has no question",

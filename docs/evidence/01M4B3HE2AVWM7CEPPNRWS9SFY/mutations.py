@@ -18,20 +18,21 @@ from pathlib import Path
 
 WRITER = "meetingtool/summary/writer.py"
 QA = "meetingtool/summary/qa.py"
-TESTS = ["tests.test_summary.EmptySectionTest", "tests.test_qa.YearsAndFiguresTest", "tests.test_qa.DatesTest",
+TESTS = ["tests.test_summary.EmptySectionTest", "tests.test_summary.SeveralReasonsTest",
+         "tests.test_qa.YearsAndFiguresTest", "tests.test_qa.YearsAnywhereAndScalesTest", "tests.test_qa.DatesTest",
          "tests.test_d1_r04_resumen"]
 
 # (label, [(file, old, new)]); each `old` has to be found exactly once.
 MUTATIONS = [
     ("empty sections accepted: the check of the empty sections off",
      [(WRITER, r"""    if empty:
-        raise SummaryError("summary.empty_sections""", r"""    if False:
-        raise SummaryError("summary.empty_sections""")]),
+        problems.append(""", r"""    if False:
+        problems.append(""")]),
     ("empty sections accepted: a rule, an empty bullet or a table's rule counted as content",
      [(WRITER, r"""_CONTENT = re.compile(r"[^\W_]")""", r"""_CONTENT = re.compile(r"\S")""")]),
     ("the refusal names only the first of the empty sections",
-     [(WRITER, r"""        raise SummaryError("summary.empty_sections", headings=", ".join(empty))""",
-       r"""        raise SummaryError("summary.empty_sections", headings=empty[0])""")]),
+     [(WRITER, r"""texts.Message("summary.empty_sections", headings=", ".join(empty))""",
+       r"""texts.Message("summary.empty_sections", headings=empty[0])""")]),
     ("an empty section's end taken at any heading: the content under its subsections is not its content",
      [(WRITER, r"""re.finditer(rf"^#{{1,{level}}}\s", body, re.MULTILINE)""", r"""re.finditer(r"^#{1,4}\s", body, re.MULTILINE)""")]),
     ("an empty section's end not taken at the next required heading: a deeper heading after it runs it on",
@@ -39,8 +40,7 @@ MUTATIONS = [
 """, r"""        if False:
 """)]),
     ("the retry without the empty sections: it sends the same request, as for any other refusal",
-     [(WRITER, r"""NOTES = {"summary.frames_missing": (FRAMES_NOTE, "names"), "summary.empty_sections": (EMPTY_NOTE, "headings")}""",
-       r"""NOTES = {"summary.frames_missing": (FRAMES_NOTE, "names")}""")]),
+     [(WRITER, r"""    "summary.empty_sections": (""", r"""    "summary.empty_sections_not_told": (""")]),
     ("the request does not tell Gemini that every section has content or says there was none",
      [(WRITER, r"""    lines += ["", EMPTY_RULE]
 """, "")]),
@@ -62,9 +62,21 @@ MUTATIONS = [
     ("figures compared as text, not as numbers",
      [(QA, r"""        figures = {value for token in _NUMBERS.finditer(clockless) for value in _values(token.group())}""",
        r"""        figures = {token.group() for token in _NUMBERS.finditer(clockless)}"""),
-      (QA, r"""if number(token.group()) not in said]""", r"""if token.group() not in said]""")]),
+      (QA, r"""if values.get(token.start(), number(token.group())) not in said]""", r"""if token.group() not in said]""")]),
     ("figures compared as numbers, a single separator with three digits read as a decimal point",
      [(QA, r"""    elif len(marks) > 1 or re.fullmatch(r"[1-9]\d{0,2}[.,]\d{3}", token):""", r"""    elif len(marks) > 1:""")]),
+    ("the year on its own off: only the years written in a date are checked",
+     [(QA, r"""    years = sorted(written_years(text) - transcript.years)""", r"""    years = []""")]),
+    ("the scale said with a number not read in the transcript: 48 mil is only 48",
+     [(QA, r"""        figures |= {value for _, _, value in scaled(clockless)}
+""", "")]),
+    ("the scale written with a number not read in the figure: 48 mil is only 48",
+     [(QA, r"""    values = {start: value for start, end, value in scaled(lowered)}""", r"""    values = {}""")]),
+    ("the retry's note with a single reason: only the first refusal is named",
+     [(WRITER, r"""for message in (error.message, *getattr(error, "others", ())) if getattr(message, "key", "") in REASONS]""",
+       r"""for message in (error.message,) if getattr(message, "key", "") in REASONS]""")]),
+    ("the other reasons of the refusal not kept: only the first travels with the error",
+     [(WRITER, r"""        error.others = tuple(problems[1:])""", r"""        error.others = ()""")]),
     ("the dates of a figure's entry looked for as figures",
      [(QA, r"""    for start, end, _ in reversed(_dates_in(lowered)):
         lowered = lowered[:start] + " " + lowered[end:]
