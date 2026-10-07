@@ -174,7 +174,8 @@ address or a place in the document. A template may hold only these Word fields, 
 `NUMPAGES`, `SECTIONPAGES`, `SECTION`, `TOC`, `PAGEREF`, `REF`, `NOTEREF`, `STYLEREF`, `HYPERLINK`, `DATE`, `TIME`,
 `CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `DOCPROPERTY`, `TITLE`, `SUBJECT`, `AUTHOR`, `IF`, `SEQ` and the formula (`=`);
 any other field (`ADDIN`, `FILLIN`, `MERGEFIELD`...) is refused, naming it, and the company's `{placeholders}` are
-not Word fields, so they are not affected.
+not Word fields, so they are not affected. Every branch of a Markup Compatibility alternative (`mc:AlternateContent`) is judged the same way, and one
+that leaves unknown what Word would read is refused, naming the part.
 
 Where the template has a field name in braces, in its body, header or
 footer, the report puts that meeting's data with the template's format:

@@ -18,7 +18,8 @@ import sys
 from pathlib import Path
 
 DOCUMENT = "meetingtool/report/document.py"
-TESTS = ["tests.test_allowed_fields", "tests.test_template_filter", "tests.test_d1_r02_plantilla"]
+TESTS = ["tests.test_allowed_fields", "tests.test_markup_compatibility", "tests.test_template_filter",
+         "tests.test_d1_r02_plantilla"]
 
 # (label, [(file, old, new)]); each `old` has to be found exactly once.
 MUTATIONS = [
@@ -53,6 +54,29 @@ MUTATIONS = [
      [(DOCUMENT, r'''                fields.append(_closed(open_fields.pop()))''',
        r'''                closed = _closed(open_fields.pop())
                 fields.extend([] if open_fields else [closed])''')]),
+    # The independent review of 6e33e4c (P1): Markup Compatibility.
+    ("the branches of an mc:AlternateContent read as one stream, as before the review (a Choice and a Fallback "
+     "joined into one instruction)",
+     [(DOCUMENT, r'''        if _is_branch(element) or _namespace(element) in names:''',
+       r'''        if _namespace(element) in names:''')]),
+    ("an element of an ignorable namespace read as one stream with the rest, as before the review",
+     [(DOCUMENT, r'''        if _is_branch(element) or _namespace(element) in names:''',
+       r'''        if _is_branch(element):''')]),
+    ("the ignorable namespaces not read (mc:Ignorable names none)",
+     [(DOCUMENT, r'''        names = ignorable[-1] | _named_namespaces(element, "Ignorable", scopes)[0] if element in scopes else ignorable[-1]''',
+       r'''        names = ignorable[-1]''')]),
+    ("the Markup Compatibility that leaves unknown what Word reads accepted",
+     [(DOCUMENT, r'''        for key, what in compatibility_problems(root, scopes):''', r'''        for key, what in []:''')]),
+    ("an mc:AlternateContent that is not formed as it is defined accepted",
+     [(DOCUMENT, r'''            elif local == "AlternateContent":
+                branches.update(id(child) for child in element)
+                if "Choice" not in children''', r'''            elif local == "AlternateContent":
+                branches.update(id(child) for child in element)
+                if False and "Choice" not in children''')]),
+    ("the prefixes that mc:Ignorable and mc:Requires name not checked against the declarations",
+     [(DOCUMENT, r'''                problems.update(("report.active.compat_prefix", prefix) for prefix in lost)''', r'''                problems.update([])'''),
+      (DOCUMENT, r'''                problems.update(("report.active.compat_prefix", prefix) for prefix in required if prefix not in scope)''',
+       r'''                problems.update([])''')]),
     ("the report not checked again before it is delivered",
      [(DOCUMENT, r'''    check_active_content(path)
     document = docx.Document(str(path))''', r'''    document = docx.Document(str(path))''')]),

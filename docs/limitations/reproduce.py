@@ -1133,6 +1133,19 @@ def wi22_p3_7(args, root):
         f"a customXml part in Shift_JIS: {said}")
 
 
+@entry("WI23-P3-2")
+def wi23_p3_2(args, root):
+    from tests import test_markup_compatibility as compat
+    from tests import test_template_filter as forms
+    # Word reads one branch: with the Choice's namespace understood, only PAGE; the filter reads both.
+    inside = compat.alternate(forms.complex_field(b" PAGE "), forms.complex_field(b" ADDIN x "))
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", inside)})
+        accepted, said = _wi22_accepted(path, tmp)
+    return not accepted and "a ADDIN field" in said, (
+        f"an alternative with PAGE in its Choice and a whole ADDIN field in its Fallback: {said}")
+
+
 def _wi24_timed(tmp):
     """A transcript in the shape of the first real meeting, made up: a title, then each time alone on
     its line and the words after it."""
