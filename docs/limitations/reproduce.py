@@ -916,9 +916,9 @@ def wi20_p3_6(args, root):
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_d1_*"],
                             cwd=REPO, capture_output=True, text=True, env=env, timeout=600)
-    # five files: three need the kits and are skipped; WI21's (R05) and WI22's (R02) need none and run
+    # six files: three need the kits and are skipped; WI21's (R05), WI22's (R02) and WI25's (R04) need none and run
     skipped = re.search(r"OK \(skipped=3\)", result.stderr)
-    return bool(skipped) and "Ran 7 tests" in result.stderr, (
+    return bool(skipped) and "Ran 8 tests" in result.stderr, (
         f"without the kits: {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else '?'}"
         f" ({result.stderr.count('Ran ')} run line)")
 
