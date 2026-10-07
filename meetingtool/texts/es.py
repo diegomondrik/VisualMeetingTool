@@ -78,6 +78,7 @@ TEXTS = {
     "summary.section_count": "el resumen tiene la sección «{heading}» {count} veces, no una",
     "summary.order": "las secciones del resumen no están en el orden pedido",
     "summary.no_key_points": "la sección «{heading}» del resumen no tiene ningún punto",
+    "summary.empty_sections": "el resumen no tiene nada bajo estas secciones: {headings}",
     "summary.not_read": "las imágenes de {folder} todavía no se leyeron: corré python -m meetingtool.reading read "
                         "--frames <carpeta> antes",
     "summary.retired_type": "el tipo de reunión {meeting_type!r} ya no se usa: cubría {covered}; usá {use}",
@@ -101,6 +102,7 @@ TEXTS = {
     "qa.not_text": "{where}: «{key}» no es texto",
     "qa.mentions_frame": "{where} menciona una imagen",
     "qa.invented_date": "{where} escribe una fecha que la transcripción no dice ({dates})",
+    "qa.invented_figure": "{where} escribe una cifra que nadie dijo en la reunión ({figures})",
     "qa.question_not_object": "{where} no es un objeto JSON",
     "qa.no_question": "{where} no tiene la pregunta",
     "qa.bad_status": "{where}: el estado {status!r} no es uno de {options}",
