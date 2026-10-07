@@ -1,0 +1,18 @@
+mutation run for 01M48RAZZ5MGGHYTJNYR2VQP0Z: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_allowed_fields tests.test_template_filter tests.test_d1_r02_plantilla` (no kits, what the CI runs) must fail
+commit: 0f7aa49ab6080cee0d1c764dca191c1f79aed63f (clean working tree)
+- a refused name added to the list: INCLUDETEXT, which WI22 refused: exit 1, Ran 97 tests in 90.338s FAILED (failures=451) -> DETECTED
+- a refused name added to the list: ADDIN, which the owner chose to refuse: exit 1, Ran 97 tests in 103.989s FAILED (failures=168) -> DETECTED
+- an allowed name taken off the list: the formula (=): exit 1, Ran 97 tests in 122.943s FAILED (failures=9, errors=4) -> DETECTED
+- the list check switched off: no field is refused for its name: exit 1, Ran 97 tests in 96.394s FAILED (failures=602) -> DETECTED
+- the list compared against the whole instruction, not the written-out name: refused only when no word of the instruction is on the list: exit 1, Ran 97 tests in 120.005s FAILED (failures=7) -> DETECTED
+- the list compared against the whole instruction, not the written-out name: the whole text must be on the list: exit 1, Ran 97 tests in 115.335s FAILED (failures=537, errors=10) -> DETECTED
+- the text that no field holds, and a field with nothing written, judged for the name they do not have: exit 1, Ran 97 tests in 108.456s FAILED (failures=687, errors=13) -> DETECTED
+- a name that does not start with a word (a quote, a dash) judged as no name: exit 1, Ran 97 tests in 121.688s FAILED (failures=4) -> DETECTED
+- the case kept: a name matched only in upper case: exit 1, Ran 97 tests in 117.868s FAILED (failures=136) -> DETECTED
+- the upper case of a name that is not ASCII (a long s for an S): exit 1, Ran 97 tests in 121.124s FAILED (failures=3) -> DETECTED
+- a field inside another's instruction not judged: only the outermost of each is: exit 1, Ran 97 tests in 121.037s FAILED (failures=5) -> DETECTED
+- the report not checked again before it is delivered: exit 1, Ran 97 tests in 106.620s FAILED (failures=352) -> DETECTED
+- the template not checked when it is set (only the report's last check stands): exit 1, Ran 97 tests in 63.928s FAILED (failures=553, errors=1) -> DETECTED
+- unmutated: exit 0, Ran 97 tests in 122.198s OK
+all mutations detected
