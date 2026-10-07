@@ -1,0 +1,21 @@
+mutation run for 01M4B3HE2AVWM7CEPPNRWS9SFY: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_summary.EmptySectionTest tests.test_qa.YearsAndFiguresTest tests.test_qa.DatesTest tests.test_d1_r04_resumen` (no kits, what the CI runs) must fail
+commit: e94a4ce6487656116dee1355ebf42ba7e2dd59f3 (clean working tree)
+- empty sections accepted: the check of the empty sections off: exit 1, Ran 38 tests in 36.631s FAILED (failures=199, errors=1) -> DETECTED
+- empty sections accepted: a rule, an empty bullet or a table's rule counted as content: exit 1, Ran 38 tests in 36.382s FAILED (failures=9) -> DETECTED
+- the refusal names only the first of the empty sections: exit 1, Ran 38 tests in 36.507s FAILED (failures=3) -> DETECTED
+- an empty section's end taken at any heading: the content under its subsections is not its content: exit 1, Ran 38 tests in 36.472s FAILED (errors=1) -> DETECTED
+- an empty section's end not taken at the next required heading: a deeper heading after it runs it on: exit 1, Ran 38 tests in 36.363s FAILED (failures=1) -> DETECTED
+- the retry without the empty sections: it sends the same request, as for any other refusal: exit 1, Ran 38 tests in 36.406s FAILED (failures=18) -> DETECTED
+- the request does not tell Gemini that every section has content or says there was none: exit 1, Ran 38 tests in 36.337s FAILED (failures=1) -> DETECTED
+- the year dropped again: written_dates keeps day and month only: exit 1, Ran 38 tests in 35.571s FAILED (failures=10, errors=5) -> DETECTED
+- the year not compared: a date with a year is checked by day and month: exit 1, Ran 38 tests in 35.561s FAILED (failures=6, errors=5) -> DETECTED
+- the meeting's year not accepted: only the years the transcript says: exit 1, Ran 38 tests in 36.487s FAILED (failures=8) -> DETECTED
+- the years of the transcript not read: only the meeting's year is accepted: exit 1, Ran 38 tests in 36.400s FAILED (failures=3) -> DETECTED
+- the figures not checked: exit 1, Ran 38 tests in 36.104s FAILED (failures=2, errors=7) -> DETECTED
+- every group checked as figures said: the derived figures of the other places refused: exit 1, Ran 38 tests in 36.326s FAILED (failures=4) -> DETECTED
+- figures compared as text, not as numbers: exit 1, Ran 38 tests in 36.533s FAILED (failures=12) -> DETECTED
+- figures compared as numbers, a single separator with three digits read as a decimal point: exit 1, Ran 38 tests in 36.394s FAILED (failures=8, errors=1) -> DETECTED
+- the dates of a figure's entry looked for as figures: exit 1, Ran 38 tests in 36.243s FAILED (failures=2) -> DETECTED
+- unmutated: exit 0, Ran 38 tests in 36.160s OK
+all mutations detected
