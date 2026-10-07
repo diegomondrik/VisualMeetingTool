@@ -31,8 +31,8 @@ MUTATIONS = [
     ("empty sections accepted: a rule, an empty bullet or a table's rule counted as content",
      [(WRITER, r"""_CONTENT = re.compile(r"[^\W_]")""", r"""_CONTENT = re.compile(r"\S")""")]),
     ("the refusal names only the first of the empty sections",
-     [(WRITER, r"""texts.Message("summary.empty_sections", headings=", ".join(empty))""",
-       r"""texts.Message("summary.empty_sections", headings=empty[0])""")]),
+     [(WRITER, r"""SummaryError("summary.empty_sections", headings=", ".join(empty))""",
+       r"""SummaryError("summary.empty_sections", headings=empty[0])""")]),
     ("an empty section's end taken at any heading: the content under its subsections is not its content",
      [(WRITER, r"""re.finditer(rf"^#{{1,{level}}}\s", body, re.MULTILINE)""", r"""re.finditer(r"^#{1,4}\s", body, re.MULTILINE)""")]),
     ("an empty section's end not taken at the next required heading: a deeper heading after it runs it on",
@@ -76,7 +76,8 @@ MUTATIONS = [
      [(WRITER, r"""for message in (error.message, *getattr(error, "others", ())) if getattr(message, "key", "") in REASONS]""",
        r"""for message in (error.message,) if getattr(message, "key", "") in REASONS]""")]),
     ("the other reasons of the refusal not kept: only the first travels with the error",
-     [(WRITER, r"""        error.others = tuple(problems[1:])""", r"""        error.others = ()""")]),
+     [(WRITER, r"""        problems[0].others = tuple(problem.message for problem in problems[1:])""",
+       r"""        problems[0].others = ()""")]),
     ("the dates of a figure's entry looked for as figures",
      [(QA, r"""    for start, end, _ in reversed(_dates_in(lowered)):
         lowered = lowered[:start] + " " + lowered[end:]

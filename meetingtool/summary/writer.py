@@ -528,20 +528,19 @@ def check_summary(answer, headings, language, frame_names=None):
         raise SummaryError("summary.order")
     problems = []
     if not key_points(text, language):
-        problems.append(texts.Message("summary.no_key_points", heading=KEY_POINTS[language]))
+        problems.append(SummaryError("summary.no_key_points", heading=KEY_POINTS[language]))
     empty = empty_sections(text, headings)
     if empty:
-        problems.append(texts.Message("summary.empty_sections", headings=", ".join(empty)))
+        problems.append(SummaryError("summary.empty_sections", headings=", ".join(empty)))
     if problems:
         # The retry says every reason, not the first (WI25): the frames are looked at too.
         if frame_names is not None:
             try:
                 check_frames(text, frame_names)
             except SummaryError as error:
-                problems.append(error.message)
-        error = SummaryError(problems[0])
-        error.others = tuple(problems[1:])
-        raise error
+                problems.append(error)
+        problems[0].others = tuple(problem.message for problem in problems[1:])
+        raise problems[0]
     check_language(text, headings, language)
     if frame_names is not None:
         check_frames(text, frame_names)
