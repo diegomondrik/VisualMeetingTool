@@ -1,0 +1,25 @@
+schema_version: "1"
+work_item: 01M4B3HE2AVWM7CEPPNRWS9SFY
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M4B3HE2AVWM7CEPPNRWS9SFY-summary-content
+steps:
+  - the-pilot-tests-of-r04-wi25-ac01
+  - no-empty-section-and-a-retry-that-names-it-wi25-ac02
+  - the-registers-years-and-figures-wi25-ac03
+  - mutations-review-suite-register-wi25-ac04
+evaluations:
+  - criterion: WI25-AC01
+    method: deterministic
+    control: AR06ResumenVacio and TrazabilidadDelRegistro, compared with INGOL's by a script.
+  - criterion: WI25-AC02
+    method: adversarial
+    control: each section empty in turn, both languages, a meeting type; the retry's request.
+  - criterion: WI25-AC03
+    method: adversarial
+    control: years and figures in the register, with their controls accepted.
+  - criterion: WI25-AC04
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py.
