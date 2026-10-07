@@ -1,0 +1,11 @@
+mutation run for 01M4CB9FV6XGEYENDJYAEQZWQX: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_summary.FrameListTest` (no kits, what the CI runs) must fail
+commit: 3e0d46c380e41b952610b03d47528feda9ec42c8 (the working tree has uncommitted changes)
+- the rewriting switched off: check_summary does not separate the frames of a list: exit 1, Ran 21 tests in 5.206s FAILED (failures=6, errors=36) -> DETECTED
+- a list split across a range word: "a" and "to" separate two names like "y" does: exit 1, Ran 21 tests in 5.363s FAILED (failures=4) -> DETECTED
+- a list split across a range mark: a hyphen separates two names like a semicolon does: exit 1, Ran 21 tests in 5.334s FAILED (failures=2) -> DETECTED
+- the wrapper lost: backticks or bold round a list are dropped from the pairs: exit 1, Ran 21 tests in 5.404s FAILED (failures=5) -> DETECTED
+- the retry note for a range removed from REASONS: exit 1, Ran 21 tests in 5.393s FAILED (failures=1, errors=6) -> DETECTED
+- the retry note for a frame without its own brackets removed from REASONS: exit 1, Ran 21 tests in 5.469s FAILED (failures=1, errors=8) -> DETECTED
+- unmutated: exit 0, Ran 21 tests in 5.366s OK
+all mutations detected
