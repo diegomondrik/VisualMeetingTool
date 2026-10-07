@@ -161,6 +161,9 @@ TEXTS = {
     "report.active.embedded": "{part}: un {kind} ({target})",
     "report.active.field": "{part}: un campo {field}",
     "report.active.unnamed_field": "{part}: un campo cuyo nombre no está escrito completo en el archivo (lo arma otro campo), así que no se sabe qué es",
+    "report.active.compat_unknown": "{part}: {name}, que no es una parte conocida de Markup Compatibility, así que no se sabe qué leería Word",
+    "report.active.compat_structure": "{part}: {name} no está armado como Markup Compatibility lo define (una lista de alternativas, cada una con los espacios de nombres que requiere, y un solo respaldo al final), así que no se sabe qué leería Word",
+    "report.active.compat_prefix": "{part}: Markup Compatibility nombra {name}, que no es un prefijo declarado en el archivo o es uno que Word entiende, así que no se sabe qué leería Word",
     "report.active.hyperlink": "{part}: un hipervínculo a {target}, que no es una página web (http, https), una dirección de correo ni un lugar del documento",
     "report.active.macros": "un tipo de contenido con macros, o un proyecto de macros",
     "report.macro_extension": "la plantilla {name} puede llevar macros ({suffix}); guardala en Word como .docx o .dotx",
@@ -168,12 +171,14 @@ TEXTS = {
     "report.cannot_open": "la plantilla {name} no se puede abrir: fijate que sea un archivo de Word[[: {detail}]]",
     "report.macros": "la plantilla {name} lleva macros; guardala en Word como .docx o .dotx",
     "report.active": "la plantilla {name} tiene contenido que Word cargaría o ejecutaría desde afuera al abrir un "
-                     "informe, y cada informe se lo llevaría al cliente:\n  {items}\nSacalo en Word y guardá la "
-                     "plantilla de nuevo (adjuntá la plantilla Normal, insertá las imágenes en vez de vincularlas, "
-                     "borrá los campos vinculados y los objetos incrustados).",
+                     "informe, o un campo que una plantilla no puede tener, y cada informe se lo llevaría al "
+                     "cliente:\n  {items}\nSacalo en Word y guardá la plantilla de nuevo (adjuntá la plantilla "
+                     "Normal, insertá las imágenes en vez de vincularlas, borrá los campos vinculados y los objetos "
+                     "incrustados). Los únicos campos que una plantilla puede tener son {allowed}.",
     "report.active_in_report": "no se escribió el informe: llevaría contenido que Word cargaría o ejecutaría desde "
-                               "afuera cuando el cliente lo abra:\n  {items}\nHay que corregir la plantilla que "
-                               "lo dio.",
+                               "afuera cuando el cliente lo abra, o un campo que una plantilla no puede tener:\n"
+                               "  {items}\nHay que corregir la plantilla que lo dio. Los únicos campos que una "
+                               "plantilla puede tener son {allowed}.",
     "report.not_a_document": "la plantilla {name} no se puede abrir como documento de Word[[: {detail}]]",
     "report.template_unusable": "la plantilla {name} no se puede usar: {error}",
     "report.problem.range": "línea {line}: un rango de imágenes; nombrá cada imagen por separado: {text}",

@@ -1,0 +1,85 @@
+schema_version: "1"
+id: 01M48RAZZ5MGGHYTJNYR2VQP0Z
+objective: >
+  WI23. The fields a company's Word template may hold are a short list of
+  allowed ones, and every other field is refused (the security review of
+  WI22, P2; WI22-P3-5 of the limitations register). The owner decided it on
+  2026-10-06: the only Word document that comes from outside the application
+  is the company's template (its cover, design and placeholders); the report
+  itself is written by the application from the meeting, so nobody needs to
+  bring other fields, and no template with macros is expected.
+
+  Today (WI22) the filter refuses the fields on a list of those known to
+  pull or run outside content (DDE, DDEAUTO, INCLUDE, INCLUDETEXT,
+  INCLUDEPICTURE, IMPORT, LINK, DATABASE, RD) and accepts every other one, so
+  a field that brings outside content and is not on the list, or that a
+  later Word adds, passes. After this work item a field's name, written out
+  in the file as WI22 requires, must be one of: PAGE, NUMPAGES,
+  SECTIONPAGES, SECTION, TOC, PAGEREF, REF, NOTEREF, STYLEREF, HYPERLINK,
+  DATE, TIME, CREATEDATE, SAVEDATE, PRINTDATE, DOCPROPERTY, TITLE, SUBJECT,
+  AUTHOR, IF, SEQ, and the formula (=). Any other field is refused, naming
+  it, at the template and at the report's last check. Everything else of
+  WI22 stays: the name written out, the hyperlinks' destinations, macros,
+  relationships, unreadable parts.
+
+  The report the application writes keeps passing its own check (its
+  fields are TOC, PAGEREF and hyperlinks); the owner's current template and
+  the example template are accepted; a template with an uncommon field
+  (ADDIN, FILLIN, MERGEFIELD, ASK, QUOTE) is refused saying which, which is
+  what the owner chose.
+
+  Built by a construction-role agent, gated by the criterion; one review
+  (independent, with a security eye) through INGOL's mailbox. Approved by
+  the owner on 2026-10-06; starts from main (32700a1, after WI24). The
+  owner's own template holds no Word field (checked by name only).
+
+  Not done: R04, R06 and the second batch; the other open WI22 limitations
+  (Word not run, the expanded size, embedded fonts, non-UTF parts).
+
+  Corrected after the independent review of 6e33e4c
+  (docs/evidence/01M48RAZZ5MGGHYTJNYR2VQP0Z/independent-review.md): every
+  branch of Markup Compatibility and every ignorable element is judged on
+  its own, and what cannot be read with certainty is refused naming the part.
+
+  Known limitations (docs/limitations/REGISTER.md): WI23-P3-1, a template
+  with a field outside the list is refused (the owner's decision); WI23-P3-2,
+  every branch is judged, so one Word would not read is judged too; WI23-P3-3,
+  the verification of 13b60ad found that a field whose begin sits inside a
+  branch and whose instruction sits outside it is not judged: it called it
+  P1, and the owner accepted it on 2026-10-07 as a low risk without another
+  pass (the only Word from outside is his own company's template, which he
+  loads; not shown in Word; Word does not update such fields on opening).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M48RAZZ5MGGHYTJNYR2VQP0Z/**
+  - docs/evidence/01M48RAZZ5MGGHYTJNYR2VQP0Z/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI23-AC01
+    description: >
+      Every allowed field is accepted in a template (one test each, in the
+      simple and the complex form) and its report builds; the report the
+      application writes, the example template and a copy of the shape of
+      the owner's template pass.
+  - id: WI23-AC02
+    description: >
+      Fields outside the list are refused naming them, at the template and
+      at the report's last check: every field WI22 refused, plus ADDIN,
+      FILLIN, MERGEFIELD, ASK, QUOTE, AUTOTEXT, EMBED and a made-up name; in
+      the forms of WI22-AC02.
+  - id: WI23-AC03
+    description: >
+      Mutations: a name added to the list, the list check switched off, the
+      list compared without the WI22 rule of the written-out name; each
+      makes a test fail. The script and its output are in the evidence.
+  - id: WI23-AC04
+    description: >
+      An independent review through INGOL's mailbox before the pull request;
+      the whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit with INGOL's kits on the import
+      path, its output committed under
+      docs/evidence/01M48RAZZ5MGGHYTJNYR2VQP0Z/; WI22-P3-5 becomes "fixed"
+      and the register reproduces; tests changed are named with why.

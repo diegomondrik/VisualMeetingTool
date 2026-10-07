@@ -218,10 +218,11 @@ class FieldFormsTest(Workspace):
                          ["word/document.xml: a INCLUDETEXT field"])
 
     def test_a_field_name_inside_a_longer_word_is_not_a_field(self):
-        # HYPERLINK holds LINK, and INCLUDED holds INCLUDE: the name is a whole word, as before.
+        # HYPERLINK holds LINK, and INCLUDED holds INCLUDE: the name is a whole word, as before. With the list of
+        # allowed fields (WI23) INCLUDED is refused as what it is, a name that is not on the list, not as INCLUDE.
         words = complex_field(b' HYPERLINK "https://example.invalid/a" ') + complex_field(b" INCLUDED ")
         path = edit_package(self.clean, self.tmp / "words.docx", insert={"word/document.xml": (b"<w:sectPr", words)})
-        self.assertEqual(document.active_content(package_parts(path)), [])
+        self.assertEqual(document.active_content(package_parts(path)), ["word/document.xml: a INCLUDED field"])
 
     def test_a_name_written_with_an_entity_of_the_parts_own_dtd_is_refused(self):
         parts = dict(self.base)
@@ -294,7 +295,7 @@ ACCEPTED = {
     "HYPERLINK": nested(b' HYPERLINK "https://example.invalid/a" '),
     "a HYPERLINK with LINK in its address": nested(b' HYPERLINK "https://example.invalid/link/x" '),
     "DOCPROPERTY with the word Link": nested(b' DOCPROPERTY "Link" '),
-    "MERGEFIELD with the word Import": nested(b" MERGEFIELD Import "),
+    "REF with the word Import": nested(b" REF Import "),
     "a field with nothing written": paragraph(mark(b"begin"), mark(b"separate"), RESULT, mark(b"end")),
     "an empty instruction": nested(b""),
     "a name followed by a field after a space": nested(b"DOCPROPERTY ", [b" PAGE "]),
@@ -342,7 +343,7 @@ class FieldNameTest(Workspace):
     def test_the_words_around_the_name_are_not_the_name(self):
         # Only the name is compared: LINK in an address, a document property or a data field is not the field.
         for text in (b' HYPERLINK "https://example.invalid/LINK/INCLUDE" ', b' DOCPROPERTY INCLUDETEXT ',
-                     b' MERGEFIELD DDE ', b' IF "LINK" = "RD" "a" "b" '):
+                     b' REF DDE ', b' IF "LINK" = "RD" "a" "b" '):
             with self.subTest(text=text):
                 self.assertEqual(document.active_content(self.parts_with(complex_field(text))), [])
 
@@ -436,7 +437,7 @@ class HyperlinkTest(Workspace):
     def test_a_hyperlink_whose_address_another_field_builds_is_refused(self):
         parts = dict(self.base)
         parts["word/document.xml"] = parts["word/document.xml"].replace(
-            b"<w:sectPr", nested(b" HYPERLINK ", quote(b'"file://inventado.invalid/x"')) + b"<w:sectPr", 1)
+            b"<w:sectPr", nested(b" HYPERLINK ", [b' DOCPROPERTY "Address" ']) + b"<w:sectPr", 1)
         found = document.active_content(parts)
         self.assertEqual(len(found), 1, found)
         self.assertIn("an address that another field builds", found[0])

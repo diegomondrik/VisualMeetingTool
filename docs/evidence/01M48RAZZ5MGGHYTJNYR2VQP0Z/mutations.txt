@@ -1,0 +1,24 @@
+mutation run for 01M48RAZZ5MGGHYTJNYR2VQP0Z: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_allowed_fields tests.test_markup_compatibility tests.test_template_filter tests.test_d1_r02_plantilla` (no kits, what the CI runs) must fail
+commit: e4b72ac43f43eaf0ac9ff8d9cf004e405bc9bd13 (clean working tree)
+- a refused name added to the list: INCLUDETEXT, which WI22 refused: exit 1, Ran 105 tests in 269.173s FAILED (failures=455) -> DETECTED
+- a refused name added to the list: ADDIN, which the owner chose to refuse: exit 1, Ran 105 tests in 269.765s FAILED (failures=183) -> DETECTED
+- an allowed name taken off the list: the formula (=): exit 1, Ran 105 tests in 294.275s FAILED (failures=10, errors=4) -> DETECTED
+- the list check switched off: no field is refused for its name: exit 1, Ran 105 tests in 236.899s FAILED (failures=622) -> DETECTED
+- the list compared against the whole instruction, not the written-out name: refused only when no word of the instruction is on the list: exit 1, Ran 105 tests in 294.787s FAILED (failures=7) -> DETECTED
+- the list compared against the whole instruction, not the written-out name: the whole text must be on the list: exit 1, Ran 105 tests in 278.532s FAILED (failures=538, errors=11) -> DETECTED
+- the text that no field holds, and a field with nothing written, judged for the name they do not have: exit 1, Ran 105 tests in 256.485s FAILED (failures=713, errors=13) -> DETECTED
+- a name that does not start with a word (a quote, a dash) judged as no name: exit 1, Ran 105 tests in 295.839s FAILED (failures=4) -> DETECTED
+- the case kept: a name matched only in upper case: exit 1, Ran 105 tests in 291.318s FAILED (failures=136) -> DETECTED
+- the upper case of a name that is not ASCII (a long s for an S): exit 1, Ran 105 tests in 296.593s FAILED (failures=3) -> DETECTED
+- a field inside another's instruction not judged: only the outermost of each is: exit 1, Ran 105 tests in 295.544s FAILED (failures=5) -> DETECTED
+- the branches of an mc:AlternateContent read as one stream, as before the review (a Choice and a Fallback joined into one instruction): exit 1, Ran 105 tests in 275.062s FAILED (failures=19) -> DETECTED
+- an element of an ignorable namespace read as one stream with the rest, as before the review: exit 1, Ran 105 tests in 278.494s FAILED (failures=5) -> DETECTED
+- the ignorable namespaces not read (mc:Ignorable names none): exit 1, Ran 105 tests in 294.414s FAILED (failures=5) -> DETECTED
+- the Markup Compatibility that leaves unknown what Word reads accepted: exit 1, Ran 105 tests in 262.475s FAILED (failures=14) -> DETECTED
+- an mc:AlternateContent that is not formed as it is defined accepted: exit 1, Ran 105 tests in 294.614s FAILED (failures=10) -> DETECTED
+- the prefixes that mc:Ignorable and mc:Requires name not checked against the declarations: exit 1, Ran 105 tests in 292.288s FAILED (failures=12) -> DETECTED
+- the report not checked again before it is delivered: exit 1, Ran 105 tests in 240.750s FAILED (failures=383) -> DETECTED
+- the template not checked when it is set (only the report's last check stands): exit 1, Ran 105 tests in 140.401s FAILED (failures=585, errors=1) -> DETECTED
+- unmutated: exit 0, Ran 105 tests in 298.820s OK
+all mutations detected

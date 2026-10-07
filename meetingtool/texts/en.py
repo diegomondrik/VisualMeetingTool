@@ -156,6 +156,9 @@ TEXTS = {
     "report.active.embedded": "{part}: a {kind} ({target})",
     "report.active.field": "{part}: a {field} field",
     "report.active.unnamed_field": "{part}: a field whose name is not written out in the file (another field builds it), so what it is cannot be known",
+    "report.active.compat_unknown": "{part}: {name}, which is not a known part of Markup Compatibility, so what Word would read is not known",
+    "report.active.compat_structure": "{part}: {name} is not formed as Markup Compatibility defines it (a list of alternatives, each with the namespaces it requires, and one fallback last), so what Word would read is not known",
+    "report.active.compat_prefix": "{part}: Markup Compatibility names {name}, which is not a prefix declared in the file or is one that Word understands, so what Word would read is not known",
     "report.active.hyperlink": "{part}: a hyperlink to {target}, which is not a web page (http, https), a mail address or a place in the document",
     "report.active.macros": "a macro-enabled content type, or a macro project",
     "report.macro_extension": "the template {name} can carry macros ({suffix}); save it in Word as .docx or .dotx",
@@ -163,12 +166,14 @@ TEXTS = {
     "report.cannot_open": "the template {name} cannot be opened[[: {detail}]]",
     "report.macros": "the template {name} carries macros; save it in Word as .docx or .dotx",
     "report.active": "the template {name} has content that Word would load or run from outside it when a report is "
-                     "opened, and every report would carry it to the client:\n  {items}\nRemove it in Word and save "
-                     "the template again (attach the Normal template, embed pictures instead of linking them, delete "
-                     "linked fields and embedded objects).",
+                     "opened, or a field a template may not hold, and every report would carry it to the client:\n"
+                     "  {items}\nRemove it in Word and save the template again (attach the Normal template, embed "
+                     "pictures instead of linking them, delete linked fields and embedded objects). The only fields "
+                     "a template may hold are {allowed}.",
     "report.active_in_report": "the report was not written: it would carry content that Word would load or run from "
-                               "outside it when the client opens it:\n  {items}\nThe template that gave it "
-                               "must be corrected.",
+                               "outside it when the client opens it, or a field a template may not hold:\n  {items}\n"
+                               "The template that gave it must be corrected. The only fields a template may hold are "
+                               "{allowed}.",
     "report.not_a_document": "the template {name} cannot be opened as a Word document[[: {detail}]]",
     "report.template_unusable": "the template {name} cannot be used: {error}",
     "report.problem.range": "line {line}: a range of frames; name each frame on its own: {text}",
