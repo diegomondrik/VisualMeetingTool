@@ -35,6 +35,20 @@ objective: >
 
   Not done: R04, R06 and the second batch; the other open WI22 limitations
   (Word not run, the expanded size, embedded fonts, non-UTF parts).
+
+  Corrected after the independent review of 6e33e4c
+  (docs/evidence/01M48RAZZ5MGGHYTJNYR2VQP0Z/independent-review.md): every
+  branch of Markup Compatibility and every ignorable element is judged on
+  its own, and what cannot be read with certainty is refused naming the part.
+
+  Known limitations (docs/limitations/REGISTER.md): WI23-P3-1, a template
+  with a field outside the list is refused (the owner's decision); WI23-P3-2,
+  every branch is judged, so one Word would not read is judged too; WI23-P3-3,
+  the verification of 13b60ad found that a field whose begin sits inside a
+  branch and whose instruction sits outside it is not judged: it called it
+  P1, and the owner accepted it on 2026-10-07 as a low risk without another
+  pass (the only Word from outside is his own company's template, which he
+  loads; not shown in Word; Word does not update such fields on opening).
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M48RAZZ5MGGHYTJNYR2VQP0Z/**
