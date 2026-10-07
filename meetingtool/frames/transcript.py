@@ -10,6 +10,7 @@ python-docx. The transcript's content stays in memory; nothing here writes it.
 """
 
 import bisect
+import codecs
 import re
 import zipfile
 from pathlib import Path
@@ -32,7 +33,9 @@ _PHRASE = re.compile(
     re.IGNORECASE,
 )
 # Teams: "Speaker Name   1:22" or "Speaker Name   1:02:03", the text on the lines after.
-_SPEAKER_TIME = re.compile(r"^(.+?)\s{2,}(\d{1,2}:\d{2}(?::\d{2})?)\s*$")
+# The name ends on a character that is not a space, so a long run of spaces is tried from one place
+# only (with "(.+?)\s{2,}" 20,000 spaces took about 6 s: every start of the run was tried again).
+_SPEAKER_TIME = re.compile(r"^(.*?\S)\s{2,}(\d{1,2}:\d{2}(?::\d{2})?)\s*$")
 # Teams without speaker names: the time alone on its line ("0:02", "1:02:03"), the words on the lines after.
 # It starts a block only in a transcript with no "Speaker   M:SS" or "[HH:MM:SS]" line.
 # Minutes and seconds are below 60, so a line such as "10:75" is not a time.
@@ -75,9 +78,27 @@ def _docx_lines(path):
     return lines
 
 
+def _decode(data):
+    """The text of a transcript's bytes (WI26): the byte order mark says the
+    encoding (UTF-8, UTF-16 in either order: what Notepad and Windows
+    PowerShell write); with none, UTF-8, and if the bytes are not valid UTF-8,
+    cp1252, the Windows code page of Spanish and English. Raises
+    UnicodeDecodeError when none of them reads the bytes."""
+    if data.startswith(codecs.BOM_UTF8):
+        return data[len(codecs.BOM_UTF8):].decode("utf-8")
+    if data.startswith((codecs.BOM_UTF16_LE, codecs.BOM_UTF16_BE)):
+        return data.decode("utf-16")  # this codec reads the mark and drops it
+    try:
+        return data.decode("utf-8")
+    except UnicodeDecodeError:
+        return data.decode("cp1252")
+
+
 def _text_lines(path):
     try:
-        return Path(path).read_text(encoding="utf-8").splitlines()
+        # A second mark (a file saved with its mark twice) would stay before the first line and hide it
+        # (WI26's review, P3-1).
+        return _decode(Path(path).read_bytes()).lstrip("\ufeff").splitlines()
     except (OSError, UnicodeDecodeError) as error:
         raise TranscriptError("transcript.unreadable", path=str(path), detail=texts.External(str(error))) from error
 

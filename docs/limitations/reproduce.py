@@ -709,7 +709,7 @@ def wi05_p3_2(args, root):
         except transcript_module.TranscriptError:
             refused = True
     return len(blocks) == 1 and refused, (f"a UTF-8 file with a BOM and two timed lines reads {len(blocks)} block(s); "
-                                          f"with one timed line it is refused as having none: {refused}")
+                                          f"with one timed line it is {'refused as having none' if refused else 'read'}")
 
 
 @entry("WI05-P3-3")
@@ -1385,6 +1385,31 @@ def wi25_p3_10(args, root):
         refusal = _wi25_register(tmp, [], data, "2026-09-25")
     return refusal is not None and "(2000)" in refusal, (
         f"a pending item 'Se mandan 2000 cajas.' over a transcript that says no 2000: {_wi25_shown(refusal)}")
+
+
+# --- WI26: text transcripts in any Windows encoding -------------------------------------------
+
+@entry("WI26-P3-1")
+def wi26_p3_1(args, root):
+    said = "mañana, ¿cómo estás?"
+    with workspace() as tmp:
+        path = tmp / "dos.txt"
+        path.write_bytes(f"[00:00:04] {said}".encode("cp850"))  # the old DOS code page of a Spanish Windows console
+        (_, _, read), = transcript_module.read_turns(path)
+    return read != said, f"a file saved in cp850 (no mark, not UTF-8) is read as cp1252: {said!r} reads {read!r}"
+
+
+@entry("WI26-P3-2")
+def wi26_p3_2(args, root):
+    with workspace() as tmp:
+        path = tmp / "utf32.txt"
+        path.write_bytes("[00:00:04] Hola, ¿cómo están?\n".encode("utf-32"))
+        try:
+            transcript_module.read_turns(path)
+            said = "read"
+        except transcript_module.TranscriptError as error:
+            said = error.message.key
+    return said == "transcript.no_timed_line", f"a transcript saved as UTF-32: {said}"
 
 
 # --- Running ---------------------------------------------------------------------------------

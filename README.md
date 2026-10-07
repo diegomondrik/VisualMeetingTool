@@ -86,7 +86,10 @@ words on the lines after it (a time alone counts only in a file with no
 `Speaker   M:SS` or `[HH:MM:SS]` line). The summary of a transcript with no
 speaker names no one; the question-and-answer register needs who asked and who
 answered, so it refuses such a transcript, when it is asked for and before
-sending anything.
+sending anything. A `.txt` is read by its byte order mark (UTF-8 or
+UTF-16, what Notepad and Windows PowerShell write); with none, as UTF-8 and,
+when it is not valid UTF-8, as Windows cp1252; Windows and Unix line endings
+alike.
 
 Every frame the summary names goes into the report, so the summary is asked
 to name only the screens that were shared to show content someone would
