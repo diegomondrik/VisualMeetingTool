@@ -44,6 +44,18 @@ objective: >
   Not done: checking the summary's figures and dates against the
   transcript (the pilot's TrazabilidadDelResumen, whose reviewer warned it
   would refuse derived figures); R06 and the second batch.
+
+  Corrected after the independent review of d19f8a6
+  (docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/independent-review.md): a year
+  is checked on its own, however it is written (P2-1); a figure said with
+  its scale ("48 mil") is read as its value (P2-2); the summary's retry
+  names every reason it was refused for (P3-a).
+
+  Known limitations (docs/limitations/REGISTER.md, WI25-P3-1 to WI25-P3-10),
+  among them: the summary's own figures and dates, and the figures of the
+  register's answers, are not checked; a legitimate date whose year nobody
+  said, or a year said short, is refused for the register; a four-digit
+  number from 1900 to 2099 that nobody said is refused as a year.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M4B3HE2AVWM7CEPPNRWS9SFY/**
