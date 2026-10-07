@@ -1085,6 +1085,21 @@ def wi22_p3_5(args, root):
     return accepted, f"a field named FETCHREMOTE (invented) with an address: {said}"
 
 
+# --- WI23: the fields a template may hold -----------------------------------------------------
+
+@entry("WI23-P3-1")
+def wi23_p3_1(args, root):
+    from tests import test_template_filter as forms
+    field = forms.complex_field(b' ADDIN ZOTERO_ITEM CSL_CITATION {"citationID":"x"} ')
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", field)})
+        accepted, said = _wi22_accepted(path, tmp)
+        from meetingtool.report import document
+        stored = document.stored_template(tmp / "data")
+    return not accepted and "a ADDIN field" in said and stored is None, (
+        f"a template with an ADDIN field (a citation manager's, made-up item): {said}; stored: {stored is not None}")
+
+
 @entry("WI22-P3-6")
 def wi22_p3_6(args, root):
     from meetingtool.report import document
