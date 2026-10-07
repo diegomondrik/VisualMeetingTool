@@ -4,7 +4,9 @@ pruebas/test_d1_barrido.py of INGOL, failing on 03b8573. WI20 copies the
 classes of its family (R01 and R03); each class is INGOL's (docs/evidence/
 01M46KHBYCXMGM0K6N2RM651PE/compare_pilot_tests.py checks it). WI25 adds
 TrazabilidadDelRegistro, of R04 (the register's years and figures), also
-INGOL's (docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/compare_pilot_tests.py).
+INGOL's (docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/compare_pilot_tests.py). WI26 adds
+TranscripcionDeTexto, of R06 (a text transcript in any Windows encoding), also INGOL's
+(docs/evidence/01M4BGTP1940T4ASG54GC323WT/compare_pilot_tests.py).
 
     PYTHONPATH=<home>/.claude/ingol-kits/python python -m unittest discover -s tests -p "test_d1_*"
 """
@@ -16,17 +18,24 @@ from pathlib import Path
 from PIL import Image
 
 try:
-    from ingol_kits import intercalar, resultado
+    from ingol_kits import intercalar, resultado, variantes
 except ImportError:  # INGOL's kits are not in this public repository nor in its CI
     raise unittest.SkipTest("ingol_kits is not on the import path: these tests run with "
                             "PYTHONPATH=<home>/.claude/ingol-kits/python (WI20)") from None
 
+from meetingtool.frames import transcript as transcripcion
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.summary import qa
 from tests import test_qa
 from tests.test_frames import write_teams_docx
 from tests.test_reading import KEY, FakeGemini, answer_for
+
+TEXTO = "[00:00:04] Ana: abrimos la reunión\n[00:01:00] Luis: cerramos el tema del costo\n"
+
+
+def turnos(ruta):
+    return transcripcion.read_turns(ruta)
 
 
 class ConocimientoAMedioEscribir(unittest.TestCase):
@@ -145,3 +154,39 @@ class TrazabilidadDelRegistro(unittest.TestCase):
             return []
 
         resultado.afirmar_corpus(resultado.correr_corpus(validar, corpus))
+
+
+class TranscripcionDeTexto(unittest.TestCase):
+    """read_turns lee un .txt con encoding='utf-8' y compara la línea con
+    _BRACKET_TIME. Una marca BOM (U+FEFF) no es espacio para str.strip(): la
+    primera línea no matchea y la primera intervención se pierde sin aviso.
+
+    En verde si: _text_lines lee con 'utf-8-sig' (como ya hace build_report
+    con summary.md)."""
+
+    def test_d1_bom_en_la_transcripcion_no_pierde_la_primera_intervencion(self):
+        formas = variantes.de_texto(TEXTO)
+        variantes.afirmar_equivalentes(
+            turnos, {nombre: formas[nombre] for nombre in ("utf-8", "utf-8 con BOM", "utf-8 con BOM y CRLF")},
+            como_archivo=True, sufijo=".txt")
+
+    def test_d1_transcripcion_en_utf16_o_cp1252_se_lee_igual(self):
+        """P3: UTF-16 (lo que escribe Out-File de Windows PowerShell 5.1) y la
+        codificación occidental de Windows se rechazan con un error claro,
+        pero son la misma transcripción. En verde si: se detecta la
+        codificación por la marca BOM y se cae a cp1252 si no es UTF-8."""
+        formas = variantes.de_texto(TEXTO)
+        variantes.afirmar_equivalentes(
+            turnos, {nombre: formas[nombre] for nombre in ("utf-8", "utf-16 LE con BOM", "utf-16 BE con BOM",
+                                                           "cp1252 (Windows occidental)")},
+            como_archivo=True, sufijo=".txt")
+
+    def test_d1_una_linea_con_muchos_espacios_no_cuelga_la_lectura(self):
+        """P3: _SPEAKER_TIME (^(.+?)\\s{2,}(\\d...)) es cuadrática en una línea
+        con una tira larga de espacios: 8.000 espacios tardan ~1 s, 20.000
+        ~6 s, y la transcripción se lee tres veces por corrida. En verde si:
+        la expresión no retrocede (p. ej. (.+?\\S)\\s{2,} o un límite de
+        largo de línea)."""
+        variantes.afirmar_sin_caidas(
+            turnos, {"20.000 espacios en una línea": ("[00:00:01] hola\nAna" + " " * 20000 + "x\n").encode()},
+            errores_aceptados=(transcripcion.TranscriptError,), como_archivo=True, sufijo=".txt", tiempo_max=1.0)

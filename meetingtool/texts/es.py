@@ -13,7 +13,7 @@ TEXTS = {
                             "[[: {detail}]]",
     "transcript.word_unreadable": "no se puede leer la transcripción de Word {path}: fijate que sea el .docx que "
                                   "baja Teams[[: {detail}]]",
-    "transcript.unreadable": "no se puede leer la transcripción {path}: tiene que ser un texto UTF-8[[: {detail}]]",
+    "transcript.unreadable": "no se puede leer la transcripción {path}: tiene que ser un texto (UTF-8, UTF-16 o el de Windows)[[: {detail}]]",
     "transcript.not_a_file": "la transcripción {path} no es un archivo",
     "transcript.no_timed_line": "la transcripción {path} no tiene ninguna línea con su minuto (la de Teams, «Nombre   "
                                 "M:SS», la hora sola en su renglón, o «[HH:MM:SS]»)",
