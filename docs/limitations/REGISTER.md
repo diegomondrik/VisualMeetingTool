@@ -131,7 +131,7 @@ Source: `docs/evidence/01M3CSRVTHE26R86125VY676EJ/independent-review.md`.
 |---|---|---|---|
 | `WI05-P2-1` | When the budget is full, a slide is ranked by its first candidate's score, so a later, better-scoring repeat cannot save it; a transcript boost landing on a repeat is lost too. Not seen on the real meeting, where the budget never filled | open | Slide A scores 0.3, then 0.9 on its repeat, budget 2: B and C kept, A lost; the previous order kept A |
 | `WI05-P3-1` | Four changes to the frame selection survive the tests | open | The reviewer's four mutations, all surviving |
-| `WI05-P3-2` | A text transcript saved as UTF-8 with a BOM loses its first timed block without an error | open | Two timed lines read as one; one timed line is refused as none |
+| `WI05-P3-2` | A text transcript saved as UTF-8 with a BOM loses its first timed block without an error | fixed by `a90cfd1` (work item 26): a text transcript is read by its byte order mark (UTF-8, UTF-16), as UTF-8 with none, and as cp1252 when it is not valid UTF-8 | The same file with a BOM: two timed lines read as two blocks; one timed line is read, not refused |
 | `WI05-P3-3` | Transcript reading rules not checked against real Teams variants: a single tab between speaker and time, a spoken line ending in two spaces and a time, Word's curly apostrophe, and the filler "a ver" | open | All four, each shown |
 | `WI05-P3-4` | The tie-break test runs with the duplicate check switched off, so it does not test the tie-break on the real path | open | Without the switch the test fails |
 | `WI05-P3-5` | No test pins that the transcript is read before the video is opened | open | The reading moved after the video opens, closing it if the reading fails: tests still pass. A variant that leaves the video open is caught on Windows, but only because the test cannot delete a file in use |
@@ -242,3 +242,12 @@ faked.
 | `WI25-P3-8` | A year said short ("el 15 de enero del 27", "el 27") is not read as a year, so a register that writes it in full ("el 15 de enero de 2027") is refused when 2027 is not the meeting's year and the transcript says no year in full. The retry names the year; writing the date as said, with no year, is accepted | open | A transcript that says "el 15 de enero del 27" and a deadline "el 15 de enero de 2027", in a meeting of 2026-12-10: refused, naming 15/1/2027 |
 | `WI25-P3-9` | A number said with its scale is read ("48 mil", "1,5 millones", "3 million", "48k"), but one said only as "mil" ("mil kilos"), as "medio millón" or with the number in words ("dos mil") is not: a "figures said" entry that writes it in digits ("1.000 kilos") is refused as a figure nobody said | open | A transcript that says "Hay mil kilos." and a "figures" entry "Hay 1.000 kilos.": refused as a figure nobody said (1.000) |
 | `WI25-P3-10` | Any number of four digits from 1900 to 2099 (a quantity of 2000 boxes, a sum that comes to 1990) written in any text of the register is read as a year, and refused if the transcript and the meeting do not say that number, whatever it counts: the check cannot tell a year from a quantity by its looks. Said in the transcript, or as a number with a separator ("2.000"), it is accepted | open | A transcript that says no 2000 and a pending item "Se mandan 2000 cajas.": refused as a year the transcript does not say (2000) |
+
+## Work item 26, text transcripts in any Windows encoding (`01M4BGTP1940T4ASG54GC323WT`)
+
+Source: the limitation the contract declares (`.ingol/work-items/01M4BGTP1940T4ASG54GC323WT/contract.yaml`). Its
+reproduction uses a synthetic line saved in a temporary folder.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `WI26-P3-1` | A text transcript with no byte order mark that is not valid UTF-8 is read as cp1252, the Windows code page of Spanish and English. A file saved in another encoding (the DOS code page 850 of an old console, Latin-2, a Mac's) is read all the same, with no error, and its accents may come out as other characters: the program cannot tell which encoding a file without a mark is in. Only a file with bytes cp1252 does not define (0x81, 0x8D, 0x8F, 0x90, 0x9D) is refused as unreadable | open | A line "mañana, ¿cómo estás?" saved in cp850: read as cp1252, its accents come out as other characters |
