@@ -75,6 +75,7 @@ TEXTS = {
     "summary.section_count": "the summary has the section '{heading}' {count} times, not once",
     "summary.order": "the summary's sections are not in the required order",
     "summary.no_key_points": "the summary's '{heading}' section has no bullet point",
+    "summary.empty_sections": "the summary has nothing under these section(s): {headings}",
     "summary.not_read": "the frames of {folder} have not been read yet: run python -m meetingtool.reading read "
                         "--frames <folder> first",
     "summary.retired_type": "meeting type {meeting_type!r} is no longer used: it covered {covered}; use {use}",
@@ -98,6 +99,8 @@ TEXTS = {
     "qa.not_text": "{where}: '{key}' is not text",
     "qa.mentions_frame": "{where} mentions a frame",
     "qa.invented_date": "{where} writes a date the transcript does not say ({dates})",
+    "qa.invented_year": "{where} writes a year the transcript does not say ({years})",
+    "qa.invented_figure": "{where} writes a figure nobody said in the meeting ({figures})",
     "qa.question_not_object": "{where} is not a JSON object",
     "qa.no_question": "{where} has no question",
     "qa.bad_status": "{where}: status {status!r} is not one of {options}",

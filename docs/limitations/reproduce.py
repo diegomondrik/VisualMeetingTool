@@ -916,9 +916,9 @@ def wi20_p3_6(args, root):
     env["PYTHONDONTWRITEBYTECODE"] = "1"
     result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_d1_*"],
                             cwd=REPO, capture_output=True, text=True, env=env, timeout=600)
-    # five files: three need the kits and are skipped; WI21's (R05) and WI22's (R02) need none and run
+    # six files: three need the kits and are skipped; WI21's (R05), WI22's (R02) and WI25's (R04) need none and run
     skipped = re.search(r"OK \(skipped=3\)", result.stderr)
-    return bool(skipped) and "Ran 7 tests" in result.stderr, (
+    return bool(skipped) and "Ran 8 tests" in result.stderr, (
         f"without the kits: {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else '?'}"
         f" ({result.stderr.count('Ran ')} run line)")
 
@@ -1237,6 +1237,154 @@ def wi24_p3_4(args, root):
             request, said = None, f"refused: {error.message.key}"
     return request is not None, (
         f"the application's request for a register with a transcript that names no one: {said}")
+
+
+def _wi25_register(tmp, said, data, date):
+    """None if the register `data` is accepted over the Spanish test transcript with these lines more
+    (said by Juan Gómez, after minute 2:30) and a meeting of `date`; otherwise the refusal's text."""
+    from meetingtool.summary import qa
+    from tests import test_qa
+    from tests.test_reading import KEY, FakeGemini
+    path = tmp / "t.docx"
+    frames_fixture.write_teams_docx(path, test_qa.SPANISH[:4] + [("Juan Gómez", f"3:{10 + number}", line)
+                                                                 for number, line in enumerate(said)]
+                                    + test_qa.SPANISH[4:])
+    folder = tmp / "frames"
+    folder.mkdir()
+    with FakeGemini([test_qa.json_answer(data)] * 2) as fake:
+        try:
+            qa.write_register(folder, path, KEY, date=date, language="es", endpoint=fake.endpoint,
+                              sleep=lambda s: None, retry_delays=())
+            return None
+        except qa.QAError as error:
+            return str(error)
+
+
+def _wi25_shown(refusal):
+    """What a refusal of the register says: the piece that names the date or the figure."""
+    if refusal is None:
+        return "accepted"
+    found = re.search(r"writes a (?:date|figure|year)[^()]*\([^)]*\)", refusal)
+    return f"refused ({found.group() if found else refusal[-80:]})"
+
+
+@entry("WI25-P3-1")
+def wi25_p3_1(args, root):
+    from meetingtool.summary import writer
+    from tests import test_summary
+    headings = writer.required_headings("es")
+    text = test_summary.summary_text("es", empty=headings[2], emptied="Se entrega el 25 de septiembre de 2030 por "
+                                                                       "US$ 48.000.")
+    try:
+        writer.check_summary(test_summary.answer(text), headings, "es")
+        said = "returned the summary"
+    except writer.SummaryError as error:
+        said = f"refused: {error.message.key}"
+    return said == "returned the summary", (
+        f"a summary that writes 25 de septiembre de 2030 and US$ 48.000, which no transcript said, in its "
+        f"decisions: check_summary {said} (it has no transcript to compare with)")
+
+
+@entry("WI25-P3-2")
+def wi25_p3_2(args, root):
+    from tests import test_qa
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Lo mandamos el 15 de enero."],
+                                 test_qa.changed(test_qa.verbal(), 2, deadline="el 15 de enero de 2027"), "2026-12-10")
+    return refusal is not None and "15/1/2027" in refusal, (
+        f"a meeting of 2026-12-10, a transcript that says 'el 15 de enero' and a deadline 'el 15 de enero de 2027': "
+        f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-3")
+def wi25_p3_3(args, root):
+    from tests import test_qa
+    figures = ["Se trabaja en 3 turnos."]
+    data = test_qa.changed(test_qa.verbal(), knowledge=dict(test_qa.REGISTER["knowledge"], figures=figures))
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Trabajamos en tres turnos."], data, "2026-09-25")
+    return refusal is not None and "(3)" in refusal, (
+        f"the transcript says 'tres turnos' and the figure is 'Se trabaja en 3 turnos.': {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-4")
+def wi25_p3_4(args, root):
+    from meetingtool.summary import writer
+    from tests import test_summary
+    headings = writer.required_headings("es")
+    text = test_summary.summary_text("es", empty=headings[2], emptied="| Decisión | Responsable |\n|---|---|")
+    try:
+        writer.check_summary(test_summary.answer(text), headings, "es")
+        said = "accepted"
+    except writer.SummaryError as error:
+        said = f"refused: {error.message.key}"
+    return said == "accepted", f"the decisions are a table with its header row and no rows: the summary is {said}"
+
+
+@entry("WI25-P3-5")
+def wi25_p3_5(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, deadline="el 25 de septiembre de 2030")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Son 2030 cajas."], data, "2026-09-25")
+    return refusal is None, (
+        f"the transcript says '2030 cajas' and 'el 25 de septiembre', a meeting of 2026, and the deadline is 'el 25 "
+        f"de septiembre de 2030': {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-6")
+def wi25_p3_6(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), knowledge=dict(test_qa.REGISTER["knowledge"],
+                                                           figures=["Pesa 1,25 kilos."]))
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["La pieza pesa 1,250 kilos."], data, "2026-09-25")
+    return refusal is not None and "(1,25)" in refusal, (
+        f"the transcript says '1,250 kilos' (read as 1250) and the figure is 'Pesa 1,25 kilos': "
+        f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-7")
+def wi25_p3_7(args, root):
+    from tests import test_qa
+    answers = [{"speaker": "Juan Gómez", "text": "Se procesan 52.000 kilos por mes."}]
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, [], test_qa.changed(test_qa.verbal(), 2, answers=answers), "2026-09-25")
+    return refusal is None, (
+        f"an answer that says 'Se procesan 52.000 kilos por mes.', which the transcript does not: "
+        f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-8")
+def wi25_p3_8(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, deadline="el 15 de enero de 2027")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Lo mandamos el 15 de enero del 27."], data, "2026-12-10")
+    return refusal is not None and "15/1/2027" in refusal, (
+        f"the transcript says 'el 15 de enero del 27', the deadline is 'el 15 de enero de 2027', a meeting of "
+        f"2026-12-10: {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-9")
+def wi25_p3_9(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), knowledge=dict(test_qa.REGISTER["knowledge"],
+                                                           figures=["Hay 1.000 kilos."]))
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Hay mil kilos."], data, "2026-09-25")
+    return refusal is not None and "(1.000)" in refusal, (
+        f"the transcript says 'Hay mil kilos.' and the figure is 'Hay 1.000 kilos.': {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-10")
+def wi25_p3_10(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, pending="Se mandan 2000 cajas.")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, [], data, "2026-09-25")
+    return refusal is not None and "(2000)" in refusal, (
+        f"a pending item 'Se mandan 2000 cajas.' over a transcript that says no 2000: {_wi25_shown(refusal)}")
 
 
 # --- Running ---------------------------------------------------------------------------------

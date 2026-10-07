@@ -449,7 +449,7 @@ class ChecksTest(Workspace):
             with self.subTest(value=value):
                 self.output().unlink(missing_ok=True)
                 with FakeGemini([json_answer(changed(verbal(), 2, deadline=value))]) as fake:
-                    self.register(fake, language="es")
+                    self.register(fake, language="es", date="2026-09-25")
                 self.assertTrue(self.output().exists())
 
     def test_on_screen_without_the_words_that_show_it_is_refused(self):
@@ -698,10 +698,11 @@ class CommandTest(Workspace):
 
 class DatesTest(unittest.TestCase):
     def test_written_dates_are_read_whatever_their_writing(self):
-        for text in ("el 25 de septiembre", "el 25/09", "25/09/2026", "2026-09-25", "September 25th", "25 of September",
-                     "el 25 setiembre"):
+        for text, year in (("el 25 de septiembre", None), ("el 25/09", None), ("25/09/2026", 2026),
+                           ("2026-09-25", 2026), ("September 25th", None), ("25 of September", None),
+                           ("el 25 setiembre", None)):
             with self.subTest(text=text):
-                self.assertEqual(qa.written_dates(text), {(25, 9)})
+                self.assertEqual(qa.written_dates(text), {(25, 9, year)})
 
     def test_figures_minutes_and_months_alone_are_not_dates(self):
         for text in ("0,14 USD/kg", "1.250 kilos", "en abril", "1:22:57", "la próxima semana", "el viernes",
@@ -711,10 +712,10 @@ class DatesTest(unittest.TestCase):
                 self.assertEqual(qa.written_dates(text), set())
 
     def test_a_day_said_in_words_is_a_date(self):
-        self.assertEqual(qa.written_dates("lo mandamos el dos de mayo"), {(2, 5)})
-        self.assertEqual(qa.written_dates("hasta el treinta y uno de marzo"), {(31, 3)})
-        self.assertEqual(qa.written_dates("on the 10 of May"), {(10, 5)})
-        self.assertEqual(qa.written_dates("antes del 2/5"), {(2, 5)})
+        self.assertEqual(qa.written_dates("lo mandamos el dos de mayo"), {(2, 5, None)})
+        self.assertEqual(qa.written_dates("hasta el treinta y uno de marzo"), {(31, 3, None)})
+        self.assertEqual(qa.written_dates("on the 10 of May"), {(10, 5, None)})
+        self.assertEqual(qa.written_dates("antes del 2/5"), {(2, 5, None)})
 
     def test_a_minute_may_come_in_square_brackets(self):
         self.assertEqual(qa.parse_clock("[00:12:05]"), 725)
@@ -736,6 +737,274 @@ class BudgetTest(unittest.TestCase):
         self.assertEqual(gemini.listed_output_tokens(2), 4000)
         self.assertEqual(gemini.listed_output_tokens(70), gemini.MAX_OUTPUT_TOKENS)
         self.assertEqual(gemini.worst_attempt_cost(70), gemini.worst_attempt_cost(70, gemini.MAX_OUTPUT_TOKENS))
+
+
+class YearsAndFiguresTest(Workspace):
+    """WI25-AC03: the register's dates keep their year, and the figures of
+    "figures said" are searched in the transcript (the external review's R04)."""
+
+    FIGURES = ("Procesamos 48.000 kilos por mes, con un margen del 1,5 % y un 15% de merma, "
+               "a las 10:30 y en 3 turnos.")
+
+    def said(self, *lines, blocks=SPANISH):
+        """A transcript like the Spanish one, with these lines more, said by Juan Gómez after 2:30."""
+        path = self.tmp / f"said-{len(list(self.tmp.glob('said-*.docx')))}.docx"
+        write_teams_docx(path, blocks[:4] + [("Juan Gómez", f"3:{10 + number}", line)
+                                             for number, line in enumerate(lines)] + blocks[4:])
+        return path
+
+    def run_register(self, data, transcript=None, date=None, language="es"):
+        """(None, fake) if the register was accepted; (the refusal, fake) if not."""
+        with FakeGemini([json_answer(data), json_answer(data)]) as fake:
+            try:
+                self.register(fake, transcript, language=language, date=date)
+            except qa.QAError as error:
+                return error, fake
+        return None, fake
+
+    def cause(self, refusal):
+        """The refusal of the last attempt, which the error that stops the run carries."""
+        return refusal.message.params["error"]
+
+    def figures(self, *entries):
+        return changed(verbal(), knowledge=dict(REGISTER["knowledge"], figures=list(entries)))
+
+    def test_a_date_with_a_year_nobody_said_is_refused_naming_it(self):
+        for value, shown in (("el 25 de septiembre de 2030", "25/9/2030"), ("el 25/09/2030", "25/9/2030"),
+                             ("el 2030-09-25", "25/9/2030"), ("September 25, 2030", "25/9/2030"),
+                             ("el veinticinco de septiembre de 2030", "25/9/2030")):
+            with self.subTest(value=value):
+                refusal, fake = self.run_register(changed(verbal(), 2, deadline=value), date="2026-09-25")
+                self.assertEqual(self.cause(refusal).key, "qa.refused")
+                self.assertIn(f"question 2 writes a date the transcript does not say ({shown})", str(refusal))
+                self.assertEqual(len(fake.requests), 2, "a refused register is retried once")
+                self.assertNothingWritten()
+
+    def test_the_year_of_the_meeting_is_accepted_with_a_date_the_transcript_says(self):
+        for value in ("el 25 de septiembre de 2026", "el 25/09/2026", "el 2026-09-25", "September 25, 2026",
+                      "el 25/09/26", "25 de septiembre del 2026"):
+            with self.subTest(value=value):
+                refusal, fake = self.run_register(changed(verbal(), 2, deadline=value), date="2026-09-25")
+                self.assertIsNone(refusal)
+                self.assertEqual(len(fake.requests), 1)
+
+    def test_the_year_of_the_meeting_is_not_the_year_of_every_date(self):
+        refusal, _ = self.run_register(changed(verbal(), 2, deadline="el 25 de septiembre de 2027"),
+                                       date="2026-09-25")
+        self.assertIn("question 2 writes a date the transcript does not say (25/9/2027)", str(refusal))
+        refusal, _ = self.run_register(changed(verbal(), 2, deadline="el 25 de septiembre de 2026"))
+        self.assertIn("(25/9/2026)", str(refusal), "with no date of the meeting, a year nobody said is not known")
+
+    def test_a_year_the_transcript_says_is_accepted(self):
+        for line in ("Queda para el 25 de septiembre de 2027.", "Es un plan para 2027, por el 25 de septiembre.",
+                     "El 25/09/2027 cerramos."):
+            with self.subTest(line=line):
+                transcript = self.said(line)
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline="el 25 de septiembre de 2027"),
+                                               transcript, date="2026-09-25")
+                self.assertIsNone(refusal)
+
+    def test_a_year_the_transcript_says_does_not_make_another_one_accepted_nor_a_day_it_did_not_say(self):
+        transcript = self.said("Queda para el 25 de septiembre de 2027.")
+        for value, shown in (("el 25 de septiembre de 2028", "25/9/2028"), ("el 3 de octubre de 2027", "3/10/2027"),
+                             ("el 3 de octubre", "3/10")):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value), transcript, date="2026-09-25")
+                self.assertIn(f"({shown})", str(refusal))
+
+    def test_a_date_without_a_year_is_checked_by_day_and_month_as_before(self):
+        for value in ("el 25 de septiembre", "el 25/09", "September 25th", "25 of September"):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value))
+                self.assertIsNone(refusal)
+        refusal, _ = self.run_register(changed(verbal(), 2, deadline="el 30 de septiembre"))
+        self.assertIn("(30/9)", str(refusal))
+
+    def test_the_year_is_checked_in_every_place_a_date_is_written(self):
+        year = "el 25 de septiembre de 2030"
+        for data in (changed(verbal(), 2, pending=year), changed(verbal(), 2, agreement=year),
+                     changed(verbal(), 2, answers=[{"speaker": "Juan Gómez", "text": f"Se manda {year}."}]),
+                     changed(verbal(), knowledge=dict(REGISTER["knowledge"], scope=[f"Se entrega {year}."]))):
+            with self.subTest(data=str(data)[-70:]):
+                refusal, _ = self.run_register(data, date="2026-09-25")
+                self.assertIn("writes a date the transcript does not say (25/9/2030)", str(refusal))
+
+    def test_a_date_said_with_its_year_is_one_date_not_two(self):
+        self.assertEqual(qa.written_dates("el 25/09/2027 y el 3 de octubre de 2028 y el 7/11"),
+                         {(25, 9, 2027), (3, 10, 2028), (7, 11, None)})
+        self.assertEqual(qa.written_years("el 25/09/2027, 3 de octubre de 2028 y para 2029, 2.500 y 2,40"),
+                         {2027, 2028, 2029})
+
+    def test_a_figure_nobody_said_is_refused_and_the_retry_says_which(self):
+        transcript = self.said(self.FIGURES)
+        refusal, fake = self.run_register(self.figures("Se procesan 52.000 kilos por mes."), transcript)
+        self.assertEqual(self.cause(refusal).key, "qa.invented_figure")
+        self.assertIn("the knowledge 'figures' writes a figure nobody said in the meeting (52.000)", str(refusal))
+        self.assertEqual(len(fake.requests), 2)
+        self.assertNothingWritten()
+        retry = fake.requests[1]["body"]["contents"][0]["parts"][0]["text"]
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: the knowledge 'figures' writes a figure nobody said", retry)
+
+    def test_every_figure_nobody_said_is_what_the_refusal_names(self):
+        refusal, _ = self.run_register(self.figures("Se procesan 52.000 kilos, con 7 turnos y 48.000 de stock."),
+                                       self.said(self.FIGURES))
+        self.assertIn("(52.000, 7)", str(refusal))
+
+    def test_a_figure_that_was_said_written_in_another_form_is_accepted(self):
+        transcript = self.said(self.FIGURES)
+        for entry in ("Se procesan 48.000 kilos por mes.", "Se procesan 48,000 kilos por mes.",
+                      "Se procesan 48000 kilos por mes.", "Se procesan 48 000 kilos por mes.",
+                      "Se procesan 48.000,00 kilos por mes.", "El margen es de 1,5 %.", "El margen es de 1.5 %.",
+                      "El margen es de 1,50 por ciento.", "La merma es del 15 %.", "La merma es de 15 por ciento.",
+                      "Son 3 turnos.", "Se procesan 48000 kg."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript)
+                self.assertIsNone(refusal)
+
+    def test_a_figure_said_another_way_is_not_the_one_written(self):
+        transcript = self.said(self.FIGURES)
+        for entry in ("Se procesan 48 kilos por mes.", "El margen es de 5 %.", "El margen es de 0,15 %.",
+                      "La merma es de 0,5 %.", "Se procesan 4.800 kilos por mes.", "Son 30 turnos."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript)
+                self.assertEqual(self.cause(refusal).key, "qa.invented_figure")
+
+    def test_the_dates_the_times_the_codes_and_the_years_of_a_figure_are_not_figures_to_find(self):
+        transcript = self.said(self.FIGURES)
+        for entry in ("Se procesan 48.000 kilos el 25 de septiembre.", "Se procesan 48.000 kilos el 25/09.",
+                      "Se procesan 48.000 kilos a las 10:30.", "El SKU A12 pesa 48.000 kilos.",
+                      "Se procesan 48.000 kilos en 2026.", "Se procesan 48.000 kilos el 2026-09-25."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript, date="2026-09-25")
+                self.assertIsNone(refusal)
+
+    def test_only_the_figures_group_is_checked(self):
+        transcript = self.said(self.FIGURES)
+        for group in ("rules", "owners", "glossary", "scope"):
+            with self.subTest(group=group):
+                knowledge = dict(REGISTER["knowledge"], **{group: ["Se procesan 52.000 kilos, el doble de los 26.000."]})
+                refusal, _ = self.run_register(changed(verbal(), knowledge=knowledge), transcript)
+                self.assertIsNone(refusal)
+        sum_of_two = changed(verbal(), 1, answers=[{"speaker": "Juan Gómez", "text": "Entre las dos son 96.000."}])
+        refusal, _ = self.run_register(sum_of_two, transcript)
+        self.assertIsNone(refusal)
+
+    def test_a_figure_nobody_said_in_the_figures_then_a_register_without_it_is_accepted(self):
+        transcript = self.said(self.FIGURES)
+        with FakeGemini([json_answer(self.figures("Se procesan 52.000 kilos por mes.")),
+                         json_answer(self.figures("Se procesan 48.000 kilos por mes."))]) as fake:
+            self.register(fake, transcript, language="es")
+        self.assertEqual(len(fake.requests), 2)
+        self.assertIn("- Se procesan 48.000 kilos por mes.", self.text())
+
+    def test_numbers_are_compared_as_numbers(self):
+        for token in ("48.000", "48,000", "48 000", "48\xa0000", "48000", "48.000,00", "48,000.00"):
+            with self.subTest(token=token):
+                self.assertEqual(qa.number(token), qa.number("48000"))
+        for token, other in (("1,5", "1.5"), ("1,50", "1.5"), ("1.250,75", "1,250.75"), ("0,125", "0.125")):
+            with self.subTest(token=token):
+                self.assertEqual(qa.number(token), qa.number(other))
+        for token, other in (("48.000", "48"), ("1,5", "15"), ("1.5", "1500"), ("0,125", "125"), ("2,40", "240")):
+            with self.subTest(token=token, other=other):
+                self.assertNotEqual(qa.number(token), qa.number(other))
+        self.assertEqual(qa.figures_in("48000 y 1,5 y 7", {qa.number("48.000"), qa.number("1.5")}), ["7"])
+
+    def test_spaced_thousands_may_also_be_two_figures_in_the_transcript(self):
+        transcript = self.said("Pasaron 5 100 cajas.")
+        for entry in ("Pasaron 5 cajas.", "Pasaron 100 cajas.", "Pasaron 5100 cajas."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript)
+                self.assertIsNone(refusal)
+
+
+class YearsAnywhereAndScalesTest(Workspace):
+    """WI25's review: a year is a year whichever way it is written (P2-1), and a figure said with its scale
+    ("48 mil") is the figure written out (P2-2)."""
+
+    said = YearsAndFiguresTest.said
+    run_register = YearsAndFiguresTest.run_register
+    cause = YearsAndFiguresTest.cause
+    figures = YearsAndFiguresTest.figures
+
+    def test_a_year_nobody_said_is_refused_whichever_way_it_is_written(self):
+        for value, shown in (("del año 2030", "year the transcript does not say (2030)"),
+                             ("para (2030)", "year the transcript does not say (2030)"),
+                             ("el 25 de Sept. de 2030", "year the transcript does not say (2030)"),
+                             ("Sept. 25, 2030", "year the transcript does not say (2030)"),
+                             ("el 25 sep 2030", "year the transcript does not say (2030)"),
+                             ("en septiembre de 2030", "year the transcript does not say (2030)"),
+                             ("para 2030", "year the transcript does not say (2030)"),
+                             ("en el Q3 de 2030", "year the transcript does not say (2030)"),
+                             ("el 25-09-2030", "date the transcript does not say (25/9/2030)"),
+                             ("el 25.09.2030", "date the transcript does not say (25/9/2030)"),
+                             ("el 25 de septiembre de 2030", "date the transcript does not say (25/9/2030)")):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value), date="2026-09-25")
+                self.assertIn(f"question 2 writes a {shown}", str(refusal))
+
+    def test_a_year_is_refused_in_every_place_text_is_written(self):
+        year = "para el año 2030"
+        for data in (changed(verbal(), 2, pending=year), changed(verbal(), 2, agreement=year),
+                     changed(verbal(), 2, answers=[{"speaker": "Juan Gómez", "text": f"Se manda {year}."}]),
+                     changed(verbal(), knowledge=dict(REGISTER["knowledge"], scope=[f"Se entrega {year}."])),
+                     self.figures("Se procesan 2030 kilos.")):
+            with self.subTest(data=str(data)[-70:]):
+                refusal, _ = self.run_register(data, date="2026-09-25")
+                self.assertIn("writes a year the transcript does not say (2030)", str(refusal))
+
+    def test_a_year_the_transcript_or_the_meeting_says_is_accepted_whichever_way_it_is_written(self):
+        transcript = self.said("Son 2030 cajas.")
+        for value in ("del año 2030", "(2030)", "Sept. 25, 2030", "el 25 sep 2030", "en septiembre de 2030",
+                      "para 2030", "en el Q3 de 2030", "el 25-09-2030", "el 25.09.2030"):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value), transcript, date="2026-09-25")
+                self.assertIsNone(refusal)
+        for value in ("del año 2026", "para 2026", "el 25-09-2026", "el 25.09.2026", "en el Q3 de 2026"):
+            with self.subTest(value=value):
+                refusal, _ = self.run_register(changed(verbal(), 2, deadline=value), date="2026-09-25")
+                self.assertIsNone(refusal)
+
+    def test_a_quantity_that_is_not_a_year_or_that_the_transcript_says_is_not_refused(self):
+        transcript = self.said("Son 2030 cajas y 1500 kilos.")
+        for entry in ("Hay 2030 cajas.", "Hay 1500 kilos.", "Son 3.500 cajas.", "Son 1.2030 cajas."):
+            with self.subTest(entry=entry):
+                answers = [{"speaker": "Juan Gómez", "text": entry}]
+                refusal, _ = self.run_register(changed(verbal(), 2, answers=answers), transcript, date="2026-09-25")
+                self.assertIsNone(refusal)
+        answers = [{"speaker": "Juan Gómez", "text": "Hay 1500 kilos."}]
+        refusal, _ = self.run_register(changed(verbal(), 2, answers=answers), date="2026-09-25")
+        self.assertIsNone(refusal, "1500 is not a year, and what an answer says about quantities is not checked")
+
+    def test_written_years_are_every_year_whichever_its_writing(self):
+        self.assertEqual(qa.written_years("del año 2030, (2031), Q3 de 2032, 25-09-2033 y 2034."),
+                         {2030, 2031, 2032, 2033, 2034})
+        self.assertEqual(qa.written_years("2.500, 2,40, 1.2030, 12030 y 1850"), set())
+        self.assertEqual(qa.written_dates("25-09-2030 y 25.09.2031 y 25-09-2030"), {(25, 9, 2030), (25, 9, 2031)})
+
+    def test_a_figure_said_with_its_scale_is_the_figure_written_out(self):
+        transcript = self.said("Procesamos 48 mil kilos, con 3 millones de pesos y 1,5 millones de dólares.",
+                               "Son 2 million de unidades y 5k de stock.")
+        for entry in ("Se procesan 48.000 kilos.", "Se procesan 48 mil kilos.", "Son 3.000.000 de pesos.",
+                      "Son 3 millones de pesos.", "Son 1.500.000 dólares.", "Son 1,5 millones de dólares.",
+                      "Son 2.000.000 de unidades.", "Son 2 million de unidades.", "Hay 5.000 de stock.",
+                      "Hay 5k de stock."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript)
+                self.assertIsNone(refusal)
+
+    def test_a_figure_that_is_not_the_scaled_one_is_refused(self):
+        transcript = self.said("Procesamos 48 mil kilos, con 3 millones de pesos y 1,5 millones de dólares.")
+        for entry in ("Se procesan 49.000 kilos.", "Se procesan 49 mil kilos.", "Son 30.000.000 de pesos.",
+                      "Son 3 mil de pesos.", "Son 1.500 dólares.", "Son 15 millones de dólares."):
+            with self.subTest(entry=entry):
+                refusal, _ = self.run_register(self.figures(entry), transcript)
+                self.assertEqual(self.cause(refusal).key, "qa.invented_figure")
+
+    def test_the_scales_are_read_as_numbers(self):
+        spans = qa.scaled("48 mil kilos, 1,5 millones, 3 million, 48k y 5 km y 2 millón")
+        self.assertEqual([value for _, _, value in spans], [48000, 1500000, 3000000, 48000, 2000000])
+        self.assertEqual(qa.figures_in("48.000 y 3.000.000 y 1.500.000 y 48 mil y 7",
+                                       {qa.number("48000"), qa.number("3000000"), qa.number("1500000")}), ["7"])
 
 
 if __name__ == "__main__":

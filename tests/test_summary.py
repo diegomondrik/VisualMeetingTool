@@ -14,6 +14,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from meetingtool import texts
 from meetingtool.frames.transcript import read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
@@ -31,7 +32,9 @@ ENGLISH = [("Ann Parker", "0:04", "Good morning, we are reviewing the plant's pr
            ("Ann Parker", "1:02:03", "Agreed: John sends the detail on Friday.")]
 
 
-def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=False, points=True):
+def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=False, points=True, empty=None,
+                 emptied=""):
+    """A complete summary; the section of the heading `empty` holds `emptied` (nothing, by default)."""
     headings = writer.required_headings(language, meeting_type)
     if swap:
         headings[1], headings[2] = headings[2], headings[1]
@@ -43,6 +46,8 @@ def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=
             body = "- John sends the detail on Friday\n- The total is above what was expected" if points else "(none)"
         elif heading == writer.KEY_POINTS[language]:
             body = "- Juan manda el detalle el viernes\n- El total supera lo esperado" if points else "(ninguno)"
+        elif heading == empty:
+            body = emptied
         else:
             body = f"The text of {heading}." if language == "en" else f"Texto de {heading}."
         parts.append(f"## {heading}\n{body}")
@@ -898,6 +903,245 @@ class FrameLabelsTest(Workspace):
             with self.assertRaises(gemini.ReadingError):
                 self.summarise(fake, max_cost_usd=without_note + 0.00001)
         self.assertEqual(fake.requests, [])
+
+
+class EmptySectionTest(Workspace):
+    """WI25-AC02: a summary with every heading and nothing under it was
+    accepted as complete (the external review's R04). Each section needs
+    content, or a line saying plainly that there was none."""
+
+    NOTHING = {"es": "No hubo nada de esto en la reunión.", "en": "None of this came up in the meeting."}
+
+    def sections(self):
+        """(language, meeting type, headings) of every summary the program asks for."""
+        for language in ("es", "en"):
+            for meeting_type in (None, *writer.MEETING_TYPES):
+                yield language, meeting_type, writer.required_headings(language, meeting_type)
+
+    def refusal(self, text, headings, language="es"):
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(text), headings, language)
+        return caught.exception.message
+
+    def test_each_section_left_empty_in_turn_is_refused_naming_it(self):
+        for language, meeting_type, headings in self.sections():
+            for heading in headings[:-1]:
+                with self.subTest(language=language, meeting_type=meeting_type, heading=heading):
+                    message = self.refusal(summary_text(language, meeting_type, empty=heading), headings, language)
+                    self.assertEqual(message.key, "summary.empty_sections")
+                    self.assertEqual(message.params["headings"], heading)
+                    self.assertIn(heading, str(message))
+
+    def test_the_key_points_left_empty_is_still_the_key_points_refusal(self):
+        for language in ("es", "en"):
+            headings = writer.required_headings(language)
+            with self.subTest(language=language):
+                text = summary_text(language)
+                text = text[:text.index(f"## {headings[-1]}")] + f"## {headings[-1]}\n"
+                self.assertEqual(self.refusal(text, headings, language).key, "summary.no_key_points")
+
+    def test_every_empty_section_is_named_in_the_refusal(self):
+        headings = writer.required_headings("es")
+        text = summary_text("es", empty=headings[2])
+        text = text.replace(f"## {headings[3]}\nTexto de {headings[3]}.", f"## {headings[3]}\n")
+        self.assertEqual(self.refusal(text, headings).params["headings"], f"{headings[2]}, {headings[3]}")
+
+    def test_the_answer_of_the_review_with_the_headings_and_nothing_else_is_refused(self):
+        headings = writer.required_headings("es")
+        text = "\n\n".join(f"## {heading}" for heading in headings[:-1])
+        text += f"\n\n## {headings[-1]}\n- Se habló de la planta.\n"
+        message = self.refusal(text, headings)
+        self.assertEqual(message.params["headings"], ", ".join(headings[:-1]))
+
+    def test_what_is_not_content_is_empty(self):
+        for nothing in ("", "   ", "\n\n", "---", "***", "___", "| --- | --- |", "|---|---|", "-", "* ", "1.", ". . .",
+                        "…", "---\n\n|---|---|\n-"):
+            with self.subTest(nothing=nothing):
+                headings = writer.required_headings("es")
+                message = self.refusal(summary_text(empty=headings[2], emptied=nothing), headings)
+                self.assertEqual(message.params["headings"], headings[2])
+
+    def test_a_line_saying_there_was_nothing_is_content_whatever_it_says(self):
+        for language, meeting_type, headings in self.sections():
+            for heading in headings[1:-1]:
+                with self.subTest(language=language, meeting_type=meeting_type, heading=heading):
+                    text = summary_text(language, meeting_type, empty=heading, emptied=self.NOTHING[language])
+                    self.assertEqual(writer.check_summary(answer(text), headings, language), text)
+
+    def test_other_ways_of_saying_nothing_or_a_little_are_content(self):
+        headings = writer.required_headings("es")
+        for little in ("Ninguna.", "*Ninguno.*", "- Sin decisiones.", "1. Ninguna", "| Tarea | Responsable |", "0",
+                       "N/A", "No se tomó ninguna decisión."):
+            with self.subTest(little=little):
+                text = summary_text(empty=headings[2], emptied=little)
+                self.assertEqual(writer.check_summary(answer(text), headings, "es"), text)
+
+    def test_a_meeting_without_decisions_is_a_real_meeting(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2], emptied="No se tomó ninguna decisión en esta reunión.")
+        with FakeGemini([returning(text)]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+
+    def test_a_section_with_subsections_has_the_content_under_them(self):
+        headings = writer.required_headings("es")
+        heading = headings[6]
+        titled = "### Costos\nEl total supera lo esperado.\n### Plazos\nEl viernes."
+        with_text = summary_text(empty=heading, emptied=titled)
+        self.assertEqual(writer.check_summary(answer(with_text), headings, "es"), with_text)
+        only_titles = summary_text(empty=heading, emptied="### Costos\n### Plazos\n")
+        self.assertEqual(self.refusal(only_titles, headings).params["headings"], heading)
+
+    def test_a_heading_with_nothing_is_empty_whatever_its_level_or_form(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2])
+        for variant in (text.replace(f"## {headings[2]}", f"#### {headings[2]}:"),
+                        text.replace(f"## {headings[2]}", f"## **{headings[2]}**"),
+                        text.replace(f"## {headings[2]}", f"## 3. {headings[2]}"),
+                        # the next required heading is of a lower level than the empty section's own
+                        text.replace(f"## {headings[3]}", f"#### {headings[3]}")):
+            with self.subTest(variant=variant[:80]):
+                self.assertEqual(self.refusal(variant, headings).params["headings"], headings[2])
+
+    def test_what_follows_a_heading_that_is_not_required_is_not_the_content_of_the_one_before(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2], emptied="## Anexo\nTexto del anexo.")
+        self.assertEqual(self.refusal(text, headings).params["headings"], headings[2])
+
+    def test_the_request_asks_for_content_or_a_line_saying_there_was_none(self):
+        with FakeGemini([returning(summary_text())]) as fake:
+            self.summarise(fake)
+        prompt = prompt_of(fake.requests[0])
+        self.assertIn(writer.EMPTY_RULE, prompt)
+        self.assertLess(prompt.index(f"## {writer.KEY_POINTS['es']}"), prompt.index(writer.EMPTY_RULE))
+        self.assertLess(prompt.index(writer.EMPTY_RULE), prompt.index(writer.MATERIAL))
+        rule = " ".join(writer.EMPTY_RULE.split())
+        self.assertIn("Every section must have content under its heading", rule)
+        self.assertIn("one line saying plainly that there was none", rule)
+
+    def test_an_empty_section_then_a_complete_summary_is_delivered_and_the_retry_names_the_section(self):
+        headings = writer.required_headings("es")
+        with FakeGemini([returning(summary_text(empty=headings[2])), returning(summary_text())]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text())
+        first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
+        self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: these sections had nothing under their heading: "
+                      f"{headings[2]}.", second)
+        self.assertIn("Every section must have content under its heading, or one line saying plainly that there "
+                      "was none", second)
+        # The retry is the same request with the note added, before the material.
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""),
+                         first)
+
+    def test_the_retry_names_every_empty_section(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2]).replace(f"## {headings[5]}\nTexto de {headings[5]}.",
+                                                       f"## {headings[5]}\n---")
+        with FakeGemini([returning(text), returning(summary_text())]) as fake:
+            self.summarise(fake)
+        self.assertIn(f"nothing under their heading: {headings[2]}, {headings[5]}.", prompt_of(fake.requests[1]))
+
+    def test_two_answers_with_an_empty_section_are_refused_and_nothing_is_written(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[4])
+        with FakeGemini([returning(text), returning(text)]) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertEqual(caught.exception.message.key, "summary.empty_sections")
+        self.assertIn(headings[4], str(caught.exception))
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_the_budget_reserves_the_note_with_every_section_of_every_type_named(self):
+        for language in ("es", "en"):
+            for meeting_type in (None, *writer.MEETING_TYPES):
+                headings = writer.required_headings(language, meeting_type)[:-1]
+                error = writer.SummaryError("summary.empty_sections", headings=", ".join(headings))
+                payload = {"contents": [{"role": "user", "parts": [{"text": f"{writer.ROLE}\n{writer.MATERIAL}\nx"}]}]}
+                with self.subTest(language=language, meeting_type=meeting_type):
+                    before = payload["contents"][0]["parts"][0]["text"]
+                    after = writer.revise(payload, error)["contents"][0]["parts"][0]["text"]
+                    self.assertLessEqual(len(after) - len(before), writer.RETRY_NOTE_CHARS)
+                    self.assertIn(headings[-1], after)
+
+
+class SeveralReasonsTest(Workspace):
+    """WI25's review (P3-a): an answer refused for more than one reason is
+    retried with every reason in one note, not only the first one."""
+
+    MISSING = "frame_999_t09-09-09.jpg"
+
+    def broken(self, empty=True, points=False, frame=True):
+        headings = writer.required_headings("es")
+        text = summary_text("es", empty=headings[2] if empty else None, points=points)
+        if frame:
+            text = text.replace(f"Texto de {headings[6]}.", f"Texto de {headings[6]} [{self.MISSING}].")
+        return text
+
+    def retry_of(self, text):
+        with FakeGemini([returning(text), returning(summary_text())]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        return prompt_of(fake.requests[1]), prompt_of(fake.requests[0])
+
+    def test_the_first_refusal_is_the_one_it_always_was_and_the_others_travel_with_it(self):
+        headings = writer.required_headings("es")
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(self.broken()), headings, "es", frame_names=set())
+        self.assertEqual(caught.exception.message.key, "summary.no_key_points")
+        self.assertEqual([message.key for message in caught.exception.others],
+                         ["summary.empty_sections", "summary.frames_missing"])
+
+    def test_the_retry_names_the_empty_sections_the_missing_key_points_and_the_frames_that_do_not_exist(self):
+        headings = writer.required_headings("es")
+        second, first = self.retry_of(self.broken())
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED, for 3 reasons: ", second)
+        self.assertIn(f"(1) its '{headings[-1]}' section had no bullet point", second)
+        self.assertIn(f"(2) these sections had nothing under their heading: {headings[2]}", second)
+        self.assertIn(f"(3) it named frame(s) that do not exist: {self.MISSING}", second)
+        for advice in ("Write 3 to 8 bullet points", "Every section must have content under its heading",
+                       "Name only frames whose label appears in the material below"):
+            self.assertIn(advice, second)
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""),
+                         first)
+
+    def test_two_reasons_in_any_pair_are_named_and_one_reason_is_named_as_before(self):
+        headings = writer.required_headings("es")
+        cases = [(dict(points=True), "for 2 reasons", (headings[2], self.MISSING)),
+                 (dict(empty=False), "for 2 reasons", (headings[-1], self.MISSING)),
+                 (dict(frame=False), "for 2 reasons", (headings[-1], headings[2])),
+                 (dict(points=True, frame=False), "REFUSED: these sections", (headings[2],))]
+        for options, wanted, named in cases:
+            with self.subTest(options=options):
+                self.forget_paid()
+                second, _ = self.retry_of(self.broken(**options))
+                self.assertIn(wanted, second)
+                for name in named:
+                    self.assertIn(name, second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)])
+
+    def test_two_answers_with_several_reasons_are_refused_with_the_first_one_and_nothing_is_written(self):
+        with FakeGemini([returning(self.broken()), returning(self.broken())]) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertEqual(caught.exception.message.key, "summary.no_key_points")
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_the_note_with_three_reasons_at_their_longest_fits_what_the_budget_reserves(self):
+        for language in ("es", "en"):
+            for meeting_type in (None, *writer.MEETING_TYPES):
+                headings = writer.required_headings(language, meeting_type)
+                messages = [texts.Message("summary.no_key_points", heading=headings[-1]),
+                            texts.Message("summary.empty_sections", headings=", ".join(headings[:-1])),
+                            texts.Message("summary.frames_missing",
+                                          names=", ".join(f"frame_{n:03d}_t01-02-03.jpg" for n in range(100)))]
+                with self.subTest(language=language, meeting_type=meeting_type):
+                    note = writer.retry_note(messages)
+                    self.assertLessEqual(len(note), writer.RETRY_NOTE_CHARS)
+                    self.assertIn(headings[2], note)
 
 
 if __name__ == "__main__":

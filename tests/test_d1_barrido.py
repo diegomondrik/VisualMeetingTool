@@ -2,7 +2,9 @@
 tests), at docs/work-items/dev-capabilities/evidence/d1/ac05-base-revisada/
 pruebas/test_d1_barrido.py of INGOL, failing on 03b8573. WI20 copies the
 classes of its family (R01 and R03); each class is INGOL's (docs/evidence/
-01M46KHBYCXMGM0K6N2RM651PE/compare_pilot_tests.py checks it).
+01M46KHBYCXMGM0K6N2RM651PE/compare_pilot_tests.py checks it). WI25 adds
+TrazabilidadDelRegistro, of R04 (the register's years and figures), also
+INGOL's (docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/compare_pilot_tests.py).
 
     PYTHONPATH=<home>/.claude/ingol-kits/python python -m unittest discover -s tests -p "test_d1_*"
 """
@@ -14,13 +16,16 @@ from pathlib import Path
 from PIL import Image
 
 try:
-    from ingol_kits import intercalar
+    from ingol_kits import intercalar, resultado
 except ImportError:  # INGOL's kits are not in this public repository nor in its CI
     raise unittest.SkipTest("ingol_kits is not on the import path: these tests run with "
                             "PYTHONPATH=<home>/.claude/ingol-kits/python (WI20)") from None
 
 from meetingtool.projects import store
 from meetingtool.reading import gemini
+from meetingtool.summary import qa
+from tests import test_qa
+from tests.test_frames import write_teams_docx
 from tests.test_reading import KEY, FakeGemini, answer_for
 
 
@@ -103,3 +108,40 @@ class LecturaEnTandas(unittest.TestCase):
                 segunda = len(fake.requests)
         self.assertEqual(primera, 3)
         self.assertEqual(segunda, 1, f"se volvieron a pagar las {segunda - 1} tandas ya aceptadas")
+
+
+class TrazabilidadDelRegistro(unittest.TestCase):
+    """El registro de preguntas contrasta fechas con la transcripción, pero
+    sólo (día, mes): written_dates descarta el año. Y 'Cifras dichas' (el
+    grupo 'figures' del conocimiento) no se contrasta: una cifra que nadie
+    dijo pasa, con un título que afirma que se dijo.
+
+    En verde si: written_dates guarda el año cuando está escrito (y uno que la
+    transcripción y la fecha de la reunión no dicen es inventado), y las
+    cifras del conocimiento y de las respuestas se buscan en la transcripción."""
+
+    def test_d1_el_registro_rechaza_un_año_y_una_cifra_que_nadie_dijo(self):
+        verbal = test_qa.verbal()
+        corpus = [
+            {"id": "buena", "fuente": "", "respuesta": verbal, "esperado": "aceptar"},
+            {"id": "año-inventado", "fuente": "", "esperado": "rechazar",
+             "motivo": "la transcripción dice 'el 25 de septiembre' y la reunión es de 2026",
+             "respuesta": test_qa.changed(verbal, number=2, deadline="el 25 de septiembre de 2027")},
+            {"id": "cifra-inventada", "fuente": "", "esperado": "rechazar", "motivo": "nadie dijo 48.000",
+             "respuesta": test_qa.changed(verbal, knowledge=dict(verbal["knowledge"], figures=[
+                 "Se procesan 48.000 kilos por mes en la planta."]))},
+        ]
+
+        def validar(fuente, respuesta, caso):
+            with tempfile.TemporaryDirectory() as tmp:
+                tmp = Path(tmp)
+                write_teams_docx(tmp / "t.docx", test_qa.SPANISH)
+                with FakeGemini([test_qa.json_answer(respuesta)] * 2) as fake:
+                    try:
+                        qa.write_register(tmp, tmp / "t.docx", KEY, date="2026-09-25", language="es",
+                                          endpoint=fake.endpoint, sleep=lambda s: None, retry_delays=())
+                    except qa.QAError as error:
+                        return [str(error)]
+            return []
+
+        resultado.afirmar_corpus(resultado.correr_corpus(validar, corpus))
