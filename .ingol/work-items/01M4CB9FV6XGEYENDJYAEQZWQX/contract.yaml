@@ -1,0 +1,74 @@
+schema_version: "1"
+id: 01M4CB9FV6XGEYENDJYAEQZWQX
+objective: >
+  WI27. A summary that names several frames inside one pair of square
+  brackets is taken, not refused; and a summary refused for how it names a
+  frame is retried saying why. Found by the owner's second real meeting
+  ("Statistical Script Review - part 2", 2026-10-07): Gemini wrote
+  "[frame_029_t00-23-24.jpg, frame_037_t00-31-24.jpg]", the summary was
+  refused ("the summary mentions a frame without its file name in square
+  brackets"), the retry sent the very same request, got the same mistake, and
+  the run failed after paying US$0.157 for two summaries. Approved by the
+  owner on 2026-10-07; starts from main (f1bde92, after WI26); does not touch
+  the installer's branch.
+
+  Today the report reads one frame name per pair of brackets, so a list in
+  one pair would leave its frames out of the report; the check refuses it,
+  which is right, but nothing in the request tells Gemini what went wrong.
+  After this work item: one pair of brackets holding two or more frame
+  names, each written whole and separated by a comma, a semicolon, "y",
+  "e" or "and" (alone or after a comma), is rewritten as one pair per name,
+  in the same order, before the summary is checked; the summary saved and
+  the report then read each frame on its own. Everything else is checked as
+  today: a name that does not exist, a range (also one written inside a
+  pair, "[a – b]", which the rewriting does not split) or a list with any
+  item that is not a whole frame name is still refused. The two refusals
+  about how a frame is named (a range; a frame without its own brackets)
+  get a retry note, as the nonexistent frames got in WI24 and the empty
+  sections in WI25: what was refused and what to write instead.
+
+  Built by a construction-role agent (Sonnet), gated by the criterion; one
+  independent review through INGOL's mailbox.
+
+  Not done: the questions-and-answers format names frames from its own
+  register, not from Gemini's text, and is not touched; the report's own
+  check (document.cited_frames) is left as it is: it reads the summary
+  already rewritten.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4CB9FV6XGEYENDJYAEQZWQX/**
+  - docs/evidence/01M4CB9FV6XGEYENDJYAEQZWQX/**
+  - docs/limitations/**
+  - meetingtool/summary/**
+  - tests/**
+acceptance:
+  - id: WI27-AC01
+    description: >
+      The line of the owner's meeting ("- **Outlier Treatment Mechanics**
+      [frame_029_t00-23-24.jpg, frame_037_t00-31-24.jpg]: ...") is accepted
+      and saved with one pair of brackets per frame, and the report built
+      from that summary shows both frames; the same with three names, with
+      ";", "y", "e", "and" and ", and", and with the names in backticks or
+      bold as the single names are accepted today.
+  - id: WI27-AC02
+    description: >
+      Still refused, naming the case: a list with a name that does not
+      exist; a list with an item that is not a whole frame name; a range
+      inside one pair ("[a – b]", "[a to b]", "[a a b]", "[a..b]"); a frame
+      named without brackets. A single name, and the summaries the tests
+      accept today, come out unchanged.
+  - id: WI27-AC03
+    description: >
+      A summary refused as a range or as a frame without its own brackets is
+      retried with a note saying what was refused and to name each frame in
+      its own brackets; with another refusal in the same answer the note
+      lists both (as in WI25); the note stays within RETRY_NOTE_CHARS.
+  - id: WI27-AC04
+    description: >
+      Mutations (the rewriting switched off; a list split across a range
+      word; the two new retry notes removed) each make a test fail; the
+      script and its output in the evidence. An independent review through
+      INGOL's mailbox before the pull request; the whole suite passes in a
+      fresh clone of the tested commit with INGOL's kits, output committed
+      under docs/evidence/01M4CB9FV6XGEYENDJYAEQZWQX/; tests changed named
+      with why; known limitations reproduced.
