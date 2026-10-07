@@ -32,6 +32,14 @@ objective: >
   Not done: other encodings (a file that is neither UTF-8, UTF-16 nor
   cp1252 is read as cp1252, which may misread its accents); the second
   batch.
+
+  Corrected after the independent review of c18ac9b
+  (docs/evidence/01M4BGTP1940T4ASG54GC323WT/independent-review.md): a mark
+  written twice no longer hides the first turn (P3-1). Known limitations
+  (docs/limitations/REGISTER.md, WI26-P3-1 and P3-2): a file in another
+  encoding, or a UTF-8 file with one byte of another, is read as cp1252 and
+  its accents may come out wrong; some files that cannot be a transcript are
+  refused with the wrong message.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M4BGTP1940T4ASG54GC323WT/**

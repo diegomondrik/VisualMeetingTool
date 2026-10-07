@@ -1,9 +1,10 @@
 mutation run for 01M4BGTP1940T4ASG54GC323WT: each mutation is applied alone to a copy of the working tree;
 `python -m unittest tests.test_transcript_encodings tests.test_frames.TranscriptTest` (no kits, what the CI runs) must fail
-commit: 620d3940de0639b1debcbb0ed61b3ac05f7bc911 (clean working tree)
-- the byte order mark kept: a UTF-8 file with a mark is read as plain UTF-8, U+FEFF before its first line: exit 1, Ran 18 tests in 2.206s FAILED (failures=13, errors=2) -> DETECTED
-- UTF-16 not detected: a file with a UTF-16 mark goes through the UTF-8 and cp1252 readings: exit 1, Ran 18 tests in 2.158s FAILED (failures=2, errors=24) -> DETECTED
-- no cp1252 fallback: a file that is not valid UTF-8 is refused: exit 1, Ran 18 tests in 2.158s FAILED (errors=12) -> DETECTED
-- the backtracking pattern back: the speaker-and-time pattern as it was before WI26: exit 1, Ran 18 tests in 18.552s FAILED (failures=3) -> DETECTED
-- unmutated: exit 0, Ran 18 tests in 2.313s OK
+commit: ae6a883c05bb999f2162e57ae63a65dd821e4bc7 (clean working tree)
+- the byte order mark kept: a UTF-8 file with a mark is read as plain UTF-8, U+FEFF before its first line: exit 1, Ran 19 tests in 2.164s FAILED (failures=15, errors=2) -> DETECTED
+- a second mark kept: a file saved with its mark twice keeps U+FEFF before its first line (review P3-1): exit 1, Ran 19 tests in 2.092s FAILED (failures=2) -> DETECTED
+- UTF-16 not detected: a file with a UTF-16 mark goes through the UTF-8 and cp1252 readings: exit 1, Ran 19 tests in 2.099s FAILED (failures=2, errors=25) -> DETECTED
+- no cp1252 fallback: a file that is not valid UTF-8 is refused: exit 1, Ran 19 tests in 2.099s FAILED (errors=12) -> DETECTED
+- the backtracking pattern back: the speaker-and-time pattern as it was before WI26: exit 1, Ran 19 tests in 18.552s FAILED (failures=3) -> DETECTED
+- unmutated: exit 0, Ran 19 tests in 2.096s OK
 all mutations detected
