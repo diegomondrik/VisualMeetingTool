@@ -3,6 +3,7 @@ test_reading: no test reaches the network. Transcripts, frames readings and
 projects are invented at test time in a temporary folder."""
 
 import contextlib
+import hashlib
 import io
 import json
 import re
@@ -1142,6 +1143,239 @@ class SeveralReasonsTest(Workspace):
                     note = writer.retry_note(messages)
                     self.assertLessEqual(len(note), writer.RETRY_NOTE_CHARS)
                     self.assertIn(headings[2], note)
+
+
+class FrameListTest(Workspace):
+    """WI27: Gemini wrote "[frame_029_t00-23-24.jpg, frame_037_t00-31-24.jpg]" in one pair of square brackets, the
+    summary was refused, and the retry sent the very same request. A list of whole frame names in one pair is
+    rewritten as one pair for each name before the summary is checked; everything else is judged as before; and a
+    refusal for how a frame is named is retried saying why."""
+
+    FIRST, SECOND, THIRD = "frame_029_t00-23-24.jpg", "frame_037_t00-31-24.jpg", "frame_040_t00-40-00.jpg"
+    OWNERS_LINE = "- **Outlier Treatment Mechanics** [{0}, {1}]: cómo se trata un valor atípico en la planilla."
+
+    def setUp(self):
+        super().setUp()
+        from PIL import Image
+        names = ("frame_001_t00-01-22.jpg", "frame_002_t00-05-00.jpg", self.FIRST, self.SECOND, self.THIRD)
+        for number, name in enumerate(names):
+            Image.new("RGB", (320, 180), (40 * number, 90, 200 - 40 * number)).save(self.frames / name)
+        self.names = set(names)
+
+    def screen(self, mention):
+        return summary_text().replace("Texto de Lo que se vio en pantalla.", mention)
+
+    def checked(self, mention):
+        return writer.check_summary(answer(self.screen(mention)), writer.required_headings("es"), "es", self.names)
+
+    def refusal(self, mention):
+        with self.assertRaises(writer.SummaryError) as caught:
+            self.checked(mention)
+        return caught.exception
+
+    # WI27-AC01
+
+    def test_the_line_of_the_owners_meeting_is_saved_with_one_pair_of_brackets_for_each_frame(self):
+        line = self.OWNERS_LINE.format(self.FIRST, self.SECOND)
+        with FakeGemini([returning(self.screen(line))]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(len(fake.requests), 1)
+        saved = self.output().read_text(encoding="utf-8").strip()
+        self.assertEqual(saved, self.screen(f"- **Outlier Treatment Mechanics** [{self.FIRST}], [{self.SECOND}]: "
+                                            "cómo se trata un valor atípico en la planilla."))
+        self.assertEqual(writer.FRAME_REF.findall(saved), [self.FIRST, self.SECOND])
+
+    def test_three_names_are_three_pairs_in_the_same_order(self):
+        text = self.checked(f"[{self.THIRD}, {self.FIRST}, {self.SECOND}]")
+        self.assertEqual(text, self.screen(f"[{self.THIRD}], [{self.FIRST}], [{self.SECOND}]"))
+        text = self.checked(f"[{self.FIRST}, {self.SECOND} y {self.THIRD}]")
+        self.assertEqual(text, self.screen(f"[{self.FIRST}], [{self.SECOND}], [{self.THIRD}]"))
+
+    def test_a_comma_a_semicolon_y_e_and_and_a_comma_before_them_separate_the_names(self):
+        a, b = self.FIRST, self.SECOND
+        for separator in (", ", ",", " , ", "; ", ";", " ; ", " y ", " e ", " and ", ", y ", ", e ", ", and ", ",and ",
+                          " ,  and  ", "  Y ", " E ", " AND ", ", And ", "\t,\ty\t", " y "):
+            with self.subTest(separator=separator):
+                self.assertEqual(self.checked(f"[{a}{separator}{b}]"), self.screen(f"[{a}], [{b}]"))
+
+    def test_spaces_inside_the_brackets_are_taken(self):
+        self.assertEqual(self.checked(f"[ {self.FIRST} , {self.SECOND}  ]"),
+                         self.screen(f"[{self.FIRST}], [{self.SECOND}]"))
+
+    def test_names_in_backticks_or_bold_are_taken_as_a_single_name_is(self):
+        a, b = self.FIRST, self.SECOND
+        for mark in ("`", "**", "*", "__", "_"):
+            with self.subTest(mark=mark):
+                self.checked(f"{mark}[{a}]{mark}")
+                self.assertEqual(self.checked(f"{mark}[{a}, {b}]{mark}"),
+                                 self.screen(f"{mark}[{a}]{mark}, {mark}[{b}]{mark}"))
+        # A mark that is not closed round the list stays where it was.
+        self.assertEqual(self.checked(f"**[{a}, {b}]"), self.screen(f"**[{a}], [{b}]"))
+
+    def test_the_report_built_from_a_summary_with_a_list_shows_both_frames(self):
+        import docx
+        from meetingtool.report import document
+        line = self.OWNERS_LINE.format(self.FIRST, self.SECOND)
+        with FakeGemini([returning(self.screen(line))]) as fake:
+            self.summarise(fake)
+        document.build_report(self.frames, data_dir=self.data)
+        report = docx.Document(str(self.frames / document.OUTPUT_NAME))
+        sha = lambda name: hashlib.sha256((self.frames / name).read_bytes()).hexdigest()
+        self.assertEqual(document._body_images(report), [sha(self.FIRST), sha(self.SECOND)])
+
+    def test_the_summary_and_the_report_agree_on_every_list_once_it_is_rewritten(self):
+        from meetingtool.report import document
+        a, b = self.FIRST, self.SECOND
+        for mention in (f"[{a}, {b}]", f"[{a}; {b}]", f"[{a} y {b}]", f"[{a} and {b}]", f"`[{a}, {b}]`",
+                        f"[{a}, {b}, {self.THIRD}]"):
+            with self.subTest(mention=mention):
+                text = self.checked(mention)
+                writer.check_frames(text, self.names)
+                self.assertEqual(list(document.cited_frames(text, self.frames)), writer.FRAME_REF.findall(text))
+
+    # WI27-AC02
+
+    def test_a_list_with_a_name_that_does_not_exist_is_refused_naming_it(self):
+        missing = "frame_071_t01-05-36.jpg"
+        for mention in (f"[{self.FIRST}, {missing}]", f"[{missing}; {self.FIRST}]",
+                        f"[{self.FIRST} y {missing} y {self.SECOND}]"):
+            with self.subTest(mention=mention):
+                error = self.refusal(mention)
+                self.assertEqual(error.message.key, "summary.frames_missing")
+                self.assertEqual(error.message.params["names"], missing)
+
+    def test_a_list_with_an_item_that_is_not_a_whole_frame_name_is_refused(self):
+        a, b = self.FIRST, self.SECOND
+        for mention in (f"[{a}, la tabla]", f"[{a}, frame_037]", f"[{a}, frame_037_t00-31-24]",
+                        f"[{a}, frame_037_t00-31-24.png]", f"[{a}, {b},]", f"[{a},]", f"[, {a}]", f"[{a} y]",
+                        f"[{a}, y, {b}]", f"[{a} {b}]", f"[{a}, {b}.]", f"[{a} y también {b}]"):
+            with self.subTest(mention=mention):
+                self.assertEqual(writer.separate_frames(mention), mention)
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_unbracketed")
+
+    def test_a_range_inside_one_pair_is_not_split_and_is_still_refused(self):
+        a, b = self.FIRST, self.SECOND
+        for word in ("–", "—", "-", "--", "to", "a", "al", "hasta", "through", "..", "...", "…", "->", "→", "until",
+                     "A", "TO", "a la", "to the"):
+            for gap in (" ", ""):
+                mention = f"[{a}{gap}{word}{gap}{b}]"
+                with self.subTest(mention=mention):
+                    self.assertEqual(writer.separate_frames(mention), mention)
+                    self.assertIn(self.refusal(mention).message.key,
+                                  ("summary.frame_range", "summary.frame_unbracketed"))
+
+    def test_a_range_written_next_to_a_list_is_still_a_range(self):
+        a, b, c = self.FIRST, self.SECOND, self.THIRD
+        for mention in (f"[{a}, {b}] a [{c}]", f"[{a}] to [{b}, {c}]", f"[{a}, {b}] - [{c}]"):
+            with self.subTest(mention=mention):
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_range")
+
+    def test_a_frame_named_without_brackets_is_still_refused(self):
+        for mention in (self.FIRST, f"{self.FIRST}, {self.SECOND}", f"`{self.FIRST}`", "(frame_029, t00:23:24)",
+                        f"[{self.FIRST}, {self.SECOND}] y {self.THIRD}"):
+            with self.subTest(mention=mention):
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_unbracketed")
+
+    def test_a_single_name_and_everything_accepted_before_comes_out_byte_for_byte_the_same(self):
+        a, b = "frame_001_t00-01-22.jpg", "frame_002_t00-05-00.jpg"
+        accepted = [f"[{a}]", f"**[{a}]**", f"`[{a}]`", f"[{a}] y [{b}]", f"[{a}], la tabla; y [{b}], el total",
+                    f"[{a}] and [{b}]", f"[{a}] a la derecha del total", f"| [{a}] | - | [{b}] |", "sin imágenes",
+                    f"* **[{a}]** y **[{b}]**: la planilla  de costos.\n* **[{b}]**: otra vez.", "[1, 2] y [a, b]",
+                    f"[{a}], [{b}]", f"[{a}] [{b}]", f"[{a}]\n[{b}]"]
+        for mention in accepted:
+            with self.subTest(mention=mention):
+                self.assertEqual(writer.separate_frames(mention), mention)
+                self.assertEqual(self.checked(mention), self.screen(mention))
+        self.assertEqual(writer.separate_frames(summary_text()), summary_text())
+        for mention in RANGES + NOT_RANGES:
+            with self.subTest(mention=mention):
+                self.assertEqual(writer.separate_frames(mention), mention)
+
+    def test_a_list_already_rewritten_is_not_changed_again(self):
+        once = writer.separate_frames(f"[{self.FIRST}, {self.SECOND}] y `[{self.THIRD}; {self.FIRST}]`")
+        self.assertEqual(writer.separate_frames(once), once)
+
+    # WI27-AC03
+
+    def retry_of(self, refused):
+        """The note the retry carries, after a refused answer and a good one."""
+        good = self.screen(f"[{self.FIRST}], [{self.SECOND}]")
+        with FakeGemini([returning(refused), returning(good)]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), good)
+        first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
+        self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
+        # The retry is the same request with the note added, before the material.
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""), first)
+        return second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)]
+
+    def test_a_range_then_a_good_answer_is_delivered_and_the_retry_says_why(self):
+        note = self.retry_of(self.screen(f"[{self.FIRST}] a [{self.SECOND}]"))
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: it named a range of frames instead of each frame on its own: "
+                      f"[{self.FIRST}] a [{self.SECOND}].", note)
+        self.assertIn("Name each frame in its own square brackets, one file name for each pair", note)
+        self.assertIn("never a range of frames, and never a list of frames inside one pair", note)
+
+    def test_a_range_inside_one_pair_then_a_good_answer_is_delivered_and_the_retry_says_why(self):
+        note = self.retry_of(self.screen(f"[{self.FIRST} – {self.SECOND}]"))
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: it mentioned a frame without its file name in square "
+                      f"brackets: [{self.FIRST} – {self.SECOND}]", note)
+        self.assertIn("Name each frame in its own square brackets", note)
+
+    def test_a_frame_without_brackets_then_a_good_answer_is_delivered_and_the_retry_says_why(self):
+        note = self.retry_of(self.screen(f"la planilla ({self.FIRST})"))
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: it mentioned a frame without its file name in square "
+                      "brackets: ", note)
+        self.assertIn(self.FIRST, note)
+        self.assertIn("one whole file name for each pair", note)
+        self.assertIn("never mention a frame by its number, its time or part of its name", note)
+
+    def test_two_answers_refused_for_how_a_frame_is_named_are_refused_and_nothing_is_written(self):
+        for refused, key in ((f"[{self.FIRST}] a [{self.SECOND}]", "summary.frame_range"),
+                             (f"[{self.FIRST}, la tabla]", "summary.frame_unbracketed")):
+            with self.subTest(key=key):
+                self.forget_paid()
+                with FakeGemini([returning(self.screen(refused))] * 2) as fake:
+                    with self.assertRaises(writer.SummaryError) as caught:
+                        self.summarise(fake)
+                self.assertEqual(caught.exception.message.key, key)
+                self.assertEqual(len(fake.requests), 2)
+                self.assertFalse(self.output().exists())
+
+    def test_the_retry_names_every_reason_when_the_answer_had_a_range_and_an_empty_section(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2]).replace("Texto de Lo que se vio en pantalla.",
+                                                       f"[{self.FIRST}] to [{self.SECOND}]")
+        note = self.retry_of(text)
+        self.assertIn("for 2 reasons", note)
+        self.assertIn(f"(1) these sections had nothing under their heading: {headings[2]}", note)
+        self.assertIn("(2) it named a range of frames instead of each frame on its own: "
+                      f"[{self.FIRST}] to [{self.SECOND}]", note)
+        self.assertIn("Every section must have content under its heading", note)
+        self.assertIn("Name each frame in its own square brackets", note)
+
+    def test_the_retry_names_every_reason_when_the_answer_had_no_key_points_and_a_frame_without_brackets(self):
+        text = summary_text(points=False).replace("Texto de Lo que se vio en pantalla.", f"la planilla ({self.FIRST})")
+        note = self.retry_of(text)
+        self.assertIn("for 2 reasons", note)
+        self.assertIn("(1) its 'Puntos clave' section had no bullet point", note)
+        self.assertIn("(2) it mentioned a frame without its file name in square brackets", note)
+
+    def test_the_note_with_every_reason_at_its_longest_fits_what_the_budget_reserves(self):
+        headings = writer.required_headings("es")
+        long = "x" * 5000
+        messages = [texts.Message("summary.no_key_points", heading=headings[-1]),
+                    texts.Message("summary.empty_sections", headings=", ".join(headings[:-1])),
+                    texts.Message("summary.frames_missing",
+                                  names=", ".join(f"frame_{n:03d}_t01-02-03.jpg" for n in range(100))),
+                    texts.Message("summary.frame_range", text=long),
+                    texts.Message("summary.frame_unbracketed", text=long)]
+        for count in range(1, len(messages) + 1):
+            with self.subTest(reasons=count):
+                self.assertLessEqual(len(writer.retry_note(messages[-count:])), writer.RETRY_NOTE_CHARS)
+        self.assertIn("(5) it mentioned a frame", writer.retry_note(messages))
 
 
 if __name__ == "__main__":
