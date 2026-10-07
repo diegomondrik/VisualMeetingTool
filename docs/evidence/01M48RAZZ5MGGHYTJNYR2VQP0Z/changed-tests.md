@@ -30,3 +30,17 @@ Not tests, but changed with them:
 
 The tests of WI22 that are not named here pass as they were, with no change:
 `tests/test_template_filter.py` (the rest), `tests/test_d1_r02_plantilla.py` and `tests/test_report.py`.
+
+## After the independent review of `6e33e4c` (P1: Markup Compatibility)
+
+A field outside the list passed both checks when it was written across the two branches of an
+`mc:AlternateContent`, or around an element of a namespace that `mc:Ignorable` names: the filter read the XML
+as one stream and joined the pieces of the instruction, so the name it judged (an allowed one) was not the one Word
+reads when it takes the other branch or skips the element. The fix reads each `mc:Choice`, each `mc:Fallback` and
+each ignorable element as a reading context of its own (all judged), and refuses a template whose Markup
+Compatibility leaves unknown what Word reads, naming the part.
+
+No test that existed before changed in this round: every test of WI22 and of the first pass of WI23 passes as it
+was. The new ones are in `tests/test_markup_compatibility.py` (a new file). New messages, in both languages:
+`report.active.compat_unknown`, `report.active.compat_structure` and `report.active.compat_prefix`.
+The register has `WI23-P3-2`, the known cost of reading every branch.

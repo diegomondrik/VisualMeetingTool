@@ -75,6 +75,13 @@ WORD_NAMESPACES = frozenset({"http://schemas.openxmlformats.org/wordprocessingml
 # The tags (as ElementTree writes them: {namespace}name) that carry a field, whatever prefix a part gives them.
 FIELD_TAGS = {f"{{{namespace}}}{local}": local for namespace in WORD_NAMESPACES
               for local in ("fldSimple", "instrText", "delInstrText", "fldChar")}
+# Markup Compatibility (ISO 29500-3): how a producer offers Word alternatives (mc:AlternateContent, whose
+# mc:Choice and mc:Fallback Word reads one of) and names the namespaces Word may skip, element and content
+# (mc:Ignorable). Which it reads depends on what that Word understands, which the file does not say.
+MC_NAMESPACE = "http://schemas.openxmlformats.org/markup-compatibility/2006"
+MC_ELEMENTS = frozenset({"AlternateContent", "Choice", "Fallback"})
+MC_PREFIX_ATTRIBUTES = frozenset({"Ignorable", "MustUnderstand"})
+MC_NAME_ATTRIBUTES = frozenset({"ProcessContent", "PreserveElements", "PreserveAttributes"})  # prefix:name items
 # Parts that hold XML even when their name does not say so are found by content type; these are the
 # extensions that always do.
 XML_EXTENSIONS = (".xml", ".rels")
@@ -157,15 +164,144 @@ def _closed(open_field):
     return _field(open_field["prefix"] if open_field["nested"] else text, text, open_field["nested"])
 
 
-def field_instructions(root):
+def _parse(data):
+    """(the root of an XML part, {element: the prefixes declared at it}): the
+    prefixes are kept only for the elements that use Markup Compatibility,
+    whose attributes name prefixes."""
+    root, scopes, levels, pending = None, {}, [], []
+    for event, item in ElementTree.iterparse(io.BytesIO(data), events=("start-ns", "start", "end")):
+        if event == "start-ns":
+            pending.append(item)
+        elif event == "start":
+            root = item if root is None else root
+            levels.append(dict(pending))
+            pending = []
+            if item.tag.startswith(f"{{{MC_NAMESPACE}}}") or any(key.startswith(f"{{{MC_NAMESPACE}}}") for key in item.attrib):
+                scopes[item] = {prefix: uri for level in levels for prefix, uri in level.items()}
+        else:
+            levels.pop()
+    return root, scopes
+
+
+def _events(root):
+    """("start" | "end", element) for the element and all below it, in document
+    order, without recursion: a part may be nested deeper than the interpreter
+    allows."""
+    stack = [(root, iter(root))]
+    yield "start", root
+    while stack:
+        element, children = stack[-1]
+        child = next(children, None)
+        if child is None:
+            stack.pop()
+            yield "end", element
+        else:
+            stack.append((child, iter(child)))
+            yield "start", child
+
+
+def _namespace(element):
+    return element.tag[1:].partition("}")[0] if isinstance(element.tag, str) and element.tag.startswith("{") else ""
+
+
+def _named_namespaces(element, attribute, scopes):
+    """(the namespaces that the Markup Compatibility attribute of an element
+    names by prefix, the prefixes it names that nothing declares)."""
+    value = element.attrib.get(f"{{{MC_NAMESPACE}}}{attribute}")
+    if value is None:
+        return frozenset(), []
+    scope, found, lost = scopes.get(element, {}), set(), []
+    for item in value.split():
+        prefix = item.split(":", 1)[0] if attribute in MC_NAME_ATTRIBUTES else item
+        if prefix in scope:
+            found.add(scope[prefix])
+        else:
+            lost.append(prefix)
+    return frozenset(found), lost
+
+
+def _is_branch(element):
+    return _namespace(element) == MC_NAMESPACE and element.tag.rpartition("}")[2] in ("Choice", "Fallback")
+
+
+def compatibility_problems(root, scopes):
+    """What of Markup Compatibility in a part makes it impossible to know what
+    Word would read, as (the message's key, the name of what it is about):
+    an element or attribute of the namespace that is not known, an
+    mc:AlternateContent that is not a list of mc:Choice, each with the
+    namespaces it requires, and at most one mc:Fallback, last; a prefix that
+    mc:Ignorable, mc:MustUnderstand, mc:ProcessContent or mc:Requires name and
+    nothing declares; and a namespace of Word's own made ignorable."""
+    problems, branches = set(), set()
+    for element in root.iter():
+        if _namespace(element) == MC_NAMESPACE:
+            local = element.tag.rpartition("}")[2]
+            children = [child.tag.rpartition("}")[2] if _namespace(child) == MC_NAMESPACE else "" for child in element]
+            if local not in MC_ELEMENTS:
+                problems.add(("report.active.compat_unknown", f"mc:{local}"))
+            elif local == "AlternateContent":
+                branches.update(id(child) for child in element)
+                if "Choice" not in children or children.count("Fallback") > 1 or any(
+                        kind not in ("Choice", "Fallback") for kind in children) or (
+                        "Fallback" in children and children[-1] != "Fallback"):
+                    problems.add(("report.active.compat_structure", "mc:AlternateContent"))
+            elif id(element) not in branches:  # a Choice or a Fallback outside an mc:AlternateContent
+                problems.add(("report.active.compat_structure", f"mc:{local}"))
+            if local == "Choice":
+                required = element.get("Requires", "").split()
+                scope = scopes.get(element, {})
+                if not required:
+                    problems.add(("report.active.compat_structure", "mc:Choice"))
+                problems.update(("report.active.compat_prefix", prefix) for prefix in required if prefix not in scope)
+        for key in element.attrib:
+            if key.startswith(f"{{{MC_NAMESPACE}}}"):
+                local = key.rpartition("}")[2]
+                if local not in MC_PREFIX_ATTRIBUTES | MC_NAME_ATTRIBUTES:
+                    problems.add(("report.active.compat_unknown", f"mc:{local}"))
+                    continue
+                found, lost = _named_namespaces(element, local, scopes)
+                problems.update(("report.active.compat_prefix", prefix) for prefix in lost)
+                if local == "Ignorable" and found & (WORD_NAMESPACES | {MC_NAMESPACE}):
+                    problems.add(("report.active.compat_prefix", "mc:Ignorable"))
+    return sorted(problems)
+
+
+def _finish(state, fields):
+    """Close what a reading context left open, and read its loose text as one more field."""
+    fields.extend(_closed(open_field) for open_field in state["open"])
+    text = "".join(state["loose"])
+    fields.append(_field(text, text, False))
+
+
+def field_instructions(root, scopes=None):
     """Every field of an XML part, as Field, in document order: a simple field
     (w:fldSimple) by its w:instr, and a complex one by the w:instrText pieces
     joined from its begin up to its separate or end, across runs and
     paragraphs, each field on its own (a field inside another's instruction is
     its own, and its text is not the outer's). Text that no field holds, or that
-    a field writes after its separate, is joined and read as one more field."""
-    fields, open_fields, loose = [], [], []
-    for element in root.iter():
+    a field writes after its separate, is joined and read as one more field.
+
+    Word reads one branch of an mc:AlternateContent, and skips an element of an
+    ignorable namespace with what is inside it, so the pieces of two branches,
+    or of an element Word skips and one it reads, are not one instruction: each
+    mc:Choice, each mc:Fallback and each element in a namespace that mc:Ignorable
+    names is a reading context of its own, whose fields are all judged (which
+    one Word reads is not known). `scopes` is what _parse gives."""
+    scopes = scopes or {}
+    fields, states, isolated, ignorable = [], [{"open": [], "loose": []}], [], [frozenset()]
+    for event, element in _events(root):
+        if event == "end":
+            ignorable.pop()
+            if isolated and isolated[-1] is element:
+                isolated.pop()
+                _finish(states.pop(), fields)
+            continue
+        names = ignorable[-1] | _named_namespaces(element, "Ignorable", scopes)[0] if element in scopes else ignorable[-1]
+        ignorable.append(names)
+        if _is_branch(element) or _namespace(element) in names:
+            isolated.append(element)
+            states.append({"open": [], "loose": []})
+        open_fields, loose = states[-1]["open"], states[-1]["loose"]
         kind = FIELD_TAGS.get(element.tag)
         if kind == "fldSimple":
             instruction = _word_attribute(element, "instr")
@@ -185,9 +321,7 @@ def field_instructions(root):
                 open_fields[-1]["separated"] = True
             elif step == "end" and open_fields:
                 fields.append(_closed(open_fields.pop()))
-    fields.extend(_closed(open_field) for open_field in open_fields)
-    text = "".join(loose)
-    fields.append(_field(text, text, False))
+    _finish(states[0], fields)
     return fields
 
 
@@ -259,7 +393,7 @@ def active_content(parts):
         if not _is_xml(name, types):
             continue
         try:
-            root = ElementTree.fromstring(data)
+            root, scopes = _parse(data)
         except (ElementTree.ParseError, ValueError) as error:
             found.append(texts.Message("report.active.unreadable", part=name, detail=texts.External(str(error))))
             continue
@@ -274,7 +408,7 @@ def active_content(parts):
                 elif kind.lower() == "hyperlink" and not HYPERLINK_ALLOWED.match(target):
                     found.append(texts.Message("report.active.hyperlink", part=name, target=target))
         names, links, unnamed = set(), set(), False
-        for field in field_instructions(root):
+        for field in field_instructions(root, scopes):
             unnamed = unnamed or field.unnamed
             word = re.match(r"\w+", field.name)
             # A name that does not start with a word (a quote, a dash) is judged as written, not as no name.
@@ -297,6 +431,8 @@ def active_content(parts):
             found.append(texts.Message("report.active.unnamed_field", part=name))
         for target in sorted(links):
             found.append(texts.Message("report.active.hyperlink", part=name, target=target))
+        for key, what in compatibility_problems(root, scopes):
+            found.append(texts.Message(key, part=name, name=what[:NAME_SHOWN]))
     return found
 
 
