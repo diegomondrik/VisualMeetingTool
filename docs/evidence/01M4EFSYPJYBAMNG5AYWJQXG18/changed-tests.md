@@ -29,3 +29,17 @@ New:
 The first draft of the manual quoted the field of the ceiling by its old name; `ItIsTrueTest` failed on it (WI28 renamed
 it "Estimated spending ceiling in dollars"), and the manual was corrected, including what it says about a request already
 sent being paid and a run stopping when an answer costs more than estimated.
+
+## After the independent review
+
+No other test that existed before changed. Added in `tests/test_user_manual.py`:
+
+- `test_every_name_the_page_marks_is_exactly_the_text_of_the_key_it_names`: each of the 42 names the manual marks with
+  `data-ui="<key>"` equals, exactly, that text of the program's English catalogue. It replaces trusting a list kept by hand.
+- In `test_the_numbers_it_gives_are_the_code_s`: the largest ceiling is read from `jobs.check_request` and checked
+  against the form (`pages.py`) and the manual ("above 0 and up to 5").
+- In `test_the_places_it_names_are_the_ones_the_program_uses`: the log's place comes from `window.log_dir()` and
+  `window.LOG_NAME`, not from a fixed text.
+
+`mutations.txt` has 18 mutations, all detected, including a mutation of the largest ceiling and one that points a marked
+name at another text of the program.
