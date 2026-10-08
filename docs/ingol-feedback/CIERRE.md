@@ -11,9 +11,9 @@ estimaciones. Las rutas son de este repositorio salvo que diga otra cosa. Las ci
 **Estado en una mirada.**
 
 - Primera tanda (R01 a R06): integrada en `main`.
-- Segunda tanda (R07 a R11): construida, revisada y con la suite completa en verde, pero **sin integrar**. Tres de sus
-  PR están abiertos (#28, #29, #30) y la revisión protegida de INGOL los rechaza por una causa de proceso (TP-08, punto
-  2.1). El PR de R09 todavía no está abierto.
+- Segunda tanda (R07 a R11): construida, revisada y con la suite completa en verde, pero **sin integrar**. Sus PR están
+  abiertos: #28 (R07) y #29 (R08) con `bootstrap` y `tests` en verde tras la firma del owner (punto 2.1); #31 (R09)
+  recién abierto, sin resultado todavía; #30 (R10 y R11) en rojo en `bootstrap` porque cambia un workflow (punto 2.12).
 - El juez externo de INGOL corrió una vez, se cortó por cuota y dejó un borrador con **1 P0 y 2 P1 abiertos** más un P1
   aceptado por el owner.
 
@@ -36,7 +36,7 @@ cerró con un work item (WI) y su PR. "Commit" es el de integración en `main`, 
 | R06 | Una transcripción de texto sólo se leía en una codificación | WI26, PR #26 | Cerrada | `f1bde92` |
 | R07 | Techo de gasto: una respuesta que costó más de lo estimado | WI28, PR #28 | **Abierta**: hecha y revisada, sin integrar | `30a9583` (punta de la rama) |
 | R08 | El límite de subida no limita lo que un Word descomprime | WI29, PR #29 | **Abierta**: sin integrar | `0ecf53f` (punta de la rama) |
-| R09 | Cada imagen de una reunión relee los resúmenes de todo el proyecto | WI30, PR todavía no abierto | **Abierta**: sin integrar | `ccda496` (punta de la rama local, no empujada) |
+| R09 | Cada imagen de una reunión relee los resúmenes de todo el proyecto | WI30, PR #31 | **Abierta**: sin integrar | `b4f10ca`… punta de la rama al abrir el PR (código en `ccda496`) |
 | R10 | La suite no prueba las versiones que empaqueta el instalador | WI31, PR #30 | **Abierta**: sin integrar | `f787048` (punta de la rama) |
 | R11 | La guía contradice el estado de las pruebas | WI31, PR #30 | **Abierta**: sin integrar | `f787048` (punta de la rama) |
 
@@ -70,7 +70,7 @@ Resultado del borrador: 9 hallazgos, 1 P0, 3 P1, 3 P2, 2 P3 [`hallazgos.yaml`]. 
 | D1-04 | **P1** | Un registro de preguntas vacío se entrega como "no hubo preguntas" | **Abierto.** Verificado en `main`: `meetingtool/summary/qa.py:590-612` acepta `questions=[]`, y `qa.py:745` escribe "No se planteó ninguna pregunta". Sin work item |
 | D1-05 | P2 | Tras un corte, la CLI puede usar conocimiento anterior a una reunión guardada | Abierto. No verificado en esta sesión |
 | D1-06 | P2 | = R08 | WI29, PR #29 abierto |
-| D1-07 | P2 | = R09 | WI30, sin PR |
+| D1-07 | P2 | = R09 | WI30, PR #31 abierto |
 | D1-08 | P3 | La explicación de dónde corren las pruebas contradice el workflow | WI31, PR #30 abierto (corrige el README y la guía) |
 | D1-09 | P3 | Dos pruebas de idioma fallan por palabras en la ruta de trabajo | Abierto. No verificado en esta sesión |
 
@@ -102,7 +102,9 @@ uno (`metrics.yaml` sólo los acumula por sesión).
 - **Cuánto costó.** Una acción del owner por work item. En esta tanda: 4 trabajos (WI28 a WI31) más WI18. Minutos del
   owner: no medidos. El PR de WI18 lleva abierto desde 2026-10-02T00:18 [`gh pr view 19`]; por qué sigue abierto además
   del TP-08: no verificado.
-- **Resuelto.** No. Pendiente del owner al cierre de este informe.
+- **Resuelto.** Para WI28 a WI31: sí. El owner firmó los cuatro registros a las 2026-10-08T15:19Z, 35 minutos después de
+  abrirse los PR (14:44Z); tras eso `bootstrap` pasa en #28 y #29 [`gh pr checks 28`, `gh pr checks 29`; el campo
+  `approved_utc` de cada registro]. Para WI18 (#19): no verificado. El PR #31 (WI30) se abrió con su registro ya firmado.
 - **ID en el registro de limitaciones.** No tiene.
 
 ### 2.2 `ingol init` no sirve para un proyecto que ya existe (H1)
@@ -153,8 +155,9 @@ uno (`metrics.yaml` sólo los acumula por sesión).
 - **Reproducirlo.** `PYTHONPATH=~/.claude/ingol-kits/python python -m unittest discover -s tests -v` en un clon limpio
   (necesita los kits).
 - **Costo.** Las cuatro suites de la segunda tanda sumaron 9.377 s (2 h 36 min) de corrida, una detrás de otra porque por
-  la memoria no pueden ir juntas (la suma de los cuatro `Ran … in …s` de arriba); la de WI30 se está rehaciendo. El
-  reloj de espera de esta sesión: no medido.
+  la memoria no pueden ir juntas (la suma de los cuatro `Ran … in …s` de arriba); la de WI30 se rehízo por una decisión
+  posterior: con la primera corrida de WI30 (2.344 s) y la segunda (2.268 s), cinco corridas suman 11.646 s (3 h 14
+  min). El reloj de espera de esta sesión: no medido.
 - **Resuelto.** Parcial: este proyecto agregó pruebas propias sin kits que fijan el núcleo de cada arreglo, para que la
   CI las corra (por ejemplo `tests/test_data_integrity.py`). Los kits siguen fuera de la CI. **ID.** `WI20-P3-6`.
 
@@ -204,6 +207,22 @@ uno (`metrics.yaml` sólo los acumula por sesión).
   `limitations`, `proposals` y esta carpeta. Los hallazgos de las revisiones están sólo en cada `independent-review.md`,
   así que el tablero de INGOL no los ve. **Costo.** No medido. **Resuelto.** No. **ID.** No tiene.
 
+### 2.12 INGOL no avisa al aprobar el contrato que un cambio de workflow lo pasa a la vía controlada
+
+- **Qué pasó.** El contrato de WI31 declaraba la vía `standard` y listaba `.github/workflows/tests.yml` entre sus
+  superficies. Al abrir el PR #30, `bootstrap` falló en TP-06 ("contract lane standard is lower than derived lane
+  controlled"), TP-08, TP-05 y TP-15 ("the candidate changes the project's workflow tests.yml: a project's workflows
+  are changed by hand on its protected branch, never by a candidate"), TP-12 y TP-03. Ni la firma del registro de
+  revisión lo arregla: hay que sacar el cambio del workflow del PR.
+- **Cómo reproducirlo.** `gh run view 37799970802 --log | grep -A3 '"status": "failed"'` (corrida de `bootstrap` sobre
+  `f24deca`, PR #30).
+- **Cuánto costó.** Un ciclo de construcción, revisión independiente y suite completa (654 pruebas, 2.362 s) hecho con
+  un contrato que no podía pasar; el costo en minutos del owner: no medido.
+- **Resuelto.** En trámite: el owner eligió empujar a mano a `main` el cambio de `tests.yml` y `constraints.txt` (como en
+  H3) y después actualizar la rama de WI31. Al cierre de este informe, no empujado. Un intento del ejecutor de dejar
+  armado ese commit fue bloqueado por el sistema de permisos (clasificador "CI Bypass"); lo hace el owner.
+- **ID en el registro de limitaciones.** No tiene.
+
 ---
 
 ## 3. Lo que INGOL hizo bien
@@ -214,8 +233,8 @@ uno (`metrics.yaml` sólo los acumula por sesión).
 2. **El control de superficies no declaradas funciona.** El PR #2 (una prueba negativa a propósito, "undeclared
    surface") fue rechazado por TP-06, TP-08, TP-12 y TP-03 [`gh run view 36147998376 --log | grep "predicates failed"`].
 3. **TP-08 hace su trabajo.** Impide integrar un work item sin el registro de revisión independiente atado al digest del
-   contrato. Hoy detiene los PR #28 a #30 y el #19 por esa falta (punto 2.1): es una molestia, y es también el control
-   actuando [`gh pr checks 28`].
+   contrato. Detuvo los PR #28 a #30 y el #19 por esa falta (punto 2.1): es una molestia, y es también el control
+   actuando [`gh pr checks 28` antes de la firma].
 4. **La revisión independiente encontró defectos reales casi siempre.** De 12 revisiones (WI20 a WI31), 7 encontraron
    al menos un P1: WI22 (nombre de campo armado por campos anidados), WI23 (Markup Compatibility), WI24 (regresión del
    registro con `.txt [HH:MM:SS]`), WI27 (`entre [a y b]` pasaba como lista), WI28 (dos P1), WI29 y WI31 [`metrics.yaml`,
@@ -246,6 +265,7 @@ Tres tipos: (a) del proyecto, (b) de plataforma, (c) de método. "Convertida" di
 | Regla | Qué la originó | Convertida |
 |---|---|---|
 | Una mutación cuenta como detectada sólo si las pruebas **terminaron y fallaron**; un proceso caído no es una detección | En la noche del 7 al 8, tres mutaciones de WI28 salieron con códigos de falta de memoria y el guion las marcó `DETECTED` | Sí, en los guiones de las cuatro ramas (`1a666bc`, `a2ef2fc`, `8da90f4`, `daf9b74`): exigen la línea `Ran N tests`, salida 1 y `FAILED`, y imprimen `NOT RUN` si no |
+| Si un cambio toca un workflow del proyecto, el contrato no puede ser `standard`: el workflow lo cambia el owner a mano en la rama protegida, antes del PR | WI31: el contrato declaró `standard` con `tests.yml` entre sus superficies; `bootstrap` falló en TP-06, TP-08, TP-05, TP-15, TP-12 y TP-03 (punto 2.12) | No: es práctica; INGOL podría comprobarlo al aprobar el contrato |
 | No se salta la revisión independiente por ser un cambio "chico" | 7 de 12 revisiones encontraron un P1 (punto 3.4) | No: es práctica, no control |
 | Un "no aprobar" pide una segunda revisión, acotada, del arreglo | WI29: la primera dijo no aprobar; la segunda aprobó y encontró dos P3 más (bits de bandera 5 y 6; bytes de control crudos) | No: es práctica |
 | Si el texto afirma que algo se detecta, la reproducción tiene que mostrar esa detección, no un sustituto | WI28 P1-1: los textos decían que se detecta un cambio de precios; no se puede, y la reproducción dividía la estimación en vez de cambiar un precio | Parcial: los textos se corrigieron (`61c88fb`); la regla no es un control |
@@ -298,8 +318,7 @@ dos acumulados de la sesión, que incluye todo lo que el owner dijo en ese tramo
 borrar código), WI26 (24) y WI27 (41). La proporción control/producto va de 1,77 (WI20) a 95,7 (WI21) y 27,61 (WI27).]
 
 **Tanda 2 (WI28 a WI31): ninguno integrado, así que no hay tiempos "abierto → integrado" ni medición de PR.** Sí hay, de
-las ramas: pruebas con los kits en clon limpio, 663 (WI28), 656 (WI29), 665 (WI30, sobre un commit anterior a la última
-decisión; se está rehaciendo) y 654 (WI31), todas OK, y mutaciones detectadas 11, 9, 9 y 13
+las ramas: pruebas con los kits en clon limpio, 663 (WI28), 656 (WI29), 665 (WI30, sobre `ccda496`) y 654 (WI31), todas OK, y mutaciones detectadas 11, 9, 9 y 13
 [`docs/evidence/<id>/local-test-run.txt` y `mutations.txt` de cada rama]. La sesión de esta tanda (`medir_sesiones.py`):
 no medida; queda para el cierre [`metrics.yaml`, paso 11].
 
