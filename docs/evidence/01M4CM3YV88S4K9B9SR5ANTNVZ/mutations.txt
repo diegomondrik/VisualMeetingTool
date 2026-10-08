@@ -1,0 +1,14 @@
+mutation run for 01M4CM3YV88S4K9B9SR5ANTNVZ: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_library_reads` (no kits, what the CI runs) must fail
+commit: 71f27d085cbcc0db0c0c6fb3f3de240fcc7658a4 (clean working tree)
+- meeting_file back on the whole list: it finds the meeting among every meeting of the project, reading each one's result: exit 1, Ran 26 tests in 6.329s FAILED (failures=6, errors=2) -> DETECTED
+- the meeting page loading every result: meeting() builds the whole list and picks the meeting from it: exit 1, Ran 26 tests in 6.237s FAILED (failures=5, errors=1) -> DETECTED
+- the loose file back on the list of loose results: loose_file looks the name up among every loose result: exit 1, Ran 26 tests in 6.219s FAILED (failures=4, errors=1) -> DETECTED
+- the loose page back on the list of loose results: loose_result picks the name from the whole list: exit 1, Ran 26 tests in 6.204s FAILED (failures=3, errors=1) -> DETECTED
+- the meeting identifier not checked as a slug: it is used as it comes to build the path of the record: exit 1, Ran 26 tests in 6.221s FAILED (failures=2) -> DETECTED
+- the loose name not checked as a slug nor looked up on disk: it is used as it comes to build the path of the folder: exit 1, Ran 26 tests in 6.193s FAILED (failures=1) -> DETECTED
+- the loose name not looked up among the names on disk (the review's P2-1): on a disk that ignores case, "con-mayuscula" reaches the folder "Con-Mayuscula", which the home page does not list: exit 1, Ran 26 tests in 6.183s FAILED (failures=1) -> DETECTED
+- an empty meeting identifier accepted (the review's P3-2): it builds meetings/meeting.json: exit 1, Ran 26 tests in 6.181s FAILED (failures=1) -> DETECTED
+- the record's own id not compared with the folder it was read from: any folder's record answers to its name: exit 1, Ran 26 tests in 6.227s FAILED (failures=1) -> DETECTED
+- unmutated: exit 0, Ran 26 tests in 6.183s OK
+all mutations detected
