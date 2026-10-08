@@ -50,6 +50,21 @@ repository. A run that cannot be completed writes nothing and says why;
 there is no lower-quality fallback. `key status` shows only whether a key
 is saved and its length, and `key delete` removes it.
 
+**The spending ceiling is an estimate, not a guarantee.** Every run has a
+ceiling (US$0.50 for the commands, US$1.00 by default in the application).
+Before each request the program adds the most it could cost, its input
+estimated from the characters or the frames plus the whole output cap, at the
+list prices written in the code (`PRICE_INPUT_PER_MILLION` and
+`PRICE_OUTPUT_PER_MILLION` in `meetingtool/reading/gemini.py`), to what was
+already spent, and does not send it if that could pass the ceiling. So the
+ceiling holds only while those estimates and prices do. A request already sent
+is paid even if its answer is then refused and nothing is written. If an answer
+cost more than its request was estimated to cost (the prices changed, or the
+model, which is the alias `gemini-flash-latest`, changed), the answer is kept,
+since it was paid, and the run sends nothing more: it fails saying what was
+estimated and what it cost. A meeting processed again reuses what was kept and
+pays nothing for it.
+
 ## Writing the meeting summary
 
 Once the frames are read, Gemini writes the summary from the transcript and
@@ -213,7 +228,7 @@ It opens the browser on a page served by this machine only (127.0.0.1): the
 projects and their meetings with the summary or the register, their frames,
 the Word report to open and what each cost; a form to process a new meeting
 (the transcript, and the recording if there is one, uploaded from the
-browser; type, language, format and spending ceiling); and the settings (the
+browser; type, language, format and estimated spending ceiling); and the settings (the
 application's language, the company's name and logo, the Gemini key, never
 shown back, and the company's Word template). Keep the window it was started
 from open while it is used.
@@ -233,8 +248,9 @@ script. Both are kept in the data folder (`app-settings.json`,
 `company-logo.png` or `.jpg`).
 
 "Procesar" runs the same functions as the commands, in order: frames,
-reading (for the summary), summary or register, Word report. One ceiling
-covers the whole run. The meeting is added to its project only once its Word
+reading (for the summary), summary or register, Word report. One estimated
+ceiling (see above: list prices, not a guarantee) covers the whole run, and the
+run stops if an answer cost more than estimated. The meeting is added to its project only once its Word
 report is built; if a stage fails, the meeting is not added and the page says
 which stage failed, why and what was spent. What Gemini already answered is
 not thrown away: a failed run that paid for something keeps its folder in

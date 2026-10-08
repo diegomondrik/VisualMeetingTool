@@ -46,6 +46,10 @@ TEXTS = {
     "gemini.over_budget": "stopped before sending {what}: that request could cost up to US${worst:.2f}, and with "
                           "about US${spent:.2f} already spent it could go over the budget of US${budget:.2f}; nothing "
                           "was written{refused}",
+    "gemini.estimate_short": "stopped before sending {what}: the answer to {after} cost US${cost:.4f}, more than the "
+                             "US${estimated:.4f} its request was estimated to cost, so the estimate cannot be trusted "
+                             "and nothing more is sent in this run; the prices in the code (PRICE_INPUT_PER_MILLION, "
+                             "PRICE_OUTPUT_PER_MILLION) may be out of date. What was already answered is kept{refused}",
     "gemini.before.no_answer": " (the attempt before got no answer[[: {reason}]])",
     "gemini.before.refused": " (the answer before was refused: {error})",
     "gemini.refused": "Gemini refused the request (HTTP {status})[[: {reason}]]",
@@ -270,7 +274,8 @@ TEXTS = {
     "app.state.skipped": "not needed",
     "app.state.failed": "failed",
     "app.cost.title": "What it cost",
-    "app.cost.total_html": "<strong>{spent}</strong> of a ceiling of {ceiling}, in {seconds} s.",
+    "app.cost.total_html": "<strong>{spent}</strong> of an estimated ceiling of {ceiling} (from list prices; a request "
+                           "already sent is paid even if its answer is refused), in {seconds} s.",
     "app.frame.mention": "frame {clock}",
     "app.frame.caption": "Minute {clock}",
     "app.result.open_word": "Open the Word report",
@@ -292,8 +297,9 @@ TEXTS = {
     "app.new.language": "Language of the result",
     "app.new.meeting_language": "The meeting's",
     "app.new.qa_hint": "(each question with its whole answer)",
-    "app.new.ceiling": "Spending ceiling in dollars",
-    "app.new.ceiling_hint": "(if a stage could go over it, it is not sent)",
+    "app.new.ceiling": "Estimated spending ceiling in dollars",
+    "app.new.ceiling_hint": "(an estimate from list prices: a request already sent is paid even if its answer is "
+                            "refused, and the run stops if an answer cost more than estimated)",
     "app.new.process": "Process",
     "app.job.title": "Processing",
     "app.job.loading": "Loading…",
@@ -445,7 +451,7 @@ TEXTS = {
     "js.state.done": "done",
     "js.state.skipped": "not needed",
     "js.state.failed": "failed",
-    "js.spent": "Spent: {spent} of a ceiling of {ceiling} · {seconds} s",
+    "js.spent": "Spent: {spent} of an estimated ceiling of {ceiling} · {seconds} s",
     "js.see_meeting": "See the meeting",
     "js.failed_at": "It failed at «{stage}»: {error}. The meeting was not added to the project and nothing was left "
                     "half done.",
