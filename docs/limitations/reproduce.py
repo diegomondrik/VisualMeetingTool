@@ -1443,6 +1443,32 @@ def wi29_p3_1(args, root):
                                   f"{peak / len(data):.1f} times its size ({peak / 2 ** 20:.0f} MB)")
 
 
+@entry("WI29-P3-2")
+def wi29_p3_2(args, root):
+    import tracemalloc
+    from meetingtool import word_package
+    entries = 60_000
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "many.docx"
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED) as archive:
+            for number in range(entries):
+                archive.writestr(f"customXml/{number}.xml", b"")
+        size = path.stat().st_size
+        tracemalloc.start()
+        try:
+            try:
+                word_package.read_parts(path)
+                said = "read"
+            except word_package.PackageError as error:
+                said = f"refused: {error.message.key}"
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+    return said == "refused: package.too_many_entries" and peak > 3 * size, (
+        f"a package of {entries} empty parts ({size / 2 ** 20:.1f} MB): {said}, with a peak of "
+        f"{peak / 2 ** 20:.0f} MB ({peak / size:.1f} times its size)")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))

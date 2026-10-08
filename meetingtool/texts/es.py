@@ -155,6 +155,8 @@ TEXTS = {
     "package.part_too_big": "la parte {part} ocupa más de {limit} MB una vez expandida, el máximo para una parte",
     "package.total_too_big": "las partes juntas ocupan más de {limit} MB una vez expandidas, el máximo para un "
                              "archivo de Word (se pasó en {part})",
+    "package.unreadable_part": "la parte {part} está comprimida de una manera que los archivos de Word no usan, o "
+                               "está cifrada, y el programa no la lee",
 
     # ── El informe en Word (meetingtool.report) ─────────────────────────────
     "layout.marker_not_alone": "{{informe}} tiene que estar solo en su línea, sin nada más",

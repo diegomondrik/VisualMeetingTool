@@ -57,10 +57,10 @@ class Filler:
         handle.write(self.tail)
 
 
-def write_package(path, parts, level=1):
+def write_package(path, parts, level=1, method=zipfile.ZIP_DEFLATED):
     """A ZIP at path: each part is bytes or a Filler. Level 1 compression, as
     the repetitive parts shrink to a few thousandths of their size anyway."""
-    with zipfile.ZipFile(path, "w", zipfile.ZIP_DEFLATED, compresslevel=level) as archive:
+    with zipfile.ZipFile(path, "w", method, compresslevel=level if method == zipfile.ZIP_DEFLATED else None) as archive:
         for name, content in parts.items():
             if isinstance(content, Filler):
                 with archive.open(name, "w") as handle:
@@ -87,6 +87,21 @@ def state_size(path, size):
     raw = bytearray(Path(path).read_bytes())
     struct.pack_into("<I", raw, raw.rindex(b"PK\x01\x02") + 24, size)
     struct.pack_into("<I", raw, raw.index(b"PK\x03\x04") + 22, size)
+    Path(path).write_bytes(bytes(raw))
+    return Path(path)
+
+
+def patch_first_part(path, flags=None, method=None):
+    """The package at path (one part) with the general purpose flags or the compression method its headers state
+    changed, in the local header and in the central directory."""
+    raw = bytearray(Path(path).read_bytes())
+    local, central = raw.index(b"PK"), raw.rindex(b"PK")
+    if flags is not None:
+        struct.pack_into("<H", raw, local + 6, flags)
+        struct.pack_into("<H", raw, central + 8, flags)
+    if method is not None:
+        struct.pack_into("<H", raw, local + 8, method)
+        struct.pack_into("<H", raw, central + 10, method)
     Path(path).write_bytes(bytes(raw))
     return Path(path)
 
@@ -183,6 +198,38 @@ class LimitsTest(Packages):
             tracemalloc.stop()
         self.assertLessEqual(counted[0], PART + word_package.CHUNK)
         self.assertLess(peak, 2 * PART)
+
+    def test_a_part_compressed_in_a_way_zipfile_does_not_bound_is_refused_before_opening_anything(self):
+        """The review's P1: zipfile bounds its output only for deflate; a BZIP2 or LZMA part of a few hundred bytes
+        expanded to gigabytes inside the first read. Here 40 MB, kept small to be quick: nothing is opened."""
+        for label, method in (("BZIP2", zipfile.ZIP_BZIP2), ("LZMA", zipfile.ZIP_LZMA)):
+            with self.subTest(label):
+                path = write_package(self.tmp / f"{label}.docx", {"word/document.xml": document_xml(40 * MB)},
+                                     method=method)
+                self.assertLess(path.stat().st_size, 1024 * 1024)
+                with mock.patch.object(zipfile.ZipFile, "open", side_effect=AssertionError("a part was opened")):
+                    with self.assertRaises(word_package.PackageError) as raised:
+                        word_package.read_parts(path)
+                self.assertEqual(raised.exception.message.key, "package.unreadable_part")
+                self.assertIn("the part word/document.xml is compressed in a way Word files do not use, or is "
+                              "encrypted", raised.exception.text("en"))
+                self.assertIn("la parte word/document.xml está comprimida de una manera que los archivos de Word "
+                              "no usan, o está cifrada", raised.exception.text("es"))
+
+    def test_an_encrypted_part_or_one_of_an_unknown_method_is_refused_not_a_crash(self):
+        """Before, deflate64 raised NotImplementedError and an encrypted part RuntimeError, which nothing caught."""
+        for label, change in (("encrypted", {"flags": 0x1}), ("deflate64", {"method": 9})):
+            with self.subTest(label):
+                path = patch_first_part(write_package(self.tmp / f"{label}.docx", {"word/document.xml": b"<x/>"}),
+                                        **change)
+                with self.assertRaises(word_package.PackageError) as raised:
+                    word_package.read_parts(path)
+                self.assertEqual(raised.exception.message.key, "package.unreadable_part")
+
+    def test_stored_and_deflated_parts_are_read(self):
+        stored = write_package(self.tmp / "stored.docx", {"word/document.xml": b"<x/>"}, method=zipfile.ZIP_STORED)
+        self.assertEqual(word_package.read_parts(stored), {"word/document.xml": b"<x/>"})
+        self.assertEqual(word_package.read_parts(self.clean), self.clean_parts)
 
     def test_the_review_s_case_is_read(self):
         """About 5 KB that expand to 5,000,000 characters are within the limits."""

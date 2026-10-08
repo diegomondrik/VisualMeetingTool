@@ -6,7 +6,11 @@ a package of a few kilobytes can expand to tens of megabytes or more. Every
 package the program reads (a transcript, a template, the report's last check)
 is read here, and refused, before any part is parsed, when it holds more
 entries than MAX_ENTRIES, when a part expands to more than MAX_PART_BYTES, or
-when the parts read expand to more than MAX_PACKAGE_BYTES together.
+when the parts read expand to more than MAX_PACKAGE_BYTES together. A part
+is accepted only if it is stored or deflated, as Word writes them, and not
+encrypted: zipfile bounds its output only for deflate, so a BZIP2 or LZMA part
+of a few hundred bytes would be expanded to gigabytes before the first chunk
+could be counted (the independent review's P1).
 
 The bytes are counted as they are decompressed, in chunks, and the reading
 stops as soon as a limit is passed: the size the package's directory states
@@ -25,6 +29,8 @@ MAX_PART_BYTES = 32 * 1024 * 1024
 MAX_PACKAGE_BYTES = 256 * 1024 * 1024
 MEGABYTE = 1024 * 1024
 CHUNK = 64 * 1024
+READABLE_COMPRESSION = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
+ENCRYPTED = 0x1  # bit 0 of a part's general purpose flags
 
 
 class PackageError(texts.Failure):
@@ -34,12 +40,16 @@ class PackageError(texts.Failure):
 def read_parts(path, names=None):
     """{name: bytes} of the parts of the package at path: those in `names`
     (KeyError for one the package lacks), or every one. PackageError when
-    the package, or what is read of it, is over a limit; zipfile.BadZipFile
+    the package, or what is read of it, is over a limit or holds a part that
+    is neither stored nor deflated, or is encrypted; zipfile.BadZipFile
     and OSError as zipfile raises them."""
     with zipfile.ZipFile(path) as archive:
         present = archive.namelist()
         if len(present) > MAX_ENTRIES:
             raise PackageError("package.too_many_entries", count=len(present), limit=MAX_ENTRIES)
+        for info in archive.infolist():
+            if info.compress_type not in READABLE_COMPRESSION or info.flag_bits & ENCRYPTED:
+                raise PackageError("package.unreadable_part", part=info.filename)
         wanted = list(dict.fromkeys(present if names is None else names))
         parts = {}
         total = 0

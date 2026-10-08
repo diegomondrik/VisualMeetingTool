@@ -151,6 +151,8 @@ TEXTS = {
     "package.part_too_big": "the part {part} is larger than {limit} MB once expanded, the most one part may be",
     "package.total_too_big": "the parts together are larger than {limit} MB once expanded, the most a Word file "
                              "may be (it went over at {part})",
+    "package.unreadable_part": "the part {part} is compressed in a way Word files do not use, or is encrypted, and "
+                               "the program does not read it",
 
     # ── The Word report (meetingtool.report) ────────────────────────────────
     "layout.marker_not_alone": "{{informe}} must be alone on its line, with nothing else on it",
