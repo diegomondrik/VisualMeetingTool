@@ -1,0 +1,80 @@
+schema_version: "1"
+id: 01M4CM3YV6DMY3QDWAZDMAANW6
+objective: >
+  WI28. The spending ceiling says what it is, and a run stops when an answer
+  cost more than its estimate (finding R07, P2, of the external review of
+  2026-10-02: "El techo de gasto se presenta como garantía, pero depende de
+  estimaciones"). First work item of the second batch. The owner asked on
+  2026-10-07 to finish all of R07 to R11 overnight, without seeing each
+  contract: this contract is approved by that instruction, and what it
+  decides without the owner is listed below. Starts from main (1a78ce4,
+  after WI27); does not touch the installer's branch.
+
+  Today, before each request to Gemini, the most it could cost (its input
+  estimated from characters or frames, plus the whole output cap, at the
+  list prices written in the code) is added to what was spent, and the
+  request is not sent if that could pass the ceiling. But the answer's real
+  cost comes from its usage, and an answer that cost more than its estimate
+  is accepted and the run goes on estimating the same way: the ceiling holds
+  only while the estimate does (prices change, the model is an alias whose
+  version may change). After this work item: an answer whose real cost was
+  more than the most it was estimated to cost is kept (it was paid, and
+  refusing it recovers nothing), and the run sends nothing more, failing
+  with a message that says the estimate fell short, what it cost and what
+  was estimated, and that the prices in the code may be out of date. The
+  application and the README call the ceiling an estimated ceiling, and say
+  plainly that it is computed from list prices, that a request already sent
+  is paid even if its answer is refused, and that a run stops if an answer
+  cost more than estimated.
+
+  Decided without the owner (conservative defaults): the model is not
+  pinned to a version and the prices are not changed (either changes what
+  the owner's meetings cost or how they read: a decision of the owner's);
+  the default ceiling stays US$1.00. Both are written as a known
+  limitation.
+
+  Built by a construction-role agent (Sonnet), gated by the criterion; one
+  independent review through INGOL's mailbox.
+
+  Not done: an exact bound for any input (it would need the provider's
+  token counting before each request); reading the provider's current
+  prices.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4CM3YV6DMY3QDWAZDMAANW6/**
+  - docs/evidence/01M4CM3YV6DMY3QDWAZDMAANW6/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI28-AC01
+    description: >
+      An answer whose usage costs more than the most its request was
+      estimated to cost is returned and kept (paid-answers), and the next
+      request of the same run, in the same stage or a later one, a retry
+      included, is not sent: the run fails naming the estimate that fell
+      short (what was estimated, what it cost). The review's own case (an
+      answer of 800,000 input tokens with a ceiling of US$0.50 and an
+      estimate of US$0.10) is one of the tests. An answer that cost what was
+      estimated or less changes nothing; the same meeting processed again
+      reuses the kept answer and pays nothing for it.
+  - id: WI28-AC02
+    description: >
+      The application's form, its run page and the README call the ceiling
+      an estimated ceiling and say, in English and Spanish, that it comes
+      from list prices, that a request already sent is paid even if refused,
+      and that a run stops if an answer cost more than estimated; the
+      module's docstring says the same. No text calls it a guarantee.
+  - id: WI28-AC03
+    description: >
+      Mutations (the stop after an estimate fell short removed; the overrun
+      compared against the ceiling instead of against the request's
+      estimate; the kept answer not written when it overran) each make a
+      test fail; the script and its output in the evidence. A known
+      limitation for the model alias and the fixed prices, reproduced. An
+      independent review through INGOL's mailbox before the pull request;
+      the whole suite passes in a fresh clone of the tested commit with
+      INGOL's kits, output committed under
+      docs/evidence/01M4CM3YV6DMY3QDWAZDMAANW6/; tests changed named with
+      why.

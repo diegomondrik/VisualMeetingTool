@@ -53,6 +53,25 @@ repository. A run that cannot be completed writes nothing and says why;
 there is no lower-quality fallback. `key status` shows only whether a key
 is saved and its length, and `key delete` removes it.
 
+**The spending ceiling is an estimate, not a guarantee.** Every run has a
+ceiling (US$0.50 for the commands, US$1.00 by default in the application).
+Before each request the program adds the most it could cost, its input
+estimated from the characters or the frames plus the whole output cap, at the
+list prices written in the code (`PRICE_INPUT_PER_MILLION` and
+`PRICE_OUTPUT_PER_MILLION` in `meetingtool/reading/gemini.py`), to what was
+already spent, and does not send it if that could pass the ceiling. So the
+ceiling holds only while those estimates and prices do. A request already sent
+is paid even if its answer is then refused and nothing is written. If an answer
+used more tokens, and so cost more, than its request was estimated to (a longer
+input than estimated, or a version of the model, which is the alias
+`gemini-flash-latest`, that thinks or writes more), the answer is kept, since
+it was paid, and the run sends nothing more: it fails saying what was estimated
+and what it cost, also when that was its last request, and writes nothing. A
+meeting processed again reuses what was kept and pays nothing for it. A change
+of price is not noticed: the cost is counted with the same prices as the
+estimate, and Google's answer holds token counts, not prices (a known limitation,
+`WI28-P3-1`).
+
 ## Writing the meeting summary
 
 Once the frames are read, Gemini writes the summary from the transcript and
@@ -191,6 +210,9 @@ address or a place in the document. A template may hold only these Word fields, 
 any other field (`ADDIN`, `FILLIN`, `MERGEFIELD`...) is refused, naming it, and the company's `{placeholders}` are
 not Word fields, so they are not affected. Every branch of a Markup Compatibility alternative (`mc:AlternateContent`) is judged the same way, and one
 that leaves unknown what Word would read is refused, naming the part.
+A Word file (a template, a Word transcript, a report) is refused, naming the part, when it holds more than 4,000 parts,
+one part that expands to more than 32 MB, or parts that expand to more than 256 MB together; the bytes are counted
+as they are decompressed, whatever the file says it holds.
 
 Where the template has a field name in braces, in its body, header or
 footer, the report puts that meeting's data with the template's format:
@@ -216,7 +238,7 @@ It opens the browser on a page served by this machine only (127.0.0.1): the
 projects and their meetings with the summary or the register, their frames,
 the Word report to open and what each cost; a form to process a new meeting
 (the transcript, and the recording if there is one, uploaded from the
-browser; type, language, format and spending ceiling); and the settings (the
+browser; type, language, format and estimated spending ceiling); and the settings (the
 application's language, the company's name and logo, the Gemini key, never
 shown back, and the company's Word template). Keep the window it was started
 from open while it is used.
@@ -236,8 +258,9 @@ script. Both are kept in the data folder (`app-settings.json`,
 `company-logo.png` or `.jpg`).
 
 "Procesar" runs the same functions as the commands, in order: frames,
-reading (for the summary), summary or register, Word report. One ceiling
-covers the whole run. The meeting is added to its project only once its Word
+reading (for the summary), summary or register, Word report. One estimated
+ceiling (see above: list prices, not a guarantee) covers the whole run, and the
+run stops if an answer cost more than estimated. The meeting is added to its project only once its Word
 report is built; if a stage fails, the meeting is not added and the page says
 which stage failed, why and what was spent. What Gemini already answered is
 not thrown away: a failed run that paid for something keeps its folder in

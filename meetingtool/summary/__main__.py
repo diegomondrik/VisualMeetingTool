@@ -46,8 +46,9 @@ def main(argv=None, *, read_key=None, endpoint=gemini.ENDPOINT, sleep=time.sleep
     parser.add_argument("--video", help="the recording, stored with the meeting in the project")
     parser.add_argument("--data-dir", help="the projects' data folder (default: as for meetingtool.projects)")
     parser.add_argument("--max-cost", type=float, default=writer.MAX_COST_USD,
-                        help=f"spend budget in US$ (default {writer.MAX_COST_USD:.2f}); a request that could go "
-                             "over it is not sent")
+                        help=f"estimated spending ceiling in US$ (default {writer.MAX_COST_USD:.2f}), from list "
+                             "prices; a request that could go over it is not sent, and a run in which an answer "
+                             "used more tokens than estimated stops")
     args = parser.parse_args(argv)
     write = qa.write_register if args.format == "qa" else writer.write_summary
     try:

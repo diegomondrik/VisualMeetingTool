@@ -976,6 +976,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     record = {"language": language, "meeting_type": meeting_type or "", "knowledge": grouped,
               "questions": [dict(dataclasses.asdict(q), answers=[{"speaker": s, "text": t} for s, t in q.answers],
                                  seen=seen.get(q.id), span=needing.get(q.id, [])) for q in questions]}
+    gemini.check_estimate(counters)
     if readings:
         header = ["# What each frame read for the register shows (read by Gemini)", "",
                   f"{len(readings)} of {len(frames)} frames, model {model}.", ""]
