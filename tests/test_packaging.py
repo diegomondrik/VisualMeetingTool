@@ -108,6 +108,21 @@ class BuildTest(unittest.TestCase):
         for name in ("pyinstaller", "pywebview", "av", "numpy", "pillow", "python-docx"):
             self.assertIn(name, pinned)
 
+    def test_the_installer_packs_the_versions_the_ci_tests(self):
+        """The review's P3-4: constraints.txt (what the CI installs, WI31) and the build's frozen environment must not
+        drift apart, or the installer would carry versions nobody tested."""
+        frozen = PACKAGING / "requirements-build.txt"
+        if not frozen.exists():
+            self.skipTest("requirements-build.txt is frozen once the build environment is installed")
+        pinned = self.build.pins(frozen)
+        constraints = ROOT / "constraints.txt"
+        if not constraints.exists():
+            self.skipTest("constraints.txt arrives with work item 31")
+        wanted = self.build.pins(constraints)
+        self.assertTrue(wanted)
+        for name, version in wanted.items():
+            self.assertEqual(pinned.get(name.replace("_", "-").lower(), pinned.get(name)), version, name)
+
     def test_files_git_ignores_inside_what_is_packed_are_named(self):
         """Review P2-2: client data that .gitignore hides would be packed all the same."""
         status = ("!! meetingtool/__pycache__/\n!! meetingtool/app/__pycache__/server.cpython-312.pyc\n"

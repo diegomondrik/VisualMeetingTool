@@ -421,7 +421,7 @@ TEXTS = {
     "app.run.no_key": "no Gemini key is saved: save it in Settings",
     "app.run.busy": "a meeting is already being processed: wait until it ends",
     "app.run.folder_taken": "there is already a folder {folder} in the project",
-    "app.run.closed": "MeetingTool was closed while the meeting was being processed: it was not saved",
+    "app.run.closed": "MeetingTool was closed while the meeting was being processed: it was not added to the project",
     "app.key.paste": "paste the key before saving it",
     "app.open.windows_only": "opening the Word report from here only works on Windows: download it",
     "app.data_folder_in_use": "MeetingTool is already open on {folder}: use that window",

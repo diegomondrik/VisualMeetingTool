@@ -11,8 +11,9 @@ page shares the window. `python -m meetingtool app` keeps opening the browser.
   chosen in Settings wins over it.
 - One application per data folder: a second start says so and stops.
 - Closed with the X while a meeting is being processed, the window asks
-  first; confirmed, the meeting is not added (meetingtool.app.jobs.Runner.close)
-  and what it left is cleared at the next start.
+  first; confirmed, the meeting is not added (meetingtool.app.jobs.Runner.close);
+  what paid nothing is cleared at the next start and what was paid stays, as
+  for any failed run (WI20).
 - What happened at the last start is written to a log (LOG_NAME, in the
   user's local application data, outside the data folder; the session token
   never in it). WebView2 can fail to start and leave the window blank, saying
