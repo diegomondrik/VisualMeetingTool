@@ -1,0 +1,21 @@
+schema_version: "1"
+work_item: 01M4CM3YV88S4K9B9SR5ANTNVZ
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M4CM3YV88S4K9B9SR5ANTNVZ-one-meeting-reads-one
+steps:
+  - one-meeting-reads-one-wi30-ac01
+  - another-meeting-broken-does-not-matter-wi30-ac02
+  - mutations-review-suite-wi30-ac03
+evaluations:
+  - criterion: WI30-AC01
+    method: deterministic
+    control: reads counted with 12 and 30 meetings, for a file, the meeting page and a loose file.
+  - criterion: WI30-AC02
+    method: adversarial
+    control: broken neighbours, ill-formed identifiers, the paths served, the project page.
+  - criterion: WI30-AC03
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py.
