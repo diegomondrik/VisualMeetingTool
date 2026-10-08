@@ -1425,6 +1425,26 @@ def wi27_p3_1(args, root):
     return said == "accepted", f"'between [a, and b]', rewritten as {text!r}: {said}"
 
 
+@entry("WI31-P3-1")
+def wi31_p3_1(args, root):
+    import tomllib
+    declared = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
+    pins = dict(re.findall(r"(?m)^([A-Za-z0-9_.-]+)==(\S+)", (REPO / "constraints.txt").read_text(encoding="utf-8")))
+    pins = {re.sub(r"[-_.]+", "-", name).lower(): version for name, version in pins.items()}
+    workflow = (REPO / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+    installs = [line.strip() for line in workflow.splitlines() if "pip install" in line]
+    above = []
+    for dependency in declared:
+        name, minimum = re.match(r"([A-Za-z0-9_.-]+)>=(\S+)", dependency).groups()
+        name = re.sub(r"[-_.]+", "-", name).lower()
+        if pins.get(name) != minimum:
+            above.append(f"{name} minimum {minimum}, run at {pins.get(name)}")
+    only_pinned = len(installs) == 1 and "constraints.txt" in installs[0]
+    reproduces = only_pinned and len(above) == len(declared)
+    return reproduces, (f"the CI has {len(installs)} install step(s), {'with' if only_pinned else 'not only with'} the "
+                        f"constraints; every library runs above its minimum: {'; '.join(above)}")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))
