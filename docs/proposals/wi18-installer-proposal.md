@@ -28,7 +28,9 @@ versiones del repositorio en GitHub. Alguien de tu equipo:
 5. la primera vez, Ajustes le pide su clave de Gemini, como hoy;
 6. la cierra con la X; si hay una reunión procesándose, la ventana pregunta
    antes de cerrar y, si dice que sí, la reunión se descarta sin dejar nada a
-   medias (como hoy cuando se corta).
+   medias (como hoy cuando se corta). *Cambio del 2026-10-08, decisión del owner
+   al actualizar este trabajo con main: la reunión no se agrega y lo ya pagado a
+   Gemini queda guardado, como en cualquier corrida que falla (WI20).*
 
 No hace falta Python ni ninguna otra cosa instalada: el `.exe` lleva todo.
 

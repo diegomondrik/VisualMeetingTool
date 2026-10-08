@@ -176,3 +176,79 @@ Una pasada de corrección, sin re-verificación del revisor (presupuesto: una re
 - **P3-6, limitación conocida.** Ni Inno Setup ni Python se verifican contra una versión fijada; `build.py` los imprime y quedan en la evidencia del armado.
 - **P3-7, corregido.** La propuesta dice aprobada y nombra su contrato.
 - **Limitaciones residuales:** quedan como limitaciones conocidas, en el contrato.
+
+
+---
+
+# Segunda revisión independiente, 2026-10-08 (commit 2f2fb92, tras actualizar la rama con main): aprobar con correcciones
+
+Revisor independiente por el buzón de INGOL (rol `revisor-independiente`), copiado por el implementador tal como lo devolvió.
+
+# Segunda revisión de WI18 (VisualMeetingTool, instalador de Windows), commit 2f2fb92
+
+**Veredicto: aprobar con correcciones.** El código unido está bien. Falta una sola cosa antes del PR: la evidencia de la suite completa (AC09) es de un commit anterior a la unión con main y hay que volver a generarla.
+
+**Alcance leído:** el merge 2f2fb92 (padres 09241f5, la rama, y 06d7c93, main); `meetingtool/app/jobs.py`, `window.py`, `server.py` y `company.py`; los textos es/en; README; el contrato de WI18; `tests/test_window.py`, y en `test_app.py` y `test_data_integrity.py` sólo las partes que esas pruebas usan; la lista de archivos de la evidencia de WI18. No leí el historial ni otros work items.
+
+**Aviso sobre la base del diff:** el `origin/main` de la carpeta de trabajo es a5624cb, que está detrás del main unido (06d7c93). Lo comprobé: `jobs.py` es igual en los dos, así que el diff del pedido sirve. Contra 06d7c93, todo lo que la rama cambia está dentro de las superficies que declara el contrato. Sin red no pude confirmar que 06d7c93 sea el main remoto de hoy.
+
+## Qué ejecuté
+
+| Comando | Resultado |
+|---|---|
+| `python -m unittest tests.test_window tests.test_packaging tests.test_texts` | 73 pruebas OK (42 s) |
+| `python -m unittest discover -s tests` sobre 2f2fb92 | **751 pruebas OK, 3 salteadas** (782 s) |
+| Claves de `texts/es.py` y `texts/en.py` leídas con `ast` | 393 y 393, mismo orden, sin repetidas ni faltantes |
+| `git diff 2f2fb92^2 2f2fb92 -- tests/test_app.py` | vacío: igual a main |
+| Diff de `server.py` y `company.py` contra main | Sólo los agregados de WI18; el bloqueo de configuración de main (`_change`) está intacto |
+| `constraints.txt` contra `packaging/requirements-build.txt` | Hoy fijan las mismas versiones de las bibliotecas |
+| `disk.py` y `word_package.py` (nuevos en main) | Se importan en forma estática, así que PyInstaller los encuentra |
+
+## Los puntos 1 a 4
+
+1. **Candado de guardado (`jobs.py`): bien.** Se toma dentro del `try` (línea 529) y se suelta en un `finally` anidado (557–559). Ese `finally` corre en cualquier salida: éxito, `JobError`, una excepción de `_settle_failure` (la atrapa el `except` de la línea 555) e incluso una `BaseException`. Dos hilos no pueden tenerlo a la vez: es un `Lock`, y `start()` no deja arrancar una segunda corrida mientras la primera siga en `running`, estado que cambia recién después de soltar el candado. `close()` y `discard()` usan candados distintos y no se cruzan. Además, `discard()` rechaza mientras la corrida siga en `running`, incluso durante su cierre. No encontré forma de bloqueo mutuo: el `close()` de la ventana no toma `data_lock`. Lo leí; no hice mutaciones.
+2. **Decisión del 2026-10-08: consistente** en `closing_running` (es/en), README, contrato, docstring de `close()` y la prueba. Quedan dos textos viejos, ninguno dicho a la persona (ver P3-1 y P3-2). Nada queda a medias:
+   - Las subidas se borran al arrancar de nuevo (`Uploads.clear`).
+   - Una carpeta de trabajo sin nada pagado se borra en ese mismo arranque (`clear_leftovers`).
+   - Un resultado sin reunión no puede quedar: `close()` espera al guardado, y `_settle_cut_saves` cubre una muerte del proceso a mitad del guardado.
+   - Una corrida cortada que ya había pagado queda listada con su costo; lo prueba `test_a_run_cut_by_closing_the_application_says_what_it_paid`, que vino de main.
+3. **Pruebas de WI18 contra el código de main: ninguna pasa por la razón equivocada.** Un matiz: `test_answered_yes_…_stays_kept` prueba el camino en que el hilo sigue vivo después de `close()`. En la aplicación real el proceso sale y el hilo daemon muere. Ese otro camino lo cubren las pruebas de main (`clear_leftovers` y la corrida cortada). Entre las dos se cubre lo que importa.
+4. **Main no se rompió:** textos completos y en el mismo orden, `test_app.py` igual a main y suite completa en verde.
+
+## Hallazgos
+
+**P0:** ninguno.
+
+**P1-1. La evidencia AC09 no corresponde al commit que se va a integrar** (`docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/local-test-run.txt`).
+- **Qué pasa:** el AC09 del contrato pide la suite completa en un clon limpio del commit probado, guardada antes del PR (INGOL D-163). El archivo es la corrida de 04ed9bc. Todavía nombra `test_answered_yes_the_meeting_is_dropped_and_nothing_of_it_is_left` (línea 414), una prueba que ya no existe.
+- **Consecuencia:** el PR integraría la resolución nueva de `jobs.py` y el código de WI20 a WI31 sin evidencia AC09 propia. Ese criterio queda incumplido tal como está escrito.
+- **Cómo lo sé:** leído. Mi corrida (751 OK) muestra que el código está sano, pero no la hice en la máquina del owner ni sobre un clon limpio.
+- **Arreglo mínimo:** volver a correr AC09 en un clon limpio de la punta final y guardar la salida.
+
+**P2:** ninguno.
+
+**P3 (no reabren el ciclo):**
+- **P3-1. Docstring de `window.py`, líneas 13–15:** todavía dice "what it left is cleared at the next start". Hoy sólo se borra lo que no tiene nada pagado. Arreglo: "what paid nothing is cleared at the next start; what was paid stays (WI20)". Leído.
+- **P3-2. `app.run.closed`** (`es.py:427` "no se guardó"; `en.py:424` "it was not saved"): suena contrario a "lo pagado queda guardado". Hoy nadie lo ve: la ventana ya cerró y el texto no queda grabado en el registro de la corrida guardada. Arreglo opcional: "no se agregó al proyecto". Leído.
+- **P3-3. `docs/proposals/wi18-installer-proposal.md:30`** todavía dice "la reunión se descarta sin dejar nada a medias". El contrato registra el cambio y la decisión del owner pesa más que el contrato, así que la autoridad está bien. Pero el contrato también dice que la propuesta manda en lo que él resume. Arreglo opcional: una nota en la propuesta que remita a la decisión del 2026-10-08.
+- **P3-4. Las versiones del instalador no están atadas a las que prueba CI.** Las bibliotecas de `packaging/requirements-build.txt` coinciden hoy con `constraints.txt`, pero ninguna prueba exige que sigan coincidiendo. Si cambia `constraints.txt`, el instalador llevaría versiones que CI no probó. Hoy no pasa nada. Ejecutado (comparación).
+- **P3-5. `build-run.txt` (AC05) es de 37d14df.** `packaging/` no cambió con la unión, pero el código que se empaqueta sí. El instalador que se publique saldrá igual del commit integrado. Leído.
+
+## Limitaciones residuales
+
+- El contrato da como limitación conocida que "la liberación del candado en su `finally` anidado no tiene prueba". Es más pesimista de lo real: sin esa liberación, `test_closed_while_the_run_saves…` fallaría, porque el hilo que cierra quedaría esperando para siempre. Esto lo leí; no corrí la mutación. Lo que sí no tiene prueba es la liberación cuando `_settle_failure` lanza una excepción.
+- No construí el instalador ni probé WebView2 (fuera del alcance del pedido).
+- No corrí ninguna mutación: no podía escribir archivos.
+
+**Siguiente paso:** el implementador vuelve a generar la evidencia AC09 sobre la punta final; con eso, el PR puede abrirse.
+
+## Lo que se hizo con cada hallazgo de la segunda revisión
+
+- P1-1 (la evidencia de la suite completa AC09 no era de la punta final): se vuelve a correr sobre la punta final en un clon limpio, con los kits, y se guarda en `local-test-run.txt` (ver su encabezado, que nombra el commit).
+- P3-1 (docstring de `window.py`) y P3-2 (`app.run.closed`: "no se guardó"): corregidos en f8335b3.
+- P3-3 (la propuesta decía "se descarta"): nota en la propuesta con la decisión del 2026-10-08, en f8335b3.
+- P3-4 (las versiones del instalador no estaban atadas a las que prueba la CI): prueba nueva `BuildTest.test_the_installer_packs_the_versions_the_ci_tests`, en f8335b3.
+- P3-5 (`build-run.txt` es de un commit anterior): el instalador se vuelve a armar desde el commit integrado y su salida reemplaza a `build-run.txt`.
+- Mutaciones: las 12 de WI18 vuelven a correrse sobre el código unido: 12 de 12 detectadas (`mutations.txt`).
+- Limitación que el revisor señala: la liberación del candado cuando `_settle_failure` lanza una excepción no tiene prueba; se mantiene como limitación conocida del contrato.
+- Decisión del owner de la sesión (2026-10-08): la ventana cerrada a mitad de una corrida no descarta lo pagado (regla de WI20), y quedó escrita en el contrato.

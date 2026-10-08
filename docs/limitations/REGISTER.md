@@ -266,6 +266,22 @@ reproduction reads `pyproject.toml`, `constraints.txt` and the workflow; it runs
 | ID | What it means | State | Seen by running |
 |---|---|---|---|
 | `WI31-P3-1` | The minimums of `pyproject.toml` are not tested: the suite runs only on the exact versions of `constraints.txt`, which are all above them, so a library at its minimum (or between it and the pin) could break the program without any test saying so. The minimums are a promise nobody checks | open | The CI has one install step, with the constraints; every library of `pyproject.toml` runs above its minimum |
+## Work item 32, the external judge's findings left open (`01M4ECC5BTJBWXB51SCSV8XNBJ`)
+
+Source: the external judge of INGOL on `main` `f1bde92`, 2026-10-07 (its draft, kept by the owner outside this
+repository). On 2026-10-08 the owner decided to leave the findings below as known limitations of version 0.1.0,
+each with a reproduction, to be solved in a later version. The rest of the judge's findings are not here because they
+are closed or decided elsewhere: D1-03 is `WI23-P3-3` (accepted by the owner), D1-06 is R08 (`WI22-P3-2`, `WI05-P3-8`,
+work item 29), D1-07 is R09 (work item 30) and D1-08 is R11 (work item 31). The reproductions use the project's own
+test fixtures and a fake Gemini; nothing reaches the network.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `D1-01` | **P0 (the judge's), left open.** Outputs that do not share the store's write guarantee: two Word reports built in the same folder at once share one temporary file (`summary.docx.partial`), so one call can return success with the other's document and the other fail (or, if both saves overlap, the package is corrupt and the error is of another kind); and extracting the frames again deletes the old images before writing the new ones, so a write that fails leaves none. Nothing the application does reaches the first (it runs one job at a time, in its own folder for each run); the commands and the library can. No recording or transcript is lost, only derived files (`meetingtool/report/document.py`, `meetingtool/frames/extract.py`) | open | Two reports in one folder: A returns success and the file holds B's title, B is refused; extracting again with one image write failing: 3 images before, 0 after, the recording intact |
+| `D1-02` | **P1, left open.** If the save of a finished run fails and, as well, moving its folder back to being worked on fails, the folder is deleted and what was paid goes with it: the run fails with nothing kept to resume (`meetingtool/app/jobs.py`, `_settle_failure`). It needs two failures in a row, for example a record that cannot be written and a permission error on the rename | open | The save fails and so does the move back: failed at saving, 2 paid requests, nothing kept, no working folder and no result left |
+| `D1-04` | **P1, left open.** A register of questions and answers that comes back empty is accepted and delivered as "No question was raised in the meeting", with no retry and no warning, even when the transcript has explicit questions: the checks look at what the model returns, not at what it left out (`meetingtool/summary/qa.py`, `check_register`). The model has to answer with an empty list for it to happen; how often the real one does is not measured | open | A transcript with two explicit questions and an empty answer from the (fake) model: 0 questions accepted, the register says there were none |
+| `D1-05` | P2, left open. A process that dies after a meeting's record is saved and before the project's knowledge file is rebuilt leaves the knowledge one meeting behind; the application's next start repairs it, but a summary or register made from the terminal before that reads the old knowledge without an error (`meetingtool/projects/store.py`) | open | A process killed at the rebuild (exit 77): 2 meetings listed, the next summary's knowledge lacks the new agreement |
+| `D1-09` | P3, left open. Two tests of the language of the stages (`tests/test_texts.py`, `StageLanguageTest`) fail when the folder the tests run in has a word of the other language in its path (for example `3-de-codex`): they look for Spanish words in the whole English message, the inserted path included. A false positive of the tests, not a translation fault of the program | open | `StageLanguageTest` run with the temporary folder inside `3-de-codex`: 2 failures; in the normal folder: OK |
 
 ## Work item 18, the installer for Windows (`01M3VRRZJ3XYC0ADJT8N733F03`)
 

@@ -424,7 +424,7 @@ TEXTS = {
     "app.run.no_key": "no hay una clave de Gemini guardada: guardala en Ajustes",
     "app.run.busy": "ya hay una reunión procesándose: esperá a que termine",
     "app.run.folder_taken": "ya hay una carpeta {folder} en el proyecto",
-    "app.run.closed": "MeetingTool se cerró mientras la reunión se procesaba: no se guardó",
+    "app.run.closed": "MeetingTool se cerró mientras la reunión se procesaba: no se agregó al proyecto",
     "app.key.paste": "pegá la clave antes de guardarla",
     "app.open.windows_only": "abrir el Word desde acá sólo funciona en Windows: descargalo",
     "app.data_folder_in_use": "MeetingTool ya está abierto sobre {folder}: usá esa ventana",

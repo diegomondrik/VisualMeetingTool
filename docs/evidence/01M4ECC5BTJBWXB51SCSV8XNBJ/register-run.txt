@@ -1,0 +1,191 @@
+# limitations register reproduction
+commit: 59bdfb5a569b95d775807474e3dcdc0dc3630db9
+python: 3.12.10
+ingol: not given, INGOL entries skipped
+
+H1         claim=open             SKIPPED (needs --ingol-repo)
+H2         claim=not-reproducible seen=not-reproducible MATCH (0.0s)
+           needs a private repository on GitHub's free plan; the owner's account has Pro, where the protection exists. Source: GitHub's plans documentation, read 2026-09-25 (INGOL D-162)
+H3         claim=open             SKIPPED (needs --ingol-repo)
+H4         claim=open             SKIPPED (needs --ingol-repo)
+H5         claim=open             seen=open             MATCH (0.0s)
+           preconditions, read from this repository: pull_request_target trigger True, the read token of the private installation used True, target_visibility public True. Extracting the token was not attempted: that would be an attack, not a reproduction
+H6         claim=open             SKIPPED (needs --ingol-repo)
+WI01-P2-1  claim=fixed            seen=fixed            MATCH (0.0s)
+           guard misses none of ['a.mp3', 'a.mkv', 'a.webm', 'transcript.txt', 'report_acme.md', 'handoff_1.json', 'frames/f1.jpg'] (widened by a977049, WI02)
+WI01-P2-2  claim=fixed            seen=fixed            MATCH (0.1s)
+           code paths ignored by .gitignore: none (anchored by ba02528; generated/ is H6)
+WI01-P2-3  claim=open             seen=open             MATCH (0.0s)
+           WI05: the tested commit 165cfff and the integrated 3729407 differ in 3 files, all evidence or approval: True
+WI01-P3-1  claim=fixed            seen=fixed            MATCH (0.1s)
+           upper-case extensions not ignored on Linux matching: none (ba02528)
+WI01-P3-2  claim=open             seen=open             MATCH (0.3s)
+           a recording committed then removed: in history True, guard reports []; recording.mp4.zip flagged: False
+WI01-P3-3  claim=open             seen=open             MATCH (0.5s)
+           suite started from outside the repository root: exit 1, "No module named 'meetingtool'" shown
+WI02-P2-A  claim=open             seen=open             MATCH (0.0s)
+           test fixtures rejected by the guard: ['tests/fixtures/slide.png', 'tests/fixtures/sample.mp4', 'tests/fixtures/transcript_sample.txt']
+WI02-P2-B  claim=open             seen=open             MATCH (0.0s)
+           meetingtool/projects/acme/memory.json: guard flags it False, .gitignore ignores it False
+WI02-P3-A  claim=open             seen=open             MATCH (0.1s)
+           not ignored by .gitignore on Linux matching: ['report_acme.md', 'handoff_1.json', 'transcript.txt', 'Frames/x/f.json', 'MEETINGS/a/b.json']; all caught by the guard: True
+WI02-P3-B  claim=open             seen=open             MATCH (1.9s)
+           GitignoreTest exit 0 while Frames/x/file.json is ignored: False
+WI02-P3-C  claim=open             seen=open             MATCH (0.1s)
+           with git broken (check-ignore exit 128) the "not ignored" test exits 0
+WI02-P3-D  claim=open             seen=open             MATCH (0.0s)
+           not flagged by the guard: ['export.zip', 'attendees.csv', 'slides.ppt', 'budget.xls', 'notas-reunion.txt']
+WI02-P3-E  claim=open             seen=open             MATCH (0.0s)
+           transcription.md flagged as meeting data: True
+WI03-P2-1  claim=fixed            seen=fixed            MATCH (0.0s)
+           a path as project id is refused: '../repo/x' is not a project identifier (91231a1)
+WI03-P2-2  claim=fixed            seen=fixed            MATCH (0.7s)
+           redirected output with Łódź, ✓, →: test exit 0 (91231a1)
+WI03-P2-3  claim=fixed            seen=fixed            MATCH (0.3s)
+           subpackages declared in pyproject.toml: True; PackagingTest exit 0 (c38353c; building a wheel would need setuptools, not installed here)
+WI03-P3-1  claim=open             seen=open             MATCH (0.0s)
+           slugs {'Łódź': 'odz', 'Straße': 'strae', 'Søren': 'sren', '東京': 'project', 'Москва': 'project'}; a second non-Latin name collides: True
+WI03-P3-2  claim=open             seen=open             MATCH (0.0s)
+           a 300-character title raises a raw OSError, not ProjectError
+WI03-P3-3  claim=open             seen=open             MATCH (0.0s)
+           rebuild_knowledge's return equals knowledge_context's read: False
+WI03-P3-4  claim=fixed            seen=fixed            MATCH (0.0s)
+           no error: the knowledge is made from the records (ef0abc5)
+WI03-P3-5  claim=open             seen=open             MATCH (0.0s)
+           MEETINGTOOL_DATA_DIR=~/vmt-data gives the folder ~\vmt-data
+WI03-P3-6  claim=open             seen=open             MATCH (0.0s)
+           added Zeta then Alpha in the same second, listed ['Alpha review', 'Zeta review']
+WI03-P3-7  claim=open             seen=open             MATCH (0.0s)
+           the WI03-AC05 evidence holds, besides titles: ['--context', '--summary', '--key-point'] (synthetic values)
+WI04-P2-1  claim=fixed            seen=fixed            MATCH (0.5s)
+           tie-break test exit 0 (5f20bf7)
+WI04-P3-1  claim=open             seen=open             MATCH (148.6s)
+           mutations surviving the frames tests: {'zone weight 0.4 -> 0.5': True, 'minimum score 0.15 -> 0.2': True, 'duration from the stream, not the container': True, 'coverage ignores earlier candidates': True}
+WI04-P3-2  claim=open             seen=open             MATCH (0.2s)
+           executed: no duration gives 0.0; the old frame still exists during the analysis True; discard log in English with UTC times True. Read from the code, not executed: SSIM on the decoded JPEG (extract.py, _content_gray_of_jpeg) and a shape mismatch skips the comparison
+WI04-P3-3  claim=fixed            seen=fixed            MATCH (0.4s)
+           URL refused before av.open: test exit 0 (5f20bf7)
+WI04-P3-4  claim=fixed            seen=fixed            MATCH (0.0s)
+           the 76-frame figure carries its source: True (67a6e4e)
+WI04-P3-5  claim=open             seen=open             MATCH (0.1s)
+           budget 2: JPEGs held at once during a replacement, at most 3
+WI04-P3-6  claim=open             seen=open             MATCH (0.2s)
+           24 samples, 23 of them a candidate or a logged discard: the first one appears nowhere
+WI04-P3-7  claim=open             seen=open             MATCH (0.0s)
+           declared floor av>=14; the only PyAV here, and in every recorded run, is 18.1.0
+WI05-P2-1  claim=open             seen=open             MATCH (0.2s)
+           slide A scores 0.3 then 0.9 on its repeat, budget 2: kept ([3.0, 4.0], ['B', 'C']) now, ([2.0, 3.0], ['A', 'B']) with the previous order
+WI05-P3-1  claim=open             seen=open             MATCH (120.9s)
+           mutations surviving the frames tests: {'compare with the previous candidate, not the previous distinct one': True, "<= becomes < at the window's +30 s edge": True, 'boosted counted for every candidate': True, 'last distinct set only when the candidate enters the pool': True}
+WI05-P3-2  claim=fixed            seen=fixed            MATCH (0.0s)
+           a UTF-8 file with a BOM and two timed lines reads 2 block(s); with one timed line it is read
+WI05-P3-3  claim=open             seen=open             MATCH (0.0s)
+           speaker and time split by one tab not a new block True; spoken "  10:30" read as a block at 630 s True; curly apostrophe not matched True; the filler "a ver" matched True
+WI05-P3-4  claim=open             seen=open             MATCH (1.2s)
+           the tie-break test without its patch of _is_near_duplicate: mutated suite exit 1 (FAILED (failures=1))
+WI05-P3-5  claim=open             seen=open             MATCH (30.5s)
+           transcript read moved after av.open, the recording closed if it fails: mutated suite exit 0 (OK)
+WI05-P3-6  claim=open             seen=open             MATCH (31.1s)
+           the shape-mismatch branch made to raise: mutated suite exit 0 (OK)
+WI05-P3-7  claim=open             seen=open             MATCH (0.0s)
+           the evidence says the 15- and 18-minute gaps were not measured again: True; another evidence file carrying the before numbers: none
+WI05-P3-8  claim=fixed            seen=fixed            MATCH (0.7s)
+           a 60 KB .docx of 60 MB of text is refused: cannot read the Word transcript C:\Users\Diego\AppData\Local\Temp\vmt-limitations-loxfzx7v\big.docx: the part word/document.xml is larger than 32 MB once expanded, the most one part may be
+WI20-P3-1  claim=open             seen=open             MATCH (1.2s)
+           the register's parts paid with one model, then with another: requests [1, 0]
+WI20-P3-2  claim=open             seen=open             MATCH (0.6s)
+           after a cut between the two files: the new template in place True, its name said 'la-de-antes.docx'
+WI20-P3-3  claim=open             seen=open             MATCH (0.0s)
+           knowledge read before the application starts again holds the meeting: False; after it starts: True
+WI20-P3-4  claim=open             seen=open             MATCH (0.5s)
+           with a record broken by hand: 1 request(s) paid, then the meeting summary.not_added
+WI20-P3-5  claim=open             seen=open             MATCH (0.5s)
+           the same summary asked twice in one folder: 1 request(s) paid
+WI20-P3-6  claim=open             seen=open             MATCH (2.8s)
+           without the kits: OK (skipped=3) (1 run line)
+WI20-P3-7  claim=open             seen=open             MATCH (1.8s)
+           a failed run that paid keeps, until it is processed again or discarded: ['frame_001_t00-00-00.jpg', 'frame_002_t00-00-06.jpg', 'frame_003_t00-00-09.jpg', 'frames_discarded.log', 'frames_read.md', 'kept.json', 'paid-answers', 'summary.md', 'transcript.docx']
+WI21-P3-1  claim=open             seen=open             MATCH (1.7s)
+           a 140 s recording whose transcript ends at 1 s: 280 samples read, about 243 if reading still stopped 120 s after the last line
+WI21-P3-2  claim=open             seen=open             MATCH (1.7s)
+           the slide shown after the transcript's last line and the old stop time is kept: [(132, 'C')]
+WI21-P3-3  claim=open             seen=open             MATCH (2.6s)
+           a transcript with a line at 10 min on a 140 s recording: exit 0, 0 lines about it; options ['--video', '--out', '--budget', '--fps', '--transcript']
+WI21-P3-4  claim=open             seen=open             MATCH (0.0s)
+           an answer from 0:10 whose last turn begins at 0:20: the register reads ['frame_001_t00-00-15.jpg'], not the slide at 5:00
+WI22-P3-1  claim=not-reproducible seen=not-reproducible MATCH (0.0s)
+           needs Word: there is none here, as in the external review (contract WI22, not done). The forms the filter refuses are shown to be real fields by a second reader of the XML (tests/test_template_filter.py), not by Word
+WI22-P3-2  claim=fixed            seen=fixed            MATCH (0.5s)
+           a package of 77 KB holding one part of 40 MB: the template variant.docx cannot be used: the part customXml/item2.xml is larger than 32 MB once expanded, the most one part may be
+WI22-P3-3  claim=fixed            seen=fixed            MATCH (0.4s)
+           a field whose name is the result of two QUOTE fields (INCLUDETE + XT): the template variant.docx has content that Word would load or run from outside it when a report is opened, or a field a template may not hold, and every report would carry it to the client: | word/document.xml: a QUOTE field | word/document.xml: a field whose name is not written out in the file (another field builds it), so what it is cannot be known; the filter found ['word/document.xml: a QUOTE field', 'word/document.xml: a field whose name is not written out in the file (another field builds it), so what it is cannot be known']
+WI22-P3-4  claim=fixed            seen=fixed            MATCH (0.2s)
+           a hyperlink (relationship and field) to file://inventado.invalid/share/x.docm: the template variant.docx has content that Word would load or run from outside it when a report is opened, or a field a template may not hold, and every report would carry it to the client: | word/_rels/document.xml.rels: a hyperlink to file://inventado.invalid/share/x.docm, which is not a web page (http, https), a mail address or a place in the document | word/document.xml: a hyperlink to file://inventado.invalid/share/x.docm, which is not a web page (http, https), a mail address or a place in the document
+WI22-P3-5  claim=fixed            seen=fixed            MATCH (0.2s)
+           a field named FETCHREMOTE (invented) with an address: the template variant.docx has content that Word would load or run from outside it when a report is opened, or a field a template may not hold, and every report would carry it to the client: | word/document.xml: a FETCHREMOTE field
+WI23-P3-1  claim=open             seen=open             MATCH (0.2s)
+           a template with an ADDIN field (a citation manager's, made-up item): the template variant.docx has content that Word would load or run from outside it when a report is opened, or a field a template may not hold, and every report would carry it to the client: | word/document.xml: a ADDIN field; stored: False
+WI22-P3-6  claim=open             seen=open             MATCH (0.6s)
+           a template with an embedded font part: accepted; the font is in the report: True
+WI22-P3-7  claim=open             seen=open             MATCH (0.2s)
+           a customXml part in Shift_JIS: the template variant.docx has content that Word would load or run from outside it when a report is opened, or a field a template may not hold, and every report would carry it to the client: | customXml/item2.xml: is not readable XML, so what it holds is not known (multi-byte encodings are not supported)
+WI23-P3-2  claim=open             seen=open             MATCH (0.2s)
+           an alternative with PAGE in its Choice and a whole ADDIN field in its Fallback: the template variant.docx has content that Word would load or run from outside it when a report is opened, or a field a template may not hold, and every report would carry it to the client: | word/document.xml: a ADDIN field
+WI23-P3-3  claim=open             seen=open             MATCH (0.4s)
+           a field whose begin is in a branch of an alternative and whose instruction is outside, an ADDIN field with no address: the template is accepted; the report's last check lets it through: True
+WI24-P3-1  claim=open             seen=open             MATCH (0.5s)
+           5 turns, speakers named: []; the summary's request has the turns with no name; the register: qa.needs_speakers after 0 request(s)
+WI24-P3-2  claim=not-reproducible seen=not-reproducible MATCH (0.0s)
+           needs the real Gemini and the owner's meeting: the tests here are synthetic (a reading of 141 frames with Gemini faked), which show what the request says and what the check lets through, not whether the real model now copies the names right. The owner's own run will show it
+WI24-P3-3  claim=fixed            seen=fixed            MATCH (0.0s)
+           a line of someone's words that is only a time, in a transcript with speakers: blocks [(4, 'Ana Pérez')] (it reproduces if the second block starts at 630 s with no speaker)
+WI24-P3-4  claim=fixed            seen=fixed            MATCH (0.0s)
+           the application's request for a register with a transcript that names no one: refused: app.request.qa_needs_speakers
+WI25-P3-1  claim=open             seen=open             MATCH (0.0s)
+           a summary that writes 25 de septiembre de 2030 and US$ 48.000, which no transcript said, in its decisions: check_summary returned the summary (it has no transcript to compare with)
+WI25-P3-2  claim=open             seen=open             MATCH (0.5s)
+           a meeting of 2026-12-10, a transcript that says 'el 15 de enero' and a deadline 'el 15 de enero de 2027': refused (writes a date the transcript does not say (15/1/2027))
+WI25-P3-3  claim=open             seen=open             MATCH (0.5s)
+           the transcript says 'tres turnos' and the figure is 'Se trabaja en 3 turnos.': refused (writes a figure nobody said in the meeting (3))
+WI25-P3-4  claim=open             seen=open             MATCH (0.0s)
+           the decisions are a table with its header row and no rows: the summary is accepted
+WI25-P3-5  claim=open             seen=open             MATCH (0.5s)
+           the transcript says '2030 cajas' and 'el 25 de septiembre', a meeting of 2026, and the deadline is 'el 25 de septiembre de 2030': accepted
+WI25-P3-6  claim=open             seen=open             MATCH (0.6s)
+           the transcript says '1,250 kilos' (read as 1250) and the figure is 'Pesa 1,25 kilos': refused (writes a figure nobody said in the meeting (1,25))
+WI25-P3-7  claim=open             seen=open             MATCH (0.5s)
+           an answer that says 'Se procesan 52.000 kilos por mes.', which the transcript does not: accepted
+WI25-P3-8  claim=open             seen=open             MATCH (0.5s)
+           the transcript says 'el 15 de enero del 27', the deadline is 'el 15 de enero de 2027', a meeting of 2026-12-10: refused (writes a date the transcript does not say (15/1/2027))
+WI25-P3-9  claim=open             seen=open             MATCH (0.5s)
+           the transcript says 'Hay mil kilos.' and the figure is 'Hay 1.000 kilos.': refused (writes a figure nobody said in the meeting (1.000))
+WI25-P3-10 claim=open             seen=open             MATCH (0.5s)
+           a pending item 'Se mandan 2000 cajas.' over a transcript that says no 2000: refused (writes a year the transcript does not say (2000))
+WI26-P3-1  claim=open             seen=open             MATCH (0.0s)
+           a file saved in cp850 (no mark, not UTF-8) is read as cp1252: 'mañana, ¿cómo estás?' reads 'ma¤ana, ¨c¢mo est\xa0s?'
+WI26-P3-2  claim=open             seen=open             MATCH (0.0s)
+           a transcript saved as UTF-32: transcript.no_timed_line
+WI27-P3-1  claim=open             seen=open             MATCH (0.0s)
+           'between [a, and b]', rewritten as 'between [frame_029_t00-23-24.jpg], and [frame_037_t00-31-24.jpg]': accepted
+WI28-P3-1  claim=open             seen=open             MATCH (0.5s)
+           model 'gemini-flash-latest'; each request recorded as US$0.1087, estimated at most US$0.15; at twice the prices it would be billed US$0.2175: 2 requests sent, overrun None
+WI28-P3-2  claim=open             seen=open             MATCH (0.5s)
+           two runs, each with its own counters: 2 requests sent, overruns [True, True]
+WI29-P3-1  claim=open             seen=open             MATCH (0.5s)
+           a part of 2 MB of small elements: parsing takes 8.7 times its size (17 MB)
+WI29-P3-2  claim=open             seen=open             MATCH (6.0s)
+           a package of 60000 empty parts (6.5 MB): refused: package.too_many_entries, with a peak of 34 MB (5.2 times its size)
+WI31-P3-1  claim=open             seen=open             MATCH (0.0s)
+           the CI has 1 install step(s), with the constraints; every library runs above its minimum: av minimum 14, run at 19.0.0; numpy minimum 1.26, run at 2.5.3; pillow minimum 10, run at 12.3.0; python-docx minimum 1.1, run at 1.2.0
+D1-01      claim=open             seen=open             MATCH (0.7s)
+           two reports of one folder at once: A success, B refused (report.cannot_write), the file holds Title B (A asked for Title A); extracting again with one write failing: 3 images before, 0 after, the recording intact: True
+D1-02      claim=open             seen=open             MATCH (1.2s)
+           the save fails and so does the move back: stage saving, 2 paid requests (US$0.0452 at the fake's prices), kept: None, working folders left: [], results left: []
+D1-04      claim=open             seen=open             MATCH (0.5s)
+           a transcript with two explicit questions and an empty answer: 0 questions accepted, the register says there were none: True
+D1-05      claim=open             seen=open             MATCH (0.2s)
+           the process dies (exit 77) after the record is saved and before the knowledge is rebuilt: 2 meetings listed, the next summary's knowledge holds the new agreement: False
+D1-09      claim=open             seen=open             MATCH (20.9s)
+           StageLanguageTest with the working folder inside a path holding the word 'de': Ran 6 tests in 10.035s FAILED (failures=2), the word found: True; in the normal folder it passes: True
+
+{'MATCH': 90, 'MISMATCH': 0, 'SKIPPED': 4, 'ERROR': 0}
