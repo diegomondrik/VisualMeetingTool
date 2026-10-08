@@ -51,7 +51,7 @@ MUTATIONS = [
     raise NotFound(name)
 """)]),
     ("the meeting identifier not checked as a slug: it is used as it comes to build the path of the record",
-     [(STORE, """    if not isinstance(meeting_id, str) or meeting_id != slugify(meeting_id, fallback=""):
+     [(STORE, """    if not isinstance(meeting_id, str) or not meeting_id or meeting_id != slugify(meeting_id, fallback=""):
         return None
 """, """    if not isinstance(meeting_id, str):
         return None
