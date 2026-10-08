@@ -257,3 +257,12 @@ reproduction uses a synthetic line saved in a temporary folder.
 | `WI28-P3-2` | A run that stopped because an answer used more tokens than estimated, processed again, starts with new counters: what it kept costs nothing, but a request it has to pay for goes out, and can overrun again with the same estimate. Each time it is processed again it can pay one more overrun, never two in the same run (WI28's review, P3) | open | Two runs with their own counters: both requests are sent and both overrun |
 | `WI29-P3-1` | The limits on a Word package (32 MB a part, 256 MB in all) bound what is read, not what the XML parser takes to read it: a part of 32 MB made of many small elements is held as a tree of about ten times its size (and a package of 256 MB of such parts is read whole into memory first), so a package inside the limits can still take hundreds of megabytes (contract WI29, not done) | open | A part of 2 MB of small elements: the tree takes more than five times its size in memory |
 | `WI29-P3-2` | The directory of a ZIP is read whole before anything is counted: a Word package inside the upload limit (50 MB) with hundreds of thousands of entries is refused for having more than 4,000, but only after zipfile has built a record for each, so refusing it takes memory in proportion to the entries (the independent review of WI29 measured 449 MB for 900,000 entries in 47.7 MB). It is bounded by the upload limit, about ten times it; the code does not change for this | open | A package of 60,000 empty parts: refused, and reading it took more than three times its size in memory |
+
+## Work item 31, the tested versions and the maintainer guide (`01M4CM3YV9HEAHSW5V5ER4V8W7`)
+
+Source: the limitation the contract declares (`.ingol/work-items/01M4CM3YV9HEAHSW5V5ER4V8W7/contract.yaml`). Its
+reproduction reads `pyproject.toml`, `constraints.txt` and the workflow; it runs nothing and installs nothing.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `WI31-P3-1` | The minimums of `pyproject.toml` are not tested: the suite runs only on the exact versions of `constraints.txt`, which are all above them, so a library at its minimum (or between it and the pin) could break the program without any test saying so. The minimums are a promise nobody checks | open | The CI has one install step, with the constraints; every library of `pyproject.toml` runs above its minimum |

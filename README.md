@@ -12,9 +12,12 @@ every change is a work item with an approved contract under
 protected review (`.github/workflows/ingol-bootstrap.yml`), which the change
 itself cannot alter.
 
-A governed project can carry no other workflow, so the test suite does not
-run on GitHub. It runs on the developer's machine before each integration,
-and its output is committed under `docs/evidence/<work item>/`.
+The test suite runs on every pull request to `main` on GitHub
+(`.github/workflows/tests.yml`: Windows, Python 3.12, the libraries at the
+exact versions of `constraints.txt`, which are the ones the installer packs).
+It also runs on the developer's machine before each integration, and its
+output is committed under `docs/evidence/<work item>/`. How the program is
+tested, built and kept is in [`docs/MAINTAINING.md`](docs/MAINTAINING.md).
 
 ## Client data never enters this repository
 
@@ -285,7 +288,10 @@ Origin, Sec-Fetch-Site or Host) is refused. `--port` fixes the port and
 
 ## Running the tests
 
-Python 3.11 or newer, with the libraries in `pyproject.toml` installed:
+Python 3.11 or newer, with the libraries in `pyproject.toml` installed. The
+CI installs them at the versions of `constraints.txt`
+(`python -m pip install -c constraints.txt "av>=14" "numpy>=1.26" "pillow>=10" "python-docx>=1.1"`);
+the minimums of `pyproject.toml` are not tested, only those versions:
 
 ```
 python -m unittest discover -s tests -v
@@ -293,6 +299,8 @@ python -m unittest discover -s tests -v
 
 The `test_d1_*.py` files are INGOL's reproductions of the external review of
 2026-10-02; they need INGOL's test kits, which are not part of this
-repository, and are skipped without them. With the kits installed
+repository; the three files that use them (`test_d1_barrido`,
+`test_d1_hallazgos_arquitecto`, `test_d1_wi20_fallas`) are skipped without
+them, and the other three run everywhere. With the kits installed
 (`~/.claude/ingol-kits`), they run with
 `PYTHONPATH=<home>/.claude/ingol-kits/python`.
