@@ -11,9 +11,10 @@ estimaciones. Las rutas son de este repositorio salvo que diga otra cosa. Las ci
 **Estado en una mirada.**
 
 - Primera tanda (R01 a R06): integrada en `main`.
-- Segunda tanda (R07 a R11): construida, revisada y con la suite completa en verde, pero **sin integrar**. Sus PR están
-  abiertos: #28 (R07), #29 (R08) y #31 (R09) con `bootstrap` y `tests` en verde tras la firma del owner (punto 2.1); #30 (R10 y R11) con `bootstrap` en verde desde que el owner empujó a mano el cambio del workflow y se corrigió el
-  contrato (punto 2.12); su `tests` estaba corriendo al escribir esto.
+- Segunda tanda (R07 a R11): construida, revisada y con la suite completa en verde, pero **sin integrar**. Sus cuatro PR
+  (#28 R07, #29 R08, #31 R09, #30 R10 y R11) tienen `bootstrap` y `tests` en verde al 2026-10-08 [`gh pr checks <n>`].
+  Llegar ahí necesitó que el owner firmara los registros de aprobación (punto 2.1) y, para #30, que empujara a mano un
+  cambio de workflow a `main` y que se corrigiera el contrato (punto 2.12). Falta que el owner ordene integrarlos.
 - El juez externo de INGOL corrió una vez, se cortó por cuota y dejó un borrador con **1 P0 y 2 P1 abiertos** más un P1
   aceptado por el owner.
 
