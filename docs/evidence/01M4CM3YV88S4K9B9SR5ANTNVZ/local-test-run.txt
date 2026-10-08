@@ -1,9 +1,9 @@
-commit: 2d38e88f0c72fceab3cf22250b0355b52e438809
-clone: C:/Users/Diego/AppData/Local/Temp/vmt-wi30-final-101528-12789 (git clone --no-hardlinks of the wi30 branch, fresh)
+commit: ccda496afb1e6038c28d9f3536d93b45c7863349
+clone: C:/Users/Diego/AppData/Local/Temp/vmt-wi30b-final-114345-8694 (git clone --no-hardlinks of the wi30b branch, fresh)
 python: Python 3.12.10
 PYTHONPATH: C:/Users/Diego/.claude/ingol-kits/python (INGOL's kits)
 command: python -m unittest discover -s tests -v
-started: 2026-10-08T13:15:28Z
+started: 2026-10-08T14:43:46Z
 
 test_a_field_inside_another_is_accepted_when_both_are_allowed (test_allowed_fields.AllowedFieldsTest.test_a_field_inside_another_is_accepted_when_both_are_allowed) ... ok
 test_a_field_with_nothing_written_and_text_that_no_field_holds_are_not_judged_for_a_name (test_allowed_fields.AllowedFieldsTest.test_a_field_with_nothing_written_and_text_that_no_field_holds_are_not_judged_for_a_name) ... ok
@@ -232,7 +232,7 @@ test_a_broken_loose_result_does_not_stop_a_sound_one (test_library_reads.Library
 test_a_broken_record_or_summary_of_another_meeting_does_not_stop_a_sound_one (test_library_reads.LibraryReadsTest.test_a_broken_record_or_summary_of_another_meeting_does_not_stop_a_sound_one) ... ok
 test_a_folder_with_a_project_record_is_not_a_loose_result (test_library_reads.LibraryReadsTest.test_a_folder_with_a_project_record_is_not_a_loose_result) ... ok
 test_a_meeting_added_from_the_terminal_has_its_record_and_no_files (test_library_reads.LibraryReadsTest.test_a_meeting_added_from_the_terminal_has_its_record_and_no_files) ... ok
-test_a_meeting_whose_record_cannot_be_read_is_not_found_and_one_whose_summary_is_not_text_has_its_files (test_library_reads.LibraryReadsTest.test_a_meeting_whose_record_cannot_be_read_is_not_found_and_one_whose_summary_is_not_text_has_its_files) ... ok
+test_a_meeting_whose_record_cannot_be_read_says_so_and_one_whose_summary_is_not_text_has_its_files (test_library_reads.LibraryReadsTest.test_a_meeting_whose_record_cannot_be_read_says_so_and_one_whose_summary_is_not_text_has_its_files) ... ok
 test_a_record_found_in_a_folder_that_is_not_called_as_its_id_is_not_found (test_library_reads.LibraryReadsTest.test_a_record_found_in_a_folder_that_is_not_called_as_its_id_is_not_found) ... ok
 test_a_record_missing_a_field_is_unreadable_as_it_is_for_the_project_page (test_library_reads.LibraryReadsTest.test_a_record_missing_a_field_is_unreadable_as_it_is_for_the_project_page) ... ok
 test_a_record_naming_a_folder_outside_its_results_is_not_followed (test_library_reads.LibraryReadsTest.test_a_record_naming_a_folder_outside_its_results_is_not_followed) ... ok
@@ -251,7 +251,7 @@ test_the_project_page_lists_every_meeting_with_its_result_as_before (test_librar
 test_the_project_page_still_stops_on_a_broken_record_as_before (test_library_reads.LibraryReadsTest.test_the_project_page_still_stops_on_a_broken_record_as_before) ... ok
 test_the_reads_do_not_grow_with_the_number_of_meetings (test_library_reads.LibraryReadsTest.test_the_reads_do_not_grow_with_the_number_of_meetings) ... ok
 test_the_reads_of_a_loose_result_do_not_grow_with_the_number_of_loose_results (test_library_reads.LibraryReadsTest.test_the_reads_of_a_loose_result_do_not_grow_with_the_number_of_loose_results) ... ok
-test_a_broken_meeting_does_not_stop_the_others_and_is_itself_not_found (test_library_reads.ServerReadsTest.test_a_broken_meeting_does_not_stop_the_others_and_is_itself_not_found) ... ok
+test_a_broken_meeting_does_not_stop_the_others_and_is_itself_answered_with_the_error_naming_its_file (test_library_reads.ServerReadsTest.test_a_broken_meeting_does_not_stop_the_others_and_is_itself_answered_with_the_error_naming_its_file) ... ok
 test_an_image_of_a_loose_result_reads_no_summary_and_its_page_reads_one (test_library_reads.ServerReadsTest.test_an_image_of_a_loose_result_reads_no_summary_and_its_page_reads_one) ... ok
 test_an_image_or_the_report_of_a_meeting_reads_no_summary_and_its_page_reads_one (test_library_reads.ServerReadsTest.test_an_image_or_the_report_of_a_meeting_reads_no_summary_and_its_page_reads_one) ... ok
 test_an_unknown_or_ill_formed_identifier_is_404 (test_library_reads.ServerReadsTest.test_an_unknown_or_ill_formed_identifier_is_404) ... ok
@@ -699,9 +699,9 @@ The defect of WI05-P3-2: U+FEFF stayed before the first line, so that line was n
 test_the_same_transcript_gives_the_same_turns_in_every_encoding_and_line_ending (test_transcript_encodings.TextEncodingsTest.test_the_same_transcript_gives_the_same_turns_in_every_encoding_and_line_ending) ... ok
 
 ----------------------------------------------------------------------
-Ran 665 tests in 2344.165s
+Ran 665 tests in 2268.369s
 
 OK
 
 exit code of the suite: 0
-ended: 2026-10-08T13:54:34Z
+ended: 2026-10-08T15:21:35Z
