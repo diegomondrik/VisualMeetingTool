@@ -13,7 +13,12 @@ objective: >
   WI23-P3-3; D1-06, D1-07 and D1-08 are R08, R09 and R11, closed by work
   items 29, 30 and 31. The program does not change: this work item adds
   entries to docs/limitations/REGISTER.md and their reproductions to
-  docs/limitations/reproduce.py, and nothing else.
+  docs/limitations/reproduce.py. It also repairs two reproductions of the same
+  register that failed on main before this work item, for reasons of the
+  reproductions and not of the program: WI05-P3-5 (its mutation text predates
+  WI17's message list; the repair is the one already made on the installer's
+  branch) and WI05-P3-7 (it read as UTF-8 two evidence files written on
+  Windows that hold one other character). Nothing else changes.
 
   Each entry says what happens, how likely it is to reach a user (the judge's
   own limits are kept: D1-01's first half needs two commands on one folder,

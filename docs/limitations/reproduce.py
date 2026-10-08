@@ -746,8 +746,10 @@ def wi05_p3_5(args, root):
     x = "meetingtool/frames/extract.py"
     block = ("    references = None\n    if transcript is not None:\n        try:\n"
              "            references = VisualReferences.from_file(transcript)\n"
-             "        except TranscriptError as error:\n            raise FramesError(str(error)) from error\n")
-    opened = '        raise FramesError(f"cannot open recording {video_path}: {error}") from error\n'
+             "        except TranscriptError as error:\n            raise FramesError(error.message) from error\n")
+    # The texts of WI17 (one list of messages) changed both lines; the mutation is the same.
+    opened = ('        raise FramesError("frames.cannot_open", path=str(video_path), '
+              'detail=texts.External(str(error))) from error\n')
     # The recording is closed when the moved read fails: a variant that leaves it open is caught on
     # Windows only because the test cannot delete a file still in use, not by what the test asserts.
     moved = block.replace("            raise FramesError", "            container.close()\n            raise FramesError")
@@ -771,7 +773,8 @@ def wi05_p3_7(args, root):
     text = (REPO / "docs/evidence/01M3CSRVTHE26R86125VY676EJ/real-recording-run.txt").read_text(encoding="utf-8")
     unmeasured = "the internal gaps of 15 and 18 minutes seen before were not measured again" in text
     earlier = [p for p in REPO.glob("docs/evidence/*/*.txt") if PR6_WORK_ITEM not in str(p)
-               and "210" in p.read_text(encoding="utf-8") and "115" in p.read_text(encoding="utf-8")]
+               and "210" in p.read_text(encoding="utf-8", errors="replace")
+               and "115" in p.read_text(encoding="utf-8", errors="replace")]
     return (unmeasured and not earlier,
             f"the evidence says the 15- and 18-minute gaps were not measured again: {unmeasured}; "
             f"another evidence file carrying the before numbers: {[str(p.relative_to(REPO)) for p in earlier] or 'none'}")
@@ -1518,6 +1521,26 @@ def wi29_p3_2(args, root):
     return said == "refused: package.too_many_entries" and peak > 3 * size, (
         f"a package of {entries} empty parts ({size / 2 ** 20:.1f} MB): {said}, with a peak of "
         f"{peak / 2 ** 20:.0f} MB ({peak / size:.1f} times its size)")
+
+
+@entry("WI31-P3-1")
+def wi31_p3_1(args, root):
+    import tomllib
+    declared = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
+    pins = dict(re.findall(r"(?m)^([A-Za-z0-9_.-]+)==(\S+)", (REPO / "constraints.txt").read_text(encoding="utf-8")))
+    pins = {re.sub(r"[-_.]+", "-", name).lower(): version for name, version in pins.items()}
+    workflow = (REPO / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+    installs = [line.strip() for line in workflow.splitlines() if "pip install" in line]
+    above = []
+    for dependency in declared:
+        name, minimum = re.match(r"([A-Za-z0-9_.-]+)>=(\S+)", dependency).groups()
+        name = re.sub(r"[-_.]+", "-", name).lower()
+        if pins.get(name) != minimum:
+            above.append(f"{name} minimum {minimum}, run at {pins.get(name)}")
+    only_pinned = len(installs) == 1 and "constraints.txt" in installs[0]
+    reproduces = only_pinned and len(above) == len(declared)
+    return reproduces, (f"the CI has {len(installs)} install step(s), {'with' if only_pinned else 'not only with'} the "
+                        f"constraints; every library runs above its minimum: {'; '.join(above)}")
 
 
 # --- The external judge's findings left open (work item 32, version 0.1.0) --------------------

@@ -1,0 +1,89 @@
+schema_version: "1"
+id: 01M4CM3YV9HEAHSW5V5ER4V8W7
+objective: >
+  WI31. The suite runs on the exact library versions the program is meant
+  to ship with, and the guide says where and how the program is tested,
+  built and kept (findings R10 and R11, P2, of the external review of
+  2026-10-02: "La suite de main y el instalador no validan la misma
+  combinación de dependencias"; "La guía contradice el estado de las
+  pruebas automáticas"). Last work item of the second batch; the two go
+  together because both are about what a maintainer relies on to know the
+  program works. The owner asked on 2026-10-07 to finish all of R07 to R11
+  overnight, without seeing each contract: this contract is approved by
+  that instruction, and what it decides without the owner is listed below.
+  Starts from main (1a78ce4, after WI27); does not touch the installer's
+  branch (it only reads its pins).
+
+  Today pyproject.toml declares minimums and the CI installs whatever is
+  newest at the time, so a library release can change the result without a
+  change of the program, and a green suite says nothing about the versions
+  the installer packs. The README says the suite does not run on GitHub,
+  while main has a workflow that runs it on every pull request. After this
+  work item: constraints.txt pins, exactly, the program's libraries and
+  what they bring (av, numpy, pillow, python-docx, lxml,
+  typing_extensions), with the versions the installer of WI18 pins; the
+  CI installs pyproject's libraries with those constraints; a test fails
+  if a library of pyproject has no exact pin there or a pin is below its
+  minimum. The README says where the suite runs (every pull request on
+  GitHub, on Windows, with the pinned versions; and on the developer's
+  machine before each integration, its output under docs/evidence/), and
+  a short maintainer guide (docs/MAINTAINING.md) gives the current map:
+  the flow and where untrusted input enters, the data folder and how a cut
+  is recovered, the test and build environments and the pinned versions,
+  how a change is integrated, and what to touch to add a language. The
+  history of decisions stays in the work items, apart from the guide.
+
+  Decided without the owner: the pins are the installer's (WI18 branch,
+  packaging/requirements-build.txt) for the program's libraries; the
+  minimums of pyproject.toml stay and are not tested (written as a known
+  limitation); when WI18 is integrated, its build should take these pins
+  (said in the guide; WI18 itself is not touched).
+
+  Built by a construction-role agent (Sonnet), gated by the criterion; one
+  independent review through INGOL's mailbox.
+
+  Decided on 2026-10-08, after the pull request failed the protected review (TP-05,
+  TP-15, TP-06: a candidate cannot change a project workflow, and a workflow
+  surface makes the lane controlled): constraints.txt and the change of
+  .github/workflows/tests.yml were pushed by the owner by hand to the protected
+  main (a5624cb), so this work item no longer changes the workflow and does not
+  list it among its surfaces.
+
+  Not done: a test matrix over the minimums; an audit of known
+  vulnerabilities (it needs the network).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4CM3YV9HEAHSW5V5ER4V8W7/**
+  - docs/evidence/01M4CM3YV9HEAHSW5V5ER4V8W7/**
+  - docs/limitations/**
+  - docs/MAINTAINING.md
+  - constraints.txt
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI31-AC01
+    description: >
+      constraints.txt pins av, numpy, pillow, python-docx, lxml and
+      typing_extensions exactly, at the versions of the installer's
+      requirements-build.txt; the CI installs pyproject's libraries with
+      `-c constraints.txt` and its log shows those versions; a test fails if
+      a library of pyproject.toml has no exact pin, a pin is below its
+      minimum, or a pin is not exact.
+  - id: WI31-AC02
+    description: >
+      The README no longer says the suite does not run on GitHub; it says
+      where it runs and on which versions. docs/MAINTAINING.md exists, short,
+      with the five parts of the objective, every file, function and command
+      it names exists (checked by a test or by a script in the evidence),
+      and nothing in it contradicts the code (the review checks).
+  - id: WI31-AC03
+    description: >
+      Mutations (a library dropped from constraints.txt; a pin made a
+      range; a pin below pyproject's minimum; a name in the guide that does
+      not exist) each make a test or the evidence script fail; the script
+      and its output in the evidence. A known limitation for the untested
+      minimums, reproduced. An independent review through INGOL's mailbox
+      before the pull request; the whole suite passes in a fresh clone of
+      the tested commit with INGOL's kits, output committed under
+      docs/evidence/01M4CM3YV9HEAHSW5V5ER4V8W7/; the CI of the pull request
+      green with the pinned versions; tests changed named with why.

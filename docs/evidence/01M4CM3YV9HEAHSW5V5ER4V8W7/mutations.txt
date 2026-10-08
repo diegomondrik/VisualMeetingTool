@@ -1,0 +1,18 @@
+mutation run for 01M4CM3YV9HEAHSW5V5ER4V8W7: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_pinned_versions` (constraints and workflow) or check_guide.py (the guide) must fail
+commit: cf8e2d6b8b820b9fac0abea972a27e55f1c72944 (clean working tree)
+- a library of pyproject.toml dropped from constraints.txt (numpy): exit 1, Ran 15 tests in 0.009s FAILED (failures=7) -> DETECTED
+- a library the others bring dropped from constraints.txt (lxml): exit 1, Ran 15 tests in 0.009s FAILED (failures=7) -> DETECTED
+- a pin made a range (numpy>=2.5.3): exit 1, Ran 15 tests in 0.008s FAILED (failures=5) -> DETECTED
+- a pin made a wildcard (pillow==12.*): exit 1, Ran 15 tests in 0.008s FAILED (failures=8) -> DETECTED
+- a pin below the minimum of pyproject.toml (numpy==1.20.0): exit 1, Ran 15 tests in 0.008s FAILED (failures=6) -> DETECTED
+- a pin below the minimum, the version read as text (av==9.0.0 against av>=14): exit 1, Ran 15 tests in 0.008s FAILED (failures=8) -> DETECTED
+- a pin with an environment marker (the review's P2-1): pip would ignore it where the marker does not apply: exit 1, Ran 15 tests in 0.008s FAILED (failures=5) -> DETECTED
+- a library pinned twice: exit 1, Ran 15 tests in 0.008s FAILED (failures=8) -> DETECTED
+- the CI installs without the constraints: exit 1, Ran 15 tests in 0.007s FAILED (failures=1) -> DETECTED
+- the CI no longer shows the versions installed: exit 1, Ran 15 tests in 0.007s FAILED (failures=1) -> DETECTED
+- a function the guide names does not exist (jobs.Runner._run renamed in the guide): exit 1, 1 NAME(S) THE GUIDE USES DO NOT EXIST -> DETECTED
+- a file the guide names does not exist (tests/test_texts.py renamed in the guide): exit 1, 1 NAME(S) THE GUIDE USES DO NOT EXIST -> DETECTED
+- a command the guide names does not exist (python -m meetingtool.report): exit 1, 1 NAME(S) THE GUIDE USES DO NOT EXIST -> DETECTED
+- unmutated: tests exit 0, Ran 15 tests in 0.007s OK; guide exit 0, every name the guide looks up exists
+all mutations detected

@@ -1,0 +1,21 @@
+schema_version: "1"
+work_item: 01M4CM3YV9HEAHSW5V5ER4V8W7
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M4CM3YV9HEAHSW5V5ER4V8W7-tested-versions-and-guide
+steps:
+  - the-suite-on-the-pinned-versions-wi31-ac01
+  - the-readme-and-the-maintainer-guide-wi31-ac02
+  - mutations-review-suite-register-wi31-ac03
+evaluations:
+  - criterion: WI31-AC01
+    method: deterministic
+    control: constraints.txt against pyproject.toml and the installer's pins; the CI log.
+  - criterion: WI31-AC02
+    method: deterministic
+    control: every name in the guide exists; the review reads it against the code.
+  - criterion: WI31-AC03
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py; the CI.
