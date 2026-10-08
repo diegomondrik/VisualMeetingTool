@@ -39,13 +39,12 @@ DOCUMENT_OPEN = ('<?xml version="1.0" encoding="UTF-8" standalone="yes"?>'
                  '<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main"><w:body>')
 DOCUMENT_CLOSE = "</w:body></w:document>"
 TEAMS_BLOCK = "<w:p><w:r><w:br/><w:t>Ana   0:05</w:t><w:br/><w:t>hola</w:t></w:r></w:p>"
-RUN = b"<w:t>a</w:t>"
 
 
 class Filler:
     """A part of `size` bytes, written in pieces so that it is never held whole."""
 
-    def __init__(self, size, unit=RUN, head=b"", tail=b""):
+    def __init__(self, size, unit=b"a", head=b"", tail=b""):
         self.size, self.unit, self.head, self.tail = size, unit, head, tail
 
     def write_to(self, handle):
@@ -72,8 +71,14 @@ def write_package(path, parts, level=1):
 
 
 def document_xml(size):
-    """A transcript's document.xml of `size` bytes: a Teams block, then runs."""
-    return Filler(size, head=(DOCUMENT_OPEN + TEAMS_BLOCK).encode(), tail=DOCUMENT_CLOSE.encode())
+    """A transcript's document.xml of `size` bytes: a Teams block, then a line of text that fills the rest."""
+    return Filler(size, head=(DOCUMENT_OPEN + TEAMS_BLOCK + "<w:p><w:r><w:t>").encode(),
+                  tail=("</w:t></w:r></w:p>" + DOCUMENT_CLOSE).encode())
+
+
+def xml_part(size):
+    """A part of `size` bytes that is well-formed XML and light to parse: one long text."""
+    return Filler(size, head=b'<?xml version="1.0"?><a>', tail=b"</a>")
 
 
 def state_size(path, size):
@@ -105,7 +110,7 @@ class Packages(unittest.TestCase):
         cls.big_part = write_package(cls.tmp / "part.docx", {"word/document.xml": document_xml(40 * MB)})
         cls.huge_part = write_package(cls.tmp / "huge.docx", {"word/document.xml": document_xml(100 * MB)})
         cls.spread = write_package(cls.tmp / "spread.docx", {
-            **{f"customXml/item{number}.xml": Filler(30 * MB) for number in range(9)},
+            **{f"customXml/item{number}.xml": xml_part(30 * MB) for number in range(9)},
             "word/document.xml": document_xml(1000)})
         cls.review_case = write_package(cls.tmp / "review.docx", {"word/document.xml": Filler(
             5_000_000, unit=b"a", head=(DOCUMENT_OPEN + "<w:p><w:r><w:br/><w:t>Ana   0:05</w:t><w:br/><w:t>").encode(),
@@ -205,8 +210,8 @@ class CallersTest(Packages):
     def test_a_template_over_a_limit_is_refused(self):
         for label, parts, key in (
                 ("entries", {f"customXml/item{number}.xml": b"<x/>" for number in range(ENTRIES)}, "the file holds"),
-                ("a part", {"customXml/big.xml": Filler(40 * MB)}, "the part customXml/big.xml is larger than 32 MB"),
-                ("the total", {f"customXml/item{number}.xml": Filler(30 * MB) for number in range(9)},
+                ("a part", {"customXml/big.xml": xml_part(40 * MB)}, "the part customXml/big.xml is larger than 32 MB"),
+                ("the total", {f"customXml/item{number}.xml": xml_part(30 * MB) for number in range(9)},
                  "the parts together are larger than 256 MB")):
             with self.subTest(label):
                 path = self.template("template.docx", parts)
@@ -217,7 +222,7 @@ class CallersTest(Packages):
                 self.assertIn("la plantilla template.docx no se puede usar", raised.exception.text("es"))
 
     def test_a_report_over_a_limit_is_not_delivered(self):
-        path = self.template("report.docx", {"customXml/big.xml": Filler(40 * MB)})
+        path = self.template("report.docx", {"customXml/big.xml": xml_part(40 * MB)})
         with self.assertRaises(document.ReportError) as raised:
             document.check_active_content(path)
         self.assertEqual(raised.exception.message.key, "report.too_big")
