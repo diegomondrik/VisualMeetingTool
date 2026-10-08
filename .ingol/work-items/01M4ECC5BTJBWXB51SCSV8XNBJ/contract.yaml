@@ -1,0 +1,51 @@
+schema_version: "1"
+id: 01M4ECC5BTJBWXB51SCSV8XNBJ
+objective: >
+  WI32. The findings of the external judge of INGOL (2026-10-07, on main
+  f1bde92) that no work item fixes are registered as known limitations of
+  version 0.1.0, each with a reproduction, to be solved in a later version
+  (the owner's decision of 2026-10-08): D1-01 (P0, outputs that do not share
+  the store's write guarantee), D1-02 (P1, a failed move back after a failed
+  save deletes what was paid), D1-04 (P1, an empty register of questions is
+  delivered as "no question was raised"), D1-05 (P2, a cut leaves the
+  knowledge one meeting behind for the commands) and D1-09 (P3, two language
+  tests fail when the working path holds the word "de"). D1-03 is already
+  WI23-P3-3; D1-06, D1-07 and D1-08 are R08, R09 and R11, closed by work
+  items 29, 30 and 31. The program does not change: this work item adds
+  entries to docs/limitations/REGISTER.md and their reproductions to
+  docs/limitations/reproduce.py, and nothing else.
+
+  Each entry says what happens, how likely it is to reach a user (the judge's
+  own limits are kept: D1-01's first half needs two commands on one folder,
+  which the application does not do), and shows it by running: the
+  reproduction uses the project's own test fixtures and a fake Gemini, and
+  exits red if the register's state is not what it shows.
+
+  Not done: fixing any of them; checking how often the real Gemini returns an
+  empty register (not measured); the judge's estimate of the work to fix each
+  one (2 to 4 days for D1-01, 1 to 2 for D1-02, 2 to 4 for D1-04, 1 to 2 for
+  D1-05, 1 to 2 hours for D1-09) is theirs and was not checked.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4ECC5BTJBWXB51SCSV8XNBJ/**
+  - docs/evidence/01M4ECC5BTJBWXB51SCSV8XNBJ/**
+  - docs/limitations/**
+acceptance:
+  - id: WI32-AC01
+    description: >
+      REGISTER.md has an entry for each of D1-01, D1-02, D1-04, D1-05 and
+      D1-09 with its state open, and reproduce.py has the reproduction of each;
+      running python docs/limitations/reproduce.py for the five gives MATCH,
+      and the whole register still gives no MISMATCH. The register says which
+      of the judge's other findings are closed or decided elsewhere.
+  - id: WI32-AC02
+    description: >
+      No file of the program or of the tests changes (the diff touches only
+      docs/limitations and this work item's own files); each reproduction
+      writes only to temporary folders and makes no network call.
+  - id: WI32-AC03
+    description: >
+      An independent review through INGOL's mailbox before the pull request
+      checks that each entry says what the reproduction shows and no more; the
+      whole suite passes in a fresh clone of the tested commit with INGOL's
+      kits, output committed under docs/evidence/01M4ECC5BTJBWXB51SCSV8XNBJ/.

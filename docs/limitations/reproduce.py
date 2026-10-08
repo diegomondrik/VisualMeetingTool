@@ -1520,6 +1520,159 @@ def wi29_p3_2(args, root):
         f"{peak / 2 ** 20:.0f} MB ({peak / size:.1f} times its size)")
 
 
+# --- The external judge's findings left open (work item 32, version 0.1.0) --------------------
+
+@entry("D1-01")
+def d1_01(args, root):
+    import threading
+    import docx
+    from meetingtool.report import document as document_module
+    from tests import test_report
+    from tests.test_frames import SLIDES, write_video
+    case = test_report.Workspace("setUp")
+    case.setUp()
+    try:
+        # (a) two reports built in the same folder at once share one temporary file: summary.docx.partial
+        real_check = document_module.check_report
+        both_saved = threading.Barrier(2)
+        a_done = threading.Event()
+        results = {}
+
+        def check(*check_args, **check_kwargs):
+            both_saved.wait(timeout=30)
+            if threading.current_thread().name == "B":
+                a_done.wait(timeout=30)
+            return real_check(*check_args, **check_kwargs)
+
+        def build(name, title):
+            try:
+                case.build(title=title, neutral=True)
+                results[name] = "success"
+            except document_module.ReportError as error:
+                results[name] = f"refused ({error.message.key})"
+            finally:
+                if name == "A":
+                    a_done.set()
+
+        with mock.patch.object(document_module, "check_report", check):
+            threads = [threading.Thread(target=build, args=(name, title), name=name)
+                       for name, title in (("A", "Title A"), ("B", "Title B"))]
+            for thread in threads:
+                thread.start()
+            for thread in threads:
+                thread.join(60)
+        text = " ".join(paragraph.text for paragraph in docx.Document(str(case.output())).paragraphs)
+        crossed = results.get("A") == "success" and "Title B" in text and "Title A" not in text
+    finally:
+        case.tearDown()
+    # (b) extracting the frames again deletes the old images before writing the new ones
+    with workspace() as tmp:
+        video = tmp / "recording.mp4"
+        write_video(video, [(SLIDES["A"], 4, False), (SLIDES["B"], 4, False), (SLIDES["C"], 4, False)])
+        out = tmp / "frames"
+        extract_frames(video, out)
+        before = len(list(out.glob("frame_*.jpg")))
+        real_write = Path.write_bytes
+
+        def failing(self, data):
+            if self.suffix == ".jpg" and self.parent == out:
+                raise OSError("injected: disk error on the first image")
+            return real_write(self, data)
+
+        try:
+            with mock.patch.object(Path, "write_bytes", failing):
+                extract_frames(video, out)
+        except OSError:
+            pass
+        after = len(list(out.glob("frame_*.jpg")))
+        intact = video.exists()
+    return crossed and after == 0 < before, (
+        f"two reports of one folder at once: A {results.get('A')}, B {results.get('B')}, the file holds "
+        f"{'Title B' if 'Title B' in text else 'Title A'} (A asked for Title A); extracting again with one write "
+        f"failing: {before} images before, {after} after, the recording intact: {intact}")
+
+
+@entry("D1-02")
+def d1_02(args, root):
+    from tests import test_data_integrity
+    case = test_data_integrity.KeptRunTest("setUp")
+    case.setUp()
+    try:
+        real_replace = os.replace
+
+        def replace(source, destination, *replace_args, **replace_kwargs):
+            if Path(source).parent.name == "results" and Path(destination).parent.name == "processing":
+                raise PermissionError("injected: the folder cannot go back to being worked on")
+            return real_replace(source, destination, *replace_args, **replace_kwargs)
+
+        with mock.patch.object(store, "add_meeting", side_effect=store.ProjectError("projects.needs_title")), \
+                mock.patch("os.replace", replace):
+            failed = case.process(meeting_type="")
+        paid = len(case.fake.requests)
+        kept = failed["kept"]
+        left = case.processing(), case.results()
+    finally:
+        case.doCleanups()
+        case.tearDown()
+    return (failed["failed_stage_name"] == "saving" and paid > 0 and kept is None and left == ([], [])), (
+        f"the save fails and so does the move back: stage {failed['failed_stage_name']}, {paid} paid requests "
+        f"(US${failed['spent_usd']:.4f} at the fake's prices), kept: {kept}, working folders left: {left[0]}, "
+        f"results left: {left[1]}")
+
+
+@entry("D1-04")
+def d1_04(args, root):
+    from tests import test_qa
+    case = test_qa.Workspace("setUp")
+    case.setUp()
+    try:
+        # The transcript has two explicit questions; the (fake) model answers with none.
+        answer = test_qa.json_answer({"questions": [], "knowledge": test_qa.REGISTER["knowledge"]})
+        with test_qa.FakeGemini([answer]) as fake:
+            result = case.register(fake, language="es")
+        said = "No se planteó ninguna pregunta en la reunión." in case.output().read_text(encoding="utf-8")
+    finally:
+        case.tearDown()
+    return said and result.questions == 0, (
+        f"a transcript with two explicit questions and an empty answer: {result.questions} questions accepted, "
+        f"the register says there were none: {said}")
+
+
+@entry("D1-05")
+def d1_05(args, root):
+    with workspace() as tmp:
+        data = tmp / "data"
+        project = store.create_project(data, "Planta Demo", "Cliente Demo")["id"]
+        store.add_meeting(data, project, "Primera", "2026-09-10", summary="Antes.", key_points=("Primer acuerdo",))
+        code = ("import os, sys; sys.path.insert(0, %r); from unittest import mock; from pathlib import Path; "
+                "from meetingtool.projects import store; "
+                "mock.patch.object(store, 'rebuild_knowledge', lambda *a, **k: os._exit(77)).start(); "
+                "store.add_meeting(Path(%r), %r, 'Segunda', '2026-09-11', summary='Despues.', "
+                "key_points=('Acuerdo nuevo',))") % (str(REPO), str(data), project)
+        died = subprocess.run([sys.executable, "-c", code], cwd=str(REPO)).returncode
+        titles = [meeting["title"] for meeting in store.list_meetings(data, project)]
+        context = store.knowledge_context(data, project)
+    return died == 77 and len(titles) == 2 and "Acuerdo nuevo" not in context, (
+        f"the process dies (exit {died}) after the record is saved and before the knowledge is rebuilt: "
+        f"{len(titles)} meetings listed, the next summary's knowledge holds the new agreement: "
+        f"{'Acuerdo nuevo' in context}")
+
+
+@entry("D1-09")
+def d1_09(args, root):
+    with workspace() as tmp:
+        folder = tmp / "3-de-codex"
+        folder.mkdir()
+        environment = {**os.environ, "TMP": str(folder), "TEMP": str(folder), "TMPDIR": str(folder),
+                       "PYTHONDONTWRITEBYTECODE": "1"}
+        environment.pop("PYTHONPATH", None)
+        run = subprocess.run([sys.executable, "-m", "unittest", "tests.test_texts.StageLanguageTest"], cwd=str(REPO),
+                             env=environment, capture_output=True, text=True, encoding="utf-8", errors="replace")
+    summary = [line for line in run.stderr.strip().splitlines() if line.startswith(("Ran ", "OK", "FAILED"))]
+    return run.returncode != 0 and "FAILED" in run.stderr, (
+        f"StageLanguageTest with the working folder inside a path holding the word 'de': {' '.join(summary[-2:])}")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))
