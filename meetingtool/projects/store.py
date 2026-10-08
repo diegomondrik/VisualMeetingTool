@@ -30,6 +30,7 @@ from pathlib import Path
 from meetingtool import disk, texts
 
 SCHEMA_VERSION = 1
+MEETING_FIELDS = ("id", "title", "date", "added_utc")  # the text fields a meeting record must hold
 DATA_DIR_ENV = "MEETINGTOOL_DATA_DIR"
 DEFAULT_DATA_DIR_NAME = "VisualMeetingTool-data"
 
@@ -238,11 +239,26 @@ def list_meetings(data_dir, project_id):
     if not meetings.is_dir():
         return []
     records = [
-        _read_record(entry / "meeting.json", ("id", "title", "date", "added_utc"))
+        _read_record(entry / "meeting.json", MEETING_FIELDS)
         for entry in meetings.iterdir()
         if (entry / "meeting.json").is_file()
     ]
     return sorted(records, key=lambda m: (m["date"], m["added_utc"], m["id"]))
+
+
+def read_meeting(data_dir, project_id, meeting_id):
+    """One meeting's record, read from its own folder alone, or None if the
+    project has no meeting by that identifier. The identifier is a slug, never
+    a path; a record that cannot be read is ProjectError, as in list_meetings,
+    but only for the meeting asked for."""
+    folder = _project_dir(data_dir, project_id)
+    if not isinstance(meeting_id, str) or meeting_id != slugify(meeting_id, fallback=""):
+        return None
+    path = folder / "meetings" / meeting_id / "meeting.json"
+    if not path.is_file():
+        return None
+    record = _read_record(path, MEETING_FIELDS)
+    return record if record["id"] == meeting_id else None
 
 
 def render_knowledge(project, meetings):

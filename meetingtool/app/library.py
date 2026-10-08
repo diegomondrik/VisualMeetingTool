@@ -115,11 +115,27 @@ def meetings(data_dir, project_id):
     return listed
 
 
+def meeting_record(data_dir, project_id, meeting_id):
+    """One meeting's record, read from its own folder: no other meeting's record
+    or result is read, so a broken one elsewhere does not matter."""
+    project(data_dir, project_id)
+    try:
+        record = store.read_meeting(data_dir, project_id, meeting_id)
+    except store.ProjectError:
+        raise NotFound(meeting_id) from None
+    if record is None:
+        raise NotFound(meeting_id)
+    return record
+
+
 def meeting(data_dir, project_id, meeting_id):
-    for entry in meetings(data_dir, project_id):
-        if entry["record"]["id"] == meeting_id:
-            return entry
-    raise NotFound(meeting_id)
+    record = meeting_record(data_dir, project_id, meeting_id)
+    return {"record": record, "result": result(meeting_folder(data_dir, project_id, record))}
+
+
+def _is_loose(entry):
+    return (entry.is_dir() and is_slug(entry.name) and not (entry / "project.json").exists()
+            and (entry / writer.OUTPUT_NAME).is_file())
 
 
 def loose(data_dir):
@@ -127,19 +143,18 @@ def loose(data_dir):
     data_dir = Path(data_dir)
     if not data_dir.is_dir():
         return []
-    found = []
-    for entry in sorted(data_dir.iterdir()):
-        if (entry.is_dir() and is_slug(entry.name) and not (entry / "project.json").exists()
-                and (entry / writer.OUTPUT_NAME).is_file()):
-            found.append({"name": entry.name, "result": result(entry)})
-    return found
+    return [{"name": entry.name, "result": result(entry)} for entry in sorted(data_dir.iterdir()) if _is_loose(entry)]
+
+
+def _loose_folder(data_dir, name):
+    """The folder of the loose result called `name`: only that folder is looked at."""
+    if not is_slug(name) or not _is_loose(Path(data_dir) / name):
+        raise NotFound(name)
+    return Path(data_dir) / name
 
 
 def loose_result(data_dir, name):
-    for entry in loose(data_dir):
-        if entry["name"] == name:
-            return entry
-    raise NotFound(name)
+    return {"name": name, "result": result(_loose_folder(data_dir, name))}
 
 
 def file_path(folder, name):
@@ -154,10 +169,9 @@ def file_path(folder, name):
 
 
 def meeting_file(data_dir, project_id, meeting_id, name):
-    entry = meeting(data_dir, project_id, meeting_id)
-    return file_path(meeting_folder(data_dir, project_id, entry["record"]), name)
+    record = meeting_record(data_dir, project_id, meeting_id)
+    return file_path(meeting_folder(data_dir, project_id, record), name)
 
 
 def loose_file(data_dir, folder_name, name):
-    loose_result(data_dir, folder_name)
-    return file_path(Path(data_dir) / folder_name, name)
+    return file_path(_loose_folder(data_dir, folder_name), name)
