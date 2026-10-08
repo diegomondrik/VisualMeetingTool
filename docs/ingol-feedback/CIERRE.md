@@ -12,8 +12,8 @@ estimaciones. Las rutas son de este repositorio salvo que diga otra cosa. Las ci
 
 - Primera tanda (R01 a R06): integrada en `main`.
 - Segunda tanda (R07 a R11): construida, revisada y con la suite completa en verde, pero **sin integrar**. Sus PR están
-  abiertos: #28 (R07) y #29 (R08) con `bootstrap` y `tests` en verde tras la firma del owner (punto 2.1); #31 (R09)
-  recién abierto, sin resultado todavía; #30 (R10 y R11) en rojo en `bootstrap` porque cambia un workflow (punto 2.12).
+  abiertos: #28 (R07), #29 (R08) y #31 (R09) con `bootstrap` y `tests` en verde tras la firma del owner (punto 2.1); #30 (R10 y R11) con `bootstrap` en verde desde que el owner empujó a mano el cambio del workflow y se corrigió el
+  contrato (punto 2.12); su `tests` estaba corriendo al escribir esto.
 - El juez externo de INGOL corrió una vez, se cortó por cuota y dejó un borrador con **1 P0 y 2 P1 abiertos** más un P1
   aceptado por el owner.
 
@@ -216,11 +216,17 @@ uno (`metrics.yaml` sólo los acumula por sesión).
   revisión lo arregla: hay que sacar el cambio del workflow del PR.
 - **Cómo reproducirlo.** `gh run view 37799970802 --log | grep -A3 '"status": "failed"'` (corrida de `bootstrap` sobre
   `f24deca`, PR #30).
-- **Cuánto costó.** Un ciclo de construcción, revisión independiente y suite completa (654 pruebas, 2.362 s) hecho con
-  un contrato que no podía pasar; el costo en minutos del owner: no medido.
-- **Resuelto.** En trámite: el owner eligió empujar a mano a `main` el cambio de `tests.yml` y `constraints.txt` (como en
-  H3) y después actualizar la rama de WI31. Al cierre de este informe, no empujado. Un intento del ejecutor de dejar
-  armado ese commit fue bloqueado por el sistema de permisos (clasificador "CI Bypass"); lo hace el owner.
+- **Cómo se resolvió.** En dos pasos, no en uno. (1) El owner empujó a mano a `main` `constraints.txt` y el cambio de
+  `tests.yml` (`a5624cb`, con el bypass de la regla de la rama; como en H3), y se actualizó la rama de WI31 con `main`
+  (`c301dbb`): desaparecieron TP-05 y TP-15. (2) Seguía TP-06 ("contract lane standard is lower than derived lane
+  controlled") porque el contrato de WI31 aún listaba `.github/workflows/tests.yml` en `affected_surfaces`, y
+  `.ingol/policies/lanes.yaml` pone `.github/workflows/**` en `controlled_by_content`: la vía se deriva de la superficie
+  declarada, no sólo del diff. Se quitó esa línea del contrato (commit `da2e089`), lo que cambió su digest y
+  obligó a firmar el registro otra vez (`approved_utc` 2026-10-08T17:09Z). Después `bootstrap` pasó [`gh pr checks 30`].
+  Un intento del ejecutor de dejar armado el commit del paso (1) fue bloqueado por el sistema de permisos (clasificador
+  "CI Bypass"); lo hizo el owner.
+- **Costo.** Un ciclo de construcción, revisión independiente y suite completa (654 pruebas, 2.362 s) con un contrato que
+  no podía pasar; tres acciones del owner (empujar a `main`; firmar el registro de WI31 dos veces); minutos: no medidos.
 - **ID en el registro de limitaciones.** No tiene.
 
 ---
@@ -265,7 +271,7 @@ Tres tipos: (a) del proyecto, (b) de plataforma, (c) de método. "Convertida" di
 | Regla | Qué la originó | Convertida |
 |---|---|---|
 | Una mutación cuenta como detectada sólo si las pruebas **terminaron y fallaron**; un proceso caído no es una detección | En la noche del 7 al 8, tres mutaciones de WI28 salieron con códigos de falta de memoria y el guion las marcó `DETECTED` | Sí, en los guiones de las cuatro ramas (`1a666bc`, `a2ef2fc`, `8da90f4`, `daf9b74`): exigen la línea `Ran N tests`, salida 1 y `FAILED`, y imprimen `NOT RUN` si no |
-| Si un cambio toca un workflow del proyecto, el contrato no puede ser `standard`: el workflow lo cambia el owner a mano en la rama protegida, antes del PR | WI31: el contrato declaró `standard` con `tests.yml` entre sus superficies; `bootstrap` falló en TP-06, TP-08, TP-05, TP-15, TP-12 y TP-03 (punto 2.12) | No: es práctica. Si INGOL ya avisa al aprobar el contrato, no lo vi; no verificado |
+| Si un cambio toca un workflow del proyecto, el contrato no puede ser `standard`: el workflow lo cambia el owner a mano en la rama protegida, antes del PR | WI31: el contrato declaró `standard` con `tests.yml` entre sus superficies; `bootstrap` falló en TP-06, TP-08, TP-05, TP-15, TP-12 y TP-03 (punto 2.12) | No: es práctica. Si INGOL ya avisa al aprobar el contrato, no lo vi; no verificado. La vía se deriva también de las superficies que el contrato declara (`lanes.yaml`, `controlled_by_content`), no sólo del diff |
 | No se salta la revisión independiente por ser un cambio "chico" | 7 de 12 revisiones encontraron un P1 (punto 3.4) | No: es práctica, no control |
 | Un "no aprobar" pide una segunda revisión, acotada, del arreglo | WI29: la primera dijo no aprobar; la segunda aprobó y encontró dos P3 más (bits de bandera 5 y 6; bytes de control crudos) | No: es práctica |
 | Si el texto afirma que algo se detecta, la reproducción tiene que mostrar esa detección, no un sustituto | WI28 P1-1: los textos decían que se detecta un cambio de precios; no se puede, y la reproducción dividía la estimación en vez de cambiar un precio | Parcial: los textos se corrigieron (`61c88fb`); la regla no es un control |
