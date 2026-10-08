@@ -1,0 +1,33 @@
+WI33-AC02: python packaging/build.py in a fresh clone (git clone --no-hardlinks) of bbc92afc57192a877bce8e3cd508d6a569212f9e, with the build environment's Python, 2026-10-08.
+
+
+installer: dist\VisualMeetingTool-Setup-0.1.0.exe
+version:   0.1.0
+commit:    bbc92afc57192a877bce8e3cd508d6a569212f9e
+python:    3.12.10
+tool:      altgraph==0.17.5
+tool:      av==19.0.0
+tool:      bottle==0.13.4
+tool:      cffi==2.1.1
+tool:      clr_loader==0.3.1
+tool:      lxml==6.1.3
+tool:      numpy==2.5.3
+tool:      packaging==26.3
+tool:      pefile==2024.8.26
+tool:      pillow==12.3.0
+tool:      proxy_tools==0.1.0
+tool:      pycparser==3.0
+tool:      pyinstaller==6.22.3
+tool:      pyinstaller-hooks-contrib==2026.8
+tool:      python-docx==1.2.0
+tool:      pythonnet==3.2.0
+tool:      pywebview==6.2.1
+tool:      pywin32-ctypes==0.2.3
+tool:      setuptools==84.0.0
+tool:      typing_extensions==4.16.0
+inno:      C:\Users\Diego\AppData\Local\Programs\Inno Setup 6\ISCC.exe
+size:      43664207 bytes (43.7 MB)
+sha256:    b0330393ef3b35f2ea694ab25217edcd596ccf26672e52180c609df3e6d43696
+
+--- The installer's file list, as built: Inno Setup's own compile output for the same recipe and the same program folder (not quiet) ---
+files compressed: 208

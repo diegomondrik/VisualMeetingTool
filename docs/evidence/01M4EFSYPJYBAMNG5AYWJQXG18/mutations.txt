@@ -1,0 +1,23 @@
+mutation run for 01M4EFSYPJYBAMNG5AYWJQXG18: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_user_manual tests.test_packaging` (no kits, what the CI runs) must fail
+commit: 15a0ae9e1f72e7887322cac715ff4cd976d2caf7 (clean working tree)
+- a screen name renamed in the manual (the field of the ceiling goes back to its old name): exit 1, Ran 28 tests in 0.042s FAILED (failures=2) -> DETECTED
+- a button renamed in the manual (Save the key): exit 1, Ran 28 tests in 0.048s FAILED (failures=2) -> DETECTED
+- a name of the manual pointing to another text of the program (the key of the Save button): exit 1, Ran 28 tests in 0.050s FAILED (failures=1) -> DETECTED
+- the largest ceiling changed in the manual (up to 5): exit 1, Ran 28 tests in 0.045s FAILED (failures=1) -> DETECTED
+- the default ceiling changed in the manual: exit 1, Ran 28 tests in 0.042s FAILED (failures=1) -> DETECTED
+- the largest upload changed in the manual (the video, 16 GB): exit 1, Ran 28 tests in 0.043s FAILED (failures=1) -> DETECTED
+- the data folder changed in the manual: exit 1, Ran 28 tests in 0.044s FAILED (failures=1) -> DETECTED
+- the log's name changed in the manual: exit 1, Ran 28 tests in 0.040s FAILED (failures=1) -> DETECTED
+- a file type the program accepts dropped from the manual (.mkv): exit 1, Ran 28 tests in 0.046s FAILED (failures=1) -> DETECTED
+- a section of the manual removed (Troubleshooting) but left in the contents: exit 1, Ran 28 tests in 0.044s FAILED (failures=2) -> DETECTED
+- a link of the contents pointing nowhere: exit 1, Ran 28 tests in 0.040s FAILED (failures=2) -> DETECTED
+- an outside script added to the manual: exit 1, Ran 28 tests in 0.043s FAILED (failures=1) -> DETECTED
+- a price quoted in the manual: exit 1, Ran 28 tests in 0.042s FAILED (failures=1) -> DETECTED
+- the manual said not to be an estimate (the ceiling called a guarantee): exit 1, Ran 28 tests in 0.043s FAILED (failures=1) -> DETECTED
+- the installer no longer copies the manual: exit 1, Ran 28 tests in 0.045s FAILED (errors=1) -> DETECTED
+- the installer's offer to open the manual ticked by default: exit 1, Ran 28 tests in 0.042s FAILED (failures=1) -> DETECTED
+- the Start menu entry of the manual removed: exit 1, Ran 28 tests in 0.047s FAILED (failures=1) -> DETECTED
+- the manual's name missing in Spanish: exit 1, Ran 28 tests in 0.045s FAILED (failures=1) -> DETECTED
+- unmutated: exit 0, Ran 28 tests in 0.042s OK
+all mutations detected

@@ -7,6 +7,8 @@
 ;   application starts in it (meetingtool.app.window.installed_language).
 ; - For the current user only, without administrator rights.
 ; - The data folder is the user's, outside the program: nothing here touches it.
+; - It installs the user manual (docs/manual/user-manual.html, in English: WI33)
+;   next to the program, with a Start menu entry, and offers to open it at the end.
 
 #ifndef Version
   #error Version is passed by packaging/build.py
@@ -47,18 +49,27 @@ Name: "en"; MessagesFile: "compiler:Default.isl"
 [Tasks]
 Name: "desktopicon"; Description: "{cm:CreateDesktopIcon}"; GroupDescription: "{cm:AdditionalIcons}"; Flags: unchecked
 
+[CustomMessages]
+en.UserManual=VisualMeetingTool User Manual
+es.UserManual=Manual de usuario de VisualMeetingTool (English)
+en.OpenManual=Open the user manual (English)
+es.OpenManual=Abrir el manual de usuario (English)
+
 [Files]
 Source: "{#Source}\*"; DestDir: "{app}"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "{#SourcePath}\..\docs\manual\user-manual.html"; DestDir: "{app}\manual"; Flags: ignoreversion
 
 [INI]
 Filename: "{app}\installation.ini"; Section: "installation"; Key: "language"; String: "{language}"; Flags: uninsdeletesection
 
 [Icons]
 Name: "{autoprograms}\VisualMeetingTool"; Filename: "{app}\MeetingTool.exe"
+Name: "{autoprograms}\{cm:UserManual}"; Filename: "{app}\manual\user-manual.html"
 Name: "{autodesktop}\VisualMeetingTool"; Filename: "{app}\MeetingTool.exe"; Tasks: desktopicon
 
 [Run]
 Filename: "{app}\MeetingTool.exe"; Description: "{cm:LaunchProgram,VisualMeetingTool}"; Flags: nowait postinstall skipifsilent
+Filename: "{app}\manual\user-manual.html"; Description: "{cm:OpenManual}"; Flags: shellexec nowait postinstall skipifsilent unchecked
 
 [UninstallDelete]
 Type: files; Name: "{app}\installation.ini"

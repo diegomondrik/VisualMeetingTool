@@ -1,0 +1,75 @@
+schema_version: "1"
+id: 01M4EFSYPJYBAMNG5AYWJQXG18
+objective: >
+  WI33. A user manual, in English, installed by the installer, for a person who
+  has never seen the program and is going to install it on their own computer
+  (the owner's request of 2026-10-08). It is one HTML page,
+  docs/manual/user-manual.html, that needs nothing from outside (no script, no
+  image, no link to another site), reads well on a phone-sized window, follows
+  the system's light or dark theme and prints. It says, in order: what the
+  program does and what is needed; installing it (the unsigned-installer
+  warning, the language question, the folder, no administrator rights); the
+  first start and the Gemini key; a first meeting, field by field and stage
+  by stage; cost and the estimated spending ceiling; reading the result; the
+  settings (language, company, Word template); where the files, the data and
+  the log are; what leaves the computer; updating and uninstalling; and what
+  to do when something fails.
+
+  The installer (packaging/installer.iss) copies it to the program's folder
+  (manual\user-manual.html), adds a Start menu entry named in the installer's
+  language, and offers at the end to open it (unticked; the program's launch
+  stays ticked). The program does not change.
+
+  A manual is only worth having if it stays true, so a test ties it to the
+  program: every name of a screen, field, button or setting that it quotes is
+  in the program's English texts; the numbers (the default and the largest
+  ceiling, the upload limits, the file types) are the code's; the places it
+  names (the data folder, the log, the program's folder) are the ones the
+  program and the installer use; and it makes no promise the program does not
+  keep. The first draft of the manual quoted the ceiling's old name, and this
+  test was what showed it.
+
+  Starts from the installer's branch (WI18, brought up to date with main on
+  2026-10-08) and is integrated after it.
+
+  Not done: screenshots; a manual in Spanish (the owner asked for English; the
+  installer and the program already speak both); a link to the manual from
+  inside the program's window; checking the page in every browser (it uses
+  only HTML and CSS that every current browser reads).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4EFSYPJYBAMNG5AYWJQXG18/**
+  - docs/evidence/01M4EFSYPJYBAMNG5AYWJQXG18/**
+  - docs/manual/**
+  - docs/limitations/**
+  - packaging/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI33-AC01
+    description: >
+      docs/manual/user-manual.html exists, is English, needs nothing from
+      outside, has the twelve sections above in order with a contents list
+      whose links work, and follows the system theme and prints; tests read
+      the page and say so.
+  - id: WI33-AC02
+    description: >
+      The installer installs it at manual\user-manual.html next to the program,
+      adds a Start menu entry in the installer's language (Spanish and English)
+      and offers to open it unticked; the build produces the installer with it
+      and the installer's file list, as built, shows it (output committed as
+      evidence). The existing test that said every shortcut opens the program
+      is changed to name the manual's entries, with why.
+  - id: WI33-AC03
+    description: >
+      The manual is tied to the program: every quoted name is in the program's
+      English texts, the numbers are the code's, the places it names are the
+      program's, and it quotes no price and promises no guarantee; mutations
+      (a name renamed in the manual; a limit changed; a section removed; the
+      installer's manual entry removed; the manual's offer ticked) each make a
+      test fail, the script and its output in the evidence. An independent
+      review through INGOL's mailbox that reads the manual against the program
+      and checks that nothing in it is false or would mislead a new user; the
+      whole suite passes in a fresh clone of the tested commit with INGOL's
+      kits, output committed under docs/evidence/01M4EFSYPJYBAMNG5AYWJQXG18/; tests changed named with
+      why.

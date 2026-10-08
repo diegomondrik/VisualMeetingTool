@@ -298,7 +298,9 @@ and no console (`meetingtool/app/window.py`). Closed with the X while a meeting
 is being processed, it asks first; confirmed, the meeting is not added to the
 project and what was already paid for stays, as for any failed run, so that processing it
 again does not pay for it twice. A second start on the same data folder says the
-application is already open. The data folder is the user's, outside the
+application is already open. The installer also puts a user manual, in English, in the program's folder
+(`manual\user-manual.html`, from `docs/manual/user-manual.html`), with a Start menu entry,
+and offers to open it at the end. The data folder is the user's, outside the
 program: uninstalling, or installing a new version over the old one, keeps it
 and the Gemini key. The program is not signed, so Windows warns the first time
 ("More info" → "Run anyway").

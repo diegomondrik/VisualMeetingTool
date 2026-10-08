@@ -1,0 +1,22 @@
+schema_version: "1"
+work_item: 01M4EFSYPJYBAMNG5AYWJQXG18
+status: approved
+next_gate: write-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (criterion role)
+branch: work-item/01M4EFSYPJYBAMNG5AYWJQXG18-user-manual
+steps:
+  - the-manual-page-wi33-ac01
+  - the-installer-installs-it-wi33-ac02
+  - the-manual-tied-to-the-program-wi33-ac03
+  - mutations-review-suite-wi33-ac03
+evaluations:
+  - criterion: WI33-AC01
+    method: deterministic
+    control: tests/test_user_manual.py, StructureTest.
+  - criterion: WI33-AC02
+    method: deterministic
+    control: tests/test_packaging.py and the installer's build output.
+  - criterion: WI33-AC03
+    method: adversarial
+    control: tests/test_user_manual.py, ItIsTrueTest; mutations.py and mutations.txt; the review; local-test-run.txt.
