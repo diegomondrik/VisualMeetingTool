@@ -19,7 +19,8 @@ MANUAL = "docs/manual/user-manual.html"
 ISS = "packaging/installer.iss"
 TESTS = ["tests.test_user_manual", "tests.test_packaging"]
 
-# (label, file, old, new); each `old` has to be found exactly once.
+# (label, file, old, new[, "all"]); each `old` has to be found exactly once, or at least once with "all" (a name
+# the manual says in several places is changed in all of them: a test must see a name that is wrong everywhere).
 MUTATIONS = [
     ("a screen name renamed in the manual (the field of the ceiling goes back to its old name)", MANUAL,
      "<strong>Estimated spending ceiling in dollars</strong>", "<strong>Spending ceiling in dollars</strong>"),
@@ -27,8 +28,8 @@ MUTATIONS = [
      "<strong>Store the key</strong>"),
     ("the default ceiling changed in the manual", MANUAL, "<strong>US$1.00</strong>", "<strong>US$2.00</strong>"),
     ("the largest upload changed in the manual (the video, 16 GB)", MANUAL, "up to 16 GB", "up to 32 GB"),
-    ("the data folder changed in the manual", MANUAL, "VisualMeetingTool-data", "MeetingData"),
-    ("the log's name changed in the manual", MANUAL, "window.log", "meetingtool.log"),
+    ("the data folder changed in the manual", MANUAL, "VisualMeetingTool-data", "MeetingData", "all"),
+    ("the log's name changed in the manual", MANUAL, "window.log", "meetingtool.log", "all"),
     ("a file type the program accepts dropped from the manual (.mkv)", MANUAL, "<code>.mkv</code>, ", ""),
     ("a section of the manual removed (Troubleshooting) but left in the contents", MANUAL,
      '<h2 id="trouble">12. Troubleshooting</h2>', '<h2 id="trouble-x">12. Troubleshooting</h2>'),
@@ -68,18 +69,18 @@ def main(argv):
     head = subprocess.run(["git", "rev-parse", "HEAD"], cwd=source, capture_output=True, text=True).stdout.strip()
     dirty = subprocess.run(["git", "status", "--porcelain"], cwd=source, capture_output=True, text=True).stdout.strip()
     shutil.copytree(source, work, ignore=shutil.ignore_patterns(".git", "__pycache__"))
-    names = sorted({name for _, name, _, _ in MUTATIONS})
+    names = sorted({entry[1] for entry in MUTATIONS})
     originals = {name: (work / name).read_bytes().decode("utf-8") for name in names}
     print("mutation run for 01M4EFSYPJYBAMNG5AYWJQXG18: each mutation is applied alone to a copy of the working tree;")
     print(f"`python -m unittest {' '.join(TESTS)}` (no kits, what the CI runs) must fail")
     print(f"commit: {head}" + (" (the working tree has uncommitted changes)" if dirty else " (clean working tree)"))
     detected_all = True
     try:
-        for label, name, old, new in MUTATIONS:
+        for label, name, old, new, *flags in MUTATIONS:
             if only not in label:
                 continue
             text = originals[name]
-            if text.count(old) != 1:
+            if text.count(old) != 1 and not (flags and text.count(old) >= 1):
                 raise SystemExit(f"mutation {label!r} does not apply exactly once in {name}")
             (work / name).write_bytes(text.replace(old, new).encode("utf-8"))
             result = run_tests(work)
