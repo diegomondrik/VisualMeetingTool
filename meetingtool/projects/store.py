@@ -252,7 +252,7 @@ def read_meeting(data_dir, project_id, meeting_id):
     a path; a record that cannot be read is ProjectError, as in list_meetings,
     but only for the meeting asked for."""
     folder = _project_dir(data_dir, project_id)
-    if not isinstance(meeting_id, str) or meeting_id != slugify(meeting_id, fallback=""):
+    if not isinstance(meeting_id, str) or not meeting_id or meeting_id != slugify(meeting_id, fallback=""):
         return None
     path = folder / "meetings" / meeting_id / "meeting.json"
     if not path.is_file():

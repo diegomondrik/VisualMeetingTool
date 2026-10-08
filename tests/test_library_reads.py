@@ -218,6 +218,15 @@ class LibraryReadsTest(unittest.TestCase):
         with self.assertRaises(library.NotFound):
             library.meeting_file(self.data, "..", record["id"], FRAME)
 
+    def test_an_empty_identifier_is_not_a_meeting_even_with_a_record_in_the_meetings_folder_itself(self):
+        """The review's P3-2: "" is its own slug, so it built meetings/meeting.json."""
+        record = add_meetings(self.data, self.project, 1)[0]
+        meetings = self.data / self.project / "meetings"
+        (meetings / "meeting.json").write_text(json.dumps({**record, "id": ""}), encoding="utf-8")
+        self.assertIsNone(store.read_meeting(self.data, self.project, ""))
+        with self.assertRaises(library.NotFound):
+            library.meeting_record(self.data, self.project, "")
+
     def test_a_record_found_in_a_folder_that_is_not_called_as_its_id_is_not_found(self):
         record = add_meetings(self.data, self.project, 2)[0]
         meetings = self.data / self.project / "meetings"
@@ -246,7 +255,7 @@ class LibraryReadsTest(unittest.TestCase):
         (self.data / "Con Espacio").mkdir()
         write_result(self.data / "Con-Mayuscula")
         for bad in (*[name for name in BAD_NAMES if isinstance(name, str)], "no-existe", "sin-resumen", "Con Espacio", "Con-Mayuscula", self.project,
-                    f"../{names[0]}", f"{names[0]}/", names[0].upper()):
+                    f"../{names[0]}", f"{names[0]}/", names[0].upper(), "con-mayuscula"):
             with self.assertRaises(library.NotFound, msg=f"loose_result {bad!r}"):
                 library.loose_result(self.data, bad)
             with self.assertRaises(library.NotFound, msg=f"loose_file {bad!r}"):

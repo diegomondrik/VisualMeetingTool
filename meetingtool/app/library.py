@@ -10,6 +10,7 @@ from a request.
 """
 
 import json
+import os
 import re
 from pathlib import Path
 
@@ -147,8 +148,16 @@ def loose(data_dir):
 
 
 def _loose_folder(data_dir, name):
-    """The folder of the loose result called `name`: only that folder is looked at."""
+    """The folder of the loose result called `name`: only that folder is looked at (and the names in the data
+    folder, to be sure it is called exactly so: on a disk that ignores case, "con-mayuscula" reaches the folder
+    "Con-Mayuscula", which the home page does not list)."""
     if not is_slug(name) or not _is_loose(Path(data_dir) / name):
+        raise NotFound(name)
+    try:
+        called_so = name in os.listdir(data_dir)
+    except OSError:
+        called_so = False
+    if not called_so:
         raise NotFound(name)
     return Path(data_dir) / name
 
