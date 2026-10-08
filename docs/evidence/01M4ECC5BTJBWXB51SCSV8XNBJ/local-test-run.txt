@@ -1,9 +1,9 @@
-commit: 71731530f2e24e7720e383681dd9724b6325a085
-clone: C:/Users/Diego/AppData/Local/Temp/vmt-wi18-final-164644-15526 (git clone --no-hardlinks of the wi18 branch, fresh)
+commit: c8653c690c841c95f65c2b850cd6ac251dbf4150
+clone: C:/Users/Diego/AppData/Local/Temp/vmt-wi32-final-160050-25484 (git clone --no-hardlinks of the wi32 branch, fresh)
 python: Python 3.12.10
 PYTHONPATH: C:/Users/Diego/.claude/ingol-kits/python (INGOL's kits)
 command: python -m unittest discover -s tests -v
-started: 2026-10-08T19:46:44Z
+started: 2026-10-08T19:00:51Z
 
 test_a_field_inside_another_is_accepted_when_both_are_allowed (test_allowed_fields.AllowedFieldsTest.test_a_field_inside_another_is_accepted_when_both_are_allowed) ... ok
 test_a_field_with_nothing_written_and_text_that_no_field_holds_are_not_judged_for_a_name (test_allowed_fields.AllowedFieldsTest.test_a_field_with_nothing_written_and_text_that_no_field_holds_are_not_judged_for_a_name) ... ok
@@ -264,24 +264,6 @@ test_alternatives_without_a_field_outside_the_list_are_accepted_and_the_report_b
 test_the_templates_own_parts_use_ignorable_and_are_accepted (test_markup_compatibility.LegitimateTest.test_the_templates_own_parts_use_ignorable_and_are_accepted) ... ok
 test_each_is_refused_naming_the_part_at_the_template_and_at_the_report (test_markup_compatibility.UncertainTest.test_each_is_refused_naming_the_part_at_the_template_and_at_the_report) ... ok
 test_the_refusal_is_said_in_both_languages (test_markup_compatibility.UncertainTest.test_the_refusal_is_said_in_both_languages) ... ok
-test_a_tool_that_is_not_the_pinned_one_is_named (test_packaging.BuildTest.test_a_tool_that_is_not_the_pinned_one_is_named) ... ok
-test_files_git_ignores_inside_what_is_packed_are_named (test_packaging.BuildTest.test_files_git_ignores_inside_what_is_packed_are_named)
-Review P2-2: client data that .gitignore hides would be packed all the same. ... ok
-test_inno_setup_is_found_where_its_installer_puts_it (test_packaging.BuildTest.test_inno_setup_is_found_where_its_installer_puts_it) ... ok
-test_pins_are_exact (test_packaging.BuildTest.test_pins_are_exact) ... ok
-test_the_build_refuses_changes_not_committed (test_packaging.BuildTest.test_the_build_refuses_changes_not_committed) ... ok
-test_the_build_refuses_ignored_files_even_when_allowed_to_be_dirty (test_packaging.BuildTest.test_the_build_refuses_ignored_files_even_when_allowed_to_be_dirty) ... ok
-test_the_build_refuses_tools_that_are_not_the_pinned_ones (test_packaging.BuildTest.test_the_build_refuses_tools_that_are_not_the_pinned_ones) ... ok
-test_the_installer_packs_the_versions_the_ci_tests (test_packaging.BuildTest.test_the_installer_packs_the_versions_the_ci_tests)
-The review's P3-4: constraints.txt (what the CI installs, WI31) and the build's frozen environment must not ... ok
-test_the_pinned_file_pins_the_tools_and_the_program_s_libraries (test_packaging.BuildTest.test_the_pinned_file_pins_the_tools_and_the_program_s_libraries) ... ok
-test_with_everything_in_order_it_goes_on_to_look_for_inno_setup (test_packaging.BuildTest.test_with_everything_in_order_it_goes_on_to_look_for_inno_setup) ... ok
-test_every_version_installs_over_the_last_and_never_touches_the_data (test_packaging.InstallerTest.test_every_version_installs_over_the_last_and_never_touches_the_data) ... ok
-test_it_installs_for_the_user_without_administrator_rights (test_packaging.InstallerTest.test_it_installs_for_the_user_without_administrator_rights) ... ok
-test_it_writes_the_chosen_language_where_the_window_reads_it (test_packaging.InstallerTest.test_it_writes_the_chosen_language_where_the_window_reads_it) ... ok
-test_its_languages_are_the_application_s_and_it_asks_for_one_every_time (test_packaging.InstallerTest.test_its_languages_are_the_application_s_and_it_asks_for_one_every_time) ... ok
-test_the_program_starts_the_window (test_packaging.InstallerTest.test_the_program_starts_the_window) ... ok
-test_the_shortcuts_open_the_window_program (test_packaging.InstallerTest.test_the_shortcuts_open_the_window_program) ... ok
 test_a_library_brought_by_the_others_missing_from_the_constraints_is_found (test_pinned_versions.PinnedVersionsTest.test_a_library_brought_by_the_others_missing_from_the_constraints_is_found) ... ok
 test_a_library_missing_from_the_constraints_is_found (test_pinned_versions.PinnedVersionsTest.test_a_library_missing_from_the_constraints_is_found) ... ok
 test_a_library_with_no_version_or_a_wildcard_is_not_a_pin (test_pinned_versions.PinnedVersionsTest.test_a_library_with_no_version_or_a_wildcard_is_not_a_pin) ... ok
@@ -755,41 +737,6 @@ test_bytes_that_no_encoding_reads_are_refused_with_the_unreadable_message (test_
 test_the_first_turn_is_not_lost_to_the_byte_order_mark (test_transcript_encodings.TextEncodingsTest.test_the_first_turn_is_not_lost_to_the_byte_order_mark)
 The defect of WI05-P3-2: U+FEFF stayed before the first line, so that line was no timed line. ... ok
 test_the_same_transcript_gives_the_same_turns_in_every_encoding_and_line_ending (test_transcript_encodings.TextEncodingsTest.test_the_same_transcript_gives_the_same_turns_in_every_encoding_and_line_ending) ... ok
-test_a_meeting_being_saved_is_saved_whole_before_the_window_closes (test_window.CloseWhileSavingTest.test_a_meeting_being_saved_is_saved_whole_before_the_window_closes) ... ok
-test_answered_no_the_window_stays_and_the_meeting_is_saved (test_window.ClosingTest.test_answered_no_the_window_stays_and_the_meeting_is_saved) ... ok
-test_answered_yes_the_meeting_is_not_added_and_what_was_paid_stays_kept (test_window.ClosingTest.test_answered_yes_the_meeting_is_not_added_and_what_was_paid_stays_kept) ... ok
-test_closed_while_the_run_saves_the_window_waits_and_the_meeting_is_saved_whole (test_window.ClosingTest.test_closed_while_the_run_saves_the_window_waits_and_the_meeting_is_saved_whole)
-The run itself holds the saving (review P2-3): closed between moving ... ok
-test_the_question_is_in_the_application_s_language (test_window.ClosingTest.test_the_question_is_in_the_application_s_language) ... ok
-test_with_nothing_processed_it_closes_without_asking (test_window.ClosingTest.test_with_nothing_processed_it_closes_without_asking) ... ok
-test_a_language_chosen_in_settings_wins_over_the_installer_s (test_window.LanguageTest.test_a_language_chosen_in_settings_wins_over_the_installer_s) ... ok
-test_installed_in_english_the_application_starts_in_english (test_window.LanguageTest.test_installed_in_english_the_application_starts_in_english) ... ok
-test_installed_in_spanish_the_application_starts_in_spanish (test_window.LanguageTest.test_installed_in_spanish_the_application_starts_in_spanish) ... ok
-test_the_boxes_speak_the_installer_s_language_too (test_window.LanguageTest.test_the_boxes_speak_the_installer_s_language_too) ... ok
-test_the_installer_s_language_is_a_default_and_is_not_written (test_window.LanguageTest.test_the_installer_s_language_is_a_default_and_is_not_written) ... ok
-test_the_installer_s_language_is_read_from_next_to_the_program (test_window.LanguageTest.test_the_installer_s_language_is_read_from_next_to_the_program) ... ok
-test_without_an_installer_the_window_speaks_the_default_language (test_window.LanguageTest.test_without_an_installer_the_window_speaks_the_default_language) ... ok
-test_a_page_that_does_not_load_is_said_in_a_box_with_the_log_s_place (test_window.LogTest.test_a_page_that_does_not_load_is_said_in_a_box_with_the_log_s_place) ... ok
-test_a_page_that_loads_says_nothing (test_window.LogTest.test_a_page_that_loads_says_nothing) ... ok
-test_closed_however_it_closes_no_meeting_is_saved_after (test_window.LogTest.test_closed_however_it_closes_no_meeting_is_saved_after)
-The window closes the runner once pywebview returns, even when its ... ok
-test_each_start_replaces_the_last_log (test_window.LogTest.test_each_start_replaces_the_last_log) ... ok
-test_internet_explorer_s_component_instead_of_webview2_is_said (test_window.LogTest.test_internet_explorer_s_component_instead_of_webview2_is_said)
-Review P3-1: pywebview falls back to it when its own check fails. ... ok
-test_the_log_says_what_the_start_found_and_never_the_session_token (test_window.LogTest.test_the_log_says_what_the_start_found_and_never_the_session_token) ... ok
-test_the_token_is_hidden_in_a_trace_too (test_window.LogTest.test_the_token_is_hidden_in_a_trace_too)
-Review P3-2: the filter hid the message but not the trace of an exception. ... ok
-test_webview2_failing_to_start_is_said_at_once_with_how_to_repair_it (test_window.LogTest.test_webview2_failing_to_start_is_said_at_once_with_how_to_repair_it)
-As in Windows Sandbox: WebView2 registered, but it cannot start. ... ok
-test_a_failure_to_show_the_window_is_said_in_a_box_and_frees_the_folder (test_window.OpenTest.test_a_failure_to_show_the_window_is_said_in_a_box_and_frees_the_folder) ... ok
-test_a_request_without_the_session_is_refused_while_the_window_holds_it (test_window.OpenTest.test_a_request_without_the_session_is_refused_while_the_window_holds_it)
-WI18-AC04: the window gets the token; a page of another site or ... ok
-test_closed_the_window_the_server_stops_and_the_data_folder_is_free (test_window.OpenTest.test_closed_the_window_the_server_stops_and_the_data_folder_is_free) ... ok
-test_the_leftovers_of_a_run_cut_short_are_cleared_at_start (test_window.OpenTest.test_the_leftovers_of_a_run_cut_short_are_cleared_at_start) ... ok
-test_the_window_shows_the_session_address_of_its_own_server_through_webview2 (test_window.OpenTest.test_the_window_shows_the_session_address_of_its_own_server_through_webview2) ... ok
-test_without_a_console_what_would_be_printed_is_dropped (test_window.OpenTest.test_without_a_console_what_would_be_printed_is_dropped) ... ok
-test_without_webview2_it_says_what_is_missing_and_opens_nothing (test_window.OpenTest.test_without_webview2_it_says_what_is_missing_and_opens_nothing) ... ok
-test_a_second_start_on_the_same_data_folder_says_so_and_starts_nothing (test_window.SecondStartTest.test_a_second_start_on_the_same_data_folder_says_so_and_starts_nothing) ... ok
 test_a_report_over_a_limit_is_not_delivered (test_word_package_limits.CallersTest.test_a_report_over_a_limit_is_not_delivered) ... ok
 test_a_template_over_a_limit_is_refused (test_word_package_limits.CallersTest.test_a_template_over_a_limit_is_refused) ... ok
 test_a_word_transcript_over_a_limit_is_refused (test_word_package_limits.CallersTest.test_a_word_transcript_over_a_limit_is_refused) ... ok
@@ -816,9 +763,9 @@ test_the_review_s_case_is_read (test_word_package_limits.LimitsTest.test_the_rev
 About 5 KB that expand to 5,000,000 characters are within the limits. ... ok
 
 ----------------------------------------------------------------------
-Ran 766 tests in 2336.246s
+Ran 721 tests in 2354.766s
 
 OK
 
 exit code of the suite: 0
-ended: 2026-10-08T20:25:41Z
+ended: 2026-10-08T19:40:06Z
