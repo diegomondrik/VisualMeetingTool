@@ -48,11 +48,12 @@ TEXTS = {
     "gemini.over_budget": "se frenó antes de mandar {what}: ese pedido podía costar hasta US${worst:.2f}, y con unos "
                           "US${spent:.2f} ya gastados podía pasar el techo de US${budget:.2f}; no se escribió nada"
                           "{refused}",
-    "gemini.estimate_short": "se frenó antes de mandar {what}: la respuesta a {after} costó US${cost:.4f}, más que los "
-                             "US${estimated:.4f} que se estimaba que costaba su pedido, así que la estimación no es "
-                             "confiable y en esta corrida no se manda nada más; los precios del código "
-                             "(PRICE_INPUT_PER_MILLION, PRICE_OUTPUT_PER_MILLION) pueden estar desactualizados. Lo que "
-                             "ya se respondió queda guardado{refused}",
+    "gemini.estimate_short": "se frenó{unsent}: la respuesta a {after} usó más tokens de los que se estimaba que usaría "
+                             "su pedido, y costó US${cost:.4f} contra los US${estimated:.4f} estimados, así que la "
+                             "estimación no es confiable y en esta corrida no se manda nada más. Lo que ya se "
+                             "respondió queda guardado{refused}",
+    "gemini.estimate_short.before": " antes de mandar {what}",
+    "gemini.estimate_short.end": " al terminar la corrida, antes de escribir nada",
     "gemini.before.no_answer": " (el intento anterior no tuvo respuesta[[: {reason}]])",
     "gemini.before.refused": " (la respuesta anterior se rechazó: {error})",
     "gemini.refused": "Gemini rechazó el pedido (HTTP {status}); si dice que la clave no sirve, guardala de nuevo en "

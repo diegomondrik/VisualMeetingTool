@@ -637,6 +637,7 @@ def write_summary(frames_dir, transcript, key, *, data_dir=None, project=None, t
                                lambda answer: check_summary(answer, headings, language, frame_names), worst,
                                texts.Message("summary.what"), retry_delays, sleep, counters, max_cost_usd, revise,
                                keep=frames_dir / gemini.KEPT_DIR)
+    gemini.check_estimate(counters)
     output = frames_dir / OUTPUT_NAME
     disk.write_text(output, text.strip() + "\n")
     meeting_id = ""

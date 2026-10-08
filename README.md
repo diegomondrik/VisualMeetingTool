@@ -59,11 +59,15 @@ list prices written in the code (`PRICE_INPUT_PER_MILLION` and
 already spent, and does not send it if that could pass the ceiling. So the
 ceiling holds only while those estimates and prices do. A request already sent
 is paid even if its answer is then refused and nothing is written. If an answer
-cost more than its request was estimated to cost (the prices changed, or the
-model, which is the alias `gemini-flash-latest`, changed), the answer is kept,
-since it was paid, and the run sends nothing more: it fails saying what was
-estimated and what it cost. A meeting processed again reuses what was kept and
-pays nothing for it.
+used more tokens, and so cost more, than its request was estimated to (a longer
+input than estimated, or a version of the model, which is the alias
+`gemini-flash-latest`, that thinks or writes more), the answer is kept, since
+it was paid, and the run sends nothing more: it fails saying what was estimated
+and what it cost, also when that was its last request, and writes nothing. A
+meeting processed again reuses what was kept and pays nothing for it. A change
+of price is not noticed: the cost is counted with the same prices as the
+estimate, and Google's answer holds token counts, not prices (a known limitation,
+`WI28-P3-1`).
 
 ## Writing the meeting summary
 

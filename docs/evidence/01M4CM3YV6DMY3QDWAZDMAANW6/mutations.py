@@ -17,15 +17,15 @@ import sys
 from pathlib import Path
 
 GEMINI = "meetingtool/reading/gemini.py"
+WRITER = "meetingtool/summary/writer.py"
+QA = "meetingtool/summary/qa.py"
 TESTS = ["tests.test_spending_estimate"]
 
 # (label, [(file, old, new)]); each `old` has to be found exactly once.
 MUTATIONS = [
     ("the stop after an overrun removed: a run with an answer that cost more than estimated goes on sending",
      [(GEMINI, '''        if counters["overrun"] is not None:
-            overrun = counters["overrun"]
-            raise ReadingError("gemini.estimate_short", what=what, after=overrun["what"],
-                               estimated=overrun["estimated"], cost=overrun["cost"], refused=refused)
+            stop_for_estimate(counters, texts.Message("gemini.estimate_short.before", what=what), refused)
 ''', "")]),
     ("the overrun compared against the ceiling (max_cost_usd) instead of against the request's estimate",
      [(GEMINI, "if cost > worst and counters", "if cost > max_cost_usd and counters")]),
@@ -39,6 +39,18 @@ MUTATIONS = [
        '        if counters["overrun"] is not None and not refused:\n')]),
     ("an answer at exactly its estimate counts as an overrun",
      [(GEMINI, "if cost > worst and counters", "if cost >= worst and counters")]),
+    ("the end-of-run check removed from the reading: an overrun on its last request is written and done",
+     [(GEMINI, "    check_estimate(counters)
+    header = ", "    header = ")]),
+    ("the end-of-run check removed from the summary: an overrun on its last request is written and done (the review's P1-2)",
+     [(WRITER, "    gemini.check_estimate(counters)
+", "")]),
+    ("the end-of-run check removed from the register",
+     [(QA, "    gemini.check_estimate(counters)
+", "")]),
+    ("the end-of-run check does nothing: check_estimate returns without raising",
+     [(GEMINI, '''    if counters["overrun"] is not None:
+        stop_for_estimate(counters, texts.Message("gemini.estimate_short.end"))''', "    return")]),
     ("the counters of a run made without the overrun key",
      [(GEMINI, ', "models": set(), "overrun": None}', ', "models": set()}')]),
 ]

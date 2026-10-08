@@ -46,10 +46,12 @@ TEXTS = {
     "gemini.over_budget": "stopped before sending {what}: that request could cost up to US${worst:.2f}, and with "
                           "about US${spent:.2f} already spent it could go over the budget of US${budget:.2f}; nothing "
                           "was written{refused}",
-    "gemini.estimate_short": "stopped before sending {what}: the answer to {after} cost US${cost:.4f}, more than the "
-                             "US${estimated:.4f} its request was estimated to cost, so the estimate cannot be trusted "
-                             "and nothing more is sent in this run; the prices in the code (PRICE_INPUT_PER_MILLION, "
-                             "PRICE_OUTPUT_PER_MILLION) may be out of date. What was already answered is kept{refused}",
+    "gemini.estimate_short": "stopped{unsent}: the answer to {after} used more tokens than its request was estimated "
+                             "to use, and cost US${cost:.4f} against the US${estimated:.4f} estimated, so the "
+                             "estimate cannot be trusted and nothing more is sent in this run. What was already "
+                             "answered is kept{refused}",
+    "gemini.estimate_short.before": " before sending {what}",
+    "gemini.estimate_short.end": " at the end of the run, before writing anything",
     "gemini.before.no_answer": " (the attempt before got no answer[[: {reason}]])",
     "gemini.before.refused": " (the answer before was refused: {error})",
     "gemini.refused": "Gemini refused the request (HTTP {status})[[: {reason}]]",

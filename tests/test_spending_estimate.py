@@ -12,6 +12,8 @@ Each one pins a part of the rule: docs/evidence/01M4CM3YV6DMY3QDWAZDMAANW6/
 mutations.py undoes each part and shows a test here fails.
 """
 
+import contextlib
+import io
 import json
 import tempfile
 import unittest
@@ -20,8 +22,11 @@ from pathlib import Path
 from meetingtool import texts
 from meetingtool.projects import store
 from meetingtool.reading import gemini
+from meetingtool.reading.__main__ import main as reading_main
+from meetingtool.summary import writer
+from meetingtool.summary.__main__ import main as summary_main
 from meetingtool.texts import en, es
-from tests import test_summary
+from tests import test_qa, test_summary
 from tests.test_app import Processing
 from tests.test_reading import KEY, FakeGemini, Workspace, answer_for
 
@@ -84,7 +89,7 @@ class EstimateTest(unittest.TestCase):
             self.assertEqual(len(fake.requests), 1)
             self.assertIn("US$0.6000", str(raised.exception))
             self.assertIn("US$0.1000", str(raised.exception))
-            self.assertIn("PRICE_INPUT_PER_MILLION", str(raised.exception))
+            self.assertIn("used more tokens than its request was estimated to use", str(raised.exception))
 
     def test_an_answer_under_the_ceiling_but_over_its_estimate_stops_the_run_all_the_same(self):
         # The estimate is what fell short, not the ceiling: US$0.60 of a ceiling of US$5.00.
@@ -188,42 +193,140 @@ class ReadingTest(Workspace):
 
 
 class StagesTest(Processing):
-    """The reading's answer cost more than estimated: the summary is not sent, and the meeting processed again
-    reuses the reading."""
+    """The answer that cost more than estimated is the last request of a stage, or of the whole run: the run fails
+    before it is declared done, and the meeting processed again reuses what was paid."""
+
+    def reading_over(self, first, count):
+        answer = answer_for(first, count)
+        answer["usageMetadata"]["promptTokenCount"] = 800000
+        return answer
+
+    def summary_over(self, first, count):
+        """The reviewer's case (WI28's review, P1-2): the summary, the last request of the run, with 3,000,000 input
+        tokens against a ceiling of US$0.50."""
+        answer = test_summary.answer(test_summary.summary_text("es", "requirements"))
+        answer["usageMetadata"]["promptTokenCount"] = 3000000
+        return answer
 
     def script(self):
-        def big(first, count):
-            answer = answer_for(first, count)
-            answer["usageMetadata"]["promptTokenCount"] = 800000
-            return answer
+        return [lambda first, count: answer_for(first, count),
+                test_summary.returning(test_summary.summary_text("es", "requirements"))]
 
-        return [big, test_summary.returning(test_summary.summary_text("es", "requirements"))]
-
-    def test_a_later_stage_sends_nothing_and_the_page_says_why_and_the_next_run_pays_nothing_for_the_reading(self):
-        failed = self.process(max_cost=5)
-        self.assertEqual(failed["state"], "failed", failed["error"])
-        self.assertEqual(self.states(failed)[1:3], [("reading", "done"), ("summary", "failed")])
+    def test_an_overrun_on_the_last_request_of_the_run_fails_it_and_the_next_run_pays_nothing(self):
+        self.fake.script[:] = [lambda first, count: answer_for(first, count), self.summary_over]
+        failed = self.process(max_cost=0.5)
+        self.assertEqual(failed["state"], "failed", "declared done with no word of the overrun")
         self.assertEqual(failed["failed_stage_name"], "summary")
-        self.assertIn("se frenó antes de mandar el resumen", failed["error"])
-        self.assertIn("costó US$0,60", failed["error"])  # the application speaks Spanish, with its decimal comma
-        self.assertIn("PRICE_INPUT_PER_MILLION", failed["error"])
+        self.assertEqual(self.states(failed)[1:3], [("reading", "done"), ("summary", "failed")])
+        self.assertIn("al terminar la corrida, antes de escribir nada", failed["error"])
+        self.assertIn("usó más tokens de los que se estimaba", failed["error"])
+        self.assertEqual(store.list_meetings(self.data, self.project), [])
+        self.assertNothingLeft(failed, kept=True)  # the reading and the summary, which were paid
+        self.assertEqual(len(self.fake.requests), 2)
+        done = self.process(max_cost=0.5)
+        self.assertEqual(done["state"], "done", done["error"])
+        self.assertEqual(len(self.fake.requests), 2, "the second run paid again")
+        self.assertEqual(done["spent_usd"], 0)
+        self.assertEqual(len(store.list_meetings(self.data, self.project)), 1)
+
+    def test_an_overrun_on_the_last_request_of_the_reading_fails_the_reading_and_nothing_else_is_sent(self):
+        summary = test_summary.returning(test_summary.summary_text("es", "requirements"))
+        self.fake.script[:] = [self.reading_over, summary]
+        failed = self.process(max_cost=5)
+        self.assertEqual((failed["state"], failed["failed_stage_name"]), ("failed", "reading"))
+        self.assertEqual(self.states(failed)[1:3], [("reading", "failed"), ("summary", "pending")])
         self.assertEqual(self.summary_requests(), [])
         self.assertEqual(len(self.fake.requests), 1)
+        self.assertFalse(any(self.data.rglob(gemini.OUTPUT_NAME)), "the reading was written")
         self.assertNothingLeft(failed, kept=True)  # the reading, which was paid
-        self.assertAlmostEqual(failed["kept"]["paid_usd"], failed["spent_usd"], places=3)
-        paid = len(self.fake.requests)
         done = self.process(max_cost=5)
         self.assertEqual(done["state"], "done", done["error"])
-        self.assertEqual(len(self.fake.requests) - paid, 1, "only the summary is sent")
-        self.assertEqual(len(self.summary_requests()), 1)
-        self.assertEqual(len(store.list_meetings(self.data, self.project)), 1)
+        self.assertEqual(len(self.fake.requests), 2, "only the summary is sent")
         self.assertEqual(done["stages"][1]["cost_usd"], 0)  # the reading, from what was kept
 
     def test_a_run_whose_answers_cost_what_was_estimated_goes_on_to_the_end(self):
-        self.fake.script[:] = [lambda first, count: answer_for(first, count),
-                               test_summary.returning(test_summary.summary_text("es", "requirements"))]
         done = self.process(max_cost=5)
         self.assertEqual(done["state"], "done", done["error"])
+        self.assertEqual(len(store.list_meetings(self.data, self.project)), 1)
+
+
+class EndOfRunTest(unittest.TestCase):
+    """The stages and the commands that write: an overrun on their last request is an error, and nothing is written
+    (WI28's review, P1-2). What was paid is kept, so the same command again pays nothing and writes."""
+
+    def workspace(self, made=test_summary.Workspace):
+        work = made()
+        work.setUp()
+        self.addCleanup(work.tearDown)
+        return work
+
+    def over_summary(self):
+        answer = test_summary.answer(test_summary.summary_text("es"))
+        answer["usageMetadata"]["promptTokenCount"] = 3000000
+        return answer
+
+    def test_the_summary_is_not_written_and_the_same_summary_again_pays_nothing(self):
+        work = self.workspace()
+        with FakeGemini([returning(self.over_summary())]) as fake:
+            with self.assertRaises(gemini.ReadingError) as raised:
+                work.summarise(fake)
+        self.assertEqual(raised.exception.message.key, "gemini.estimate_short")
+        self.assertEqual(len(fake.requests), 1)
+        self.assertFalse(work.output().exists())
+        with FakeGemini() as again:
+            work.summarise(again)
+        self.assertEqual(again.requests, [])  # from what was kept
+        self.assertTrue(work.output().exists())
+
+    def test_the_summary_command_says_so_writes_nothing_and_exits_with_an_error(self):
+        work = self.workspace()
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with FakeGemini([returning(self.over_summary())]) as fake, contextlib.redirect_stdout(stdout), \
+                contextlib.redirect_stderr(stderr):
+            code = summary_main(["--frames", str(work.frames), "--transcript", str(work.transcript)],
+                                read_key=lambda: KEY, endpoint=fake.endpoint, sleep=work.sleeps.append)
+        self.assertEqual(code, 2)
+        self.assertIn("at the end of the run, before writing anything", stderr.getvalue())
+        self.assertIn("US$", stderr.getvalue())
+        self.assertEqual(stdout.getvalue(), "")
+        self.assertFalse(work.output().exists())
+
+    def test_the_reading_command_says_so_writes_nothing_and_exits_with_an_error(self):
+        work = self.workspace(Workspace)
+        over = answer_for(1, 5)
+        over["usageMetadata"]["promptTokenCount"] = 3000000
+        stdout, stderr = io.StringIO(), io.StringIO()
+        with FakeGemini([returning(over)]) as fake, contextlib.redirect_stdout(stdout), \
+                contextlib.redirect_stderr(stderr):
+            code = reading_main(["read", "--frames", str(work.frames)], read_key=lambda: KEY, endpoint=fake.endpoint,
+                                sleep=work.sleeps.append)
+        self.assertEqual(code, 2)
+        self.assertIn("at the end of the run, before writing anything", stderr.getvalue())
+        self.assertEqual(len(fake.requests), 1)
+        self.assertFalse(work.output().exists())
+        self.assertEqual(len(list((work.frames / gemini.KEPT_DIR).glob("*.json"))), 1)
+
+    def test_the_register_is_not_written_either(self):
+        work = self.workspace(test_qa.Workspace)
+        over = test_qa.json_answer({"questions": [], "knowledge": test_qa.REGISTER["knowledge"]})(0, 0)
+        over["usageMetadata"]["promptTokenCount"] = 3000000
+        with FakeGemini([returning(over)]) as fake:
+            with self.assertRaises(gemini.ReadingError) as raised:
+                work.register(fake, language="es")
+        self.assertEqual(raised.exception.message.key, "gemini.estimate_short")
+        self.assertEqual(len(fake.requests), 1)
+        self.assertFalse((work.frames / writer.OUTPUT_NAME).exists())
+
+    def test_a_stage_that_starts_with_an_overrun_already_in_the_counters_sends_nothing(self):
+        work = self.workspace()
+        counters = gemini.new_counters()
+        counters["overrun"] = {"what": texts.External("the reading"), "estimated": 0.1, "cost": 0.6}
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError) as raised:
+                work.summarise(fake, counters=counters)
+        self.assertEqual(raised.exception.message.key, "gemini.estimate_short")
+        self.assertIn("before sending", str(raised.exception))
+        self.assertEqual(fake.requests, [])
 
 
 class WordingTest(unittest.TestCase):
@@ -252,12 +355,13 @@ class WordingTest(unittest.TestCase):
         self.assertIn("ya mandado se paga aunque se rechace su respuesta", es.TEXTS["app.cost.total_html"])
 
     def test_the_message_of_a_run_that_stopped_says_what_was_estimated_what_it_cost_and_what_was_not_sent(self):
-        message = texts.Message("gemini.estimate_short", what=texts.External("the summary"),
-                                after=texts.External("frames 1-2"), estimated=0.1, cost=0.6, refused="")
-        for language, words in (("en", ("the summary", "frames 1-2", "US$0.6000", "US$0.1000", "PRICE_OUTPUT_PER_MILLION",
-                                        "nothing more is sent", "out of date")),
-                                ("es", ("the summary", "frames 1-2", "US$0,6000", "US$0,1000", "PRICE_OUTPUT_PER_MILLION",
-                                        "no se manda nada más", "desactualizados"))):
+        message = texts.Message("gemini.estimate_short", after=texts.External("frames 1-2"), estimated=0.1, cost=0.6,
+                                unsent=texts.Message("gemini.estimate_short.before", what=texts.External("the summary")),
+                                refused="")
+        for language, words in (("en", ("the summary", "frames 1-2", "US$0.6000", "US$0.1000",
+                                        "used more tokens than its request was estimated to use", "nothing more is sent")),
+                                ("es", ("the summary", "frames 1-2", "US$0,6000", "US$0,1000",
+                                        "usó más tokens de los que se estimaba", "no se manda nada más"))):
             said = message.text(language)
             for word in words:
                 self.assertIn(word, said, language)

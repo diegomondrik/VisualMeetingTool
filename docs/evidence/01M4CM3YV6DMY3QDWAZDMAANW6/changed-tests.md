@@ -43,13 +43,45 @@ WI28-AC01, class `ReadingTest` (the reading's chunks):
 - `test_the_default_run_of_the_fake_never_trips_it`: the reading with the fake's usual answers sends its three
   requests.
 
-WI28-AC01, class `StagesTest` (through the application's job):
+## Correction after the independent review (approved with corrections)
 
-- `test_a_later_stage_sends_nothing_and_the_page_says_why_and_the_next_run_pays_nothing_for_the_reading`: the
-  reading's answer overran; the reading stage is done, the summary stage fails without sending anything, the job's
-  error is the Spanish message with what it cost, the working folder is kept with the paid reading, and the same
-  meeting processed again sends only the summary (the reading costs 0).
-- `test_a_run_whose_answers_cost_what_was_estimated_goes_on_to_the_end`: the same job with ordinary answers is done.
+The review found two P1s and the criterion decided both for the owner. Tests added or changed for them:
+
+**P1-2, an overrun on the last request went unreported** (summary format, ceiling US$0.50, the summary request with
+3,000,000 input tokens: the job was `done`, US$2.27 spent, no error, meeting added). The check now also runs at the end
+of every stage that pays, before it writes anything (`gemini.check_estimate`, called by `read_frames`,
+`write_summary` and `write_register`); the application and the three commands get it from there, since they call those
+functions. Nothing is written and the meeting is not added; what was paid stays in `paid-answers`.
+
+- `StagesTest` (class changed): its first test, `test_a_later_stage_sends_nothing_and_the_page_says_why_...`, is
+  replaced. It tested a reading whose last answer overran and a summary that was then refused; with the end-of-run check
+  the reading itself now fails, so a later stage can no longer be reached that way. The later-stage stop is still tested
+  in `EndOfRunTest.test_a_stage_that_starts_with_an_overrun_already_in_the_counters_sends_nothing`.
+- `StagesTest.test_an_overrun_on_the_last_request_of_the_run_fails_it_and_the_next_run_pays_nothing`: the reviewer's
+  exact case through the job: `failed` (it was `done`), failed stage `summary`, the error in Spanish says it stopped at
+  the end of the run and that the answer used more tokens than estimated, no meeting added, the reading and the summary
+  kept; the same meeting again sends no request, spends 0 and ends `done`.
+- `StagesTest.test_an_overrun_on_the_last_request_of_the_reading_fails_the_reading_and_nothing_else_is_sent`: the
+  reading fails (not written, kept), the summary is not sent; again, only the summary is sent.
+- `StagesTest.test_a_run_whose_answers_cost_what_was_estimated_goes_on_to_the_end`: unchanged in meaning.
+- `EndOfRunTest` (new): `test_the_summary_is_not_written_and_the_same_summary_again_pays_nothing`,
+  `test_the_summary_command_says_so_writes_nothing_and_exits_with_an_error` (exit 2, message on stderr, nothing on
+  stdout, no `summary.md`), `test_the_reading_command_says_so_writes_nothing_and_exits_with_an_error`,
+  `test_the_register_is_not_written_either` and the stage that starts with an overrun already in the counters.
+
+  Unlike the first instruction (the check after the work, in the application and each command, with the output left
+  written), the check is in the three library functions before they write: one place for the application and the
+  commands, and nothing written for a run that is not done, as for any other failed run.
+
+**P1-1, a price change is never detected**: the cost is counted with the same constants as the estimate and Google's
+answer holds token counts only, so the stop detects more tokens than estimated, not a price change.
+
+- `WordingTest.test_the_message_of_a_run_that_stopped_...` changed: `gemini.estimate_short` no longer names the price
+  constants nor says they may be out of date; it says the answer used more tokens than its request was estimated to
+  use. It is now built with `unsent` (before sending X, or at the end of the run), in both languages.
+- `EstimateTest.test_the_reviews_case_...` changed in the same way (it asserted the price constants).
+- `WI28-P3-1` (rewritten) and the new `WI28-P3-2` have their reproductions in `docs/limitations/reproduce.py`; the
+  first applies twice the prices to the same tokens and shows the run records half the bill and does not stop.
 
 WI28-AC02, class `WordingTest`:
 
@@ -60,8 +92,8 @@ WI28-AC02, class `WordingTest`:
   languages, says a request already sent is paid even if its answer is refused and that the run stops if an answer
   cost more than estimated; the run page's total says the first.
 - `test_the_message_of_a_run_that_stopped_says_what_was_estimated_what_it_cost_and_what_was_not_sent`:
-  `gemini.estimate_short` in each language holds the request not sent, the answer that overran, both amounts, the
-  two price constants and that nothing more is sent.
+  `gemini.estimate_short` in each language holds the request not sent, the answer that overran, both amounts, that it
+  used more tokens than estimated and that nothing more is sent.
 - `test_no_text_about_the_ceiling_calls_it_a_guarantee`: the six texts about the ceiling, in both languages, say
   neither "guarantee" nor "garantía" nor "seguro".
 - `test_the_readme_and_the_module_say_the_same`: the README's paragraph and the docstring of `gemini.py`.
