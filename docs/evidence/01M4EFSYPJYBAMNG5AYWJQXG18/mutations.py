@@ -32,7 +32,7 @@ MUTATIONS = [
     ("the largest ceiling changed in the manual (up to 5)", MANUAL, "above 0 and up to 5", "above 0 and up to 10"),
 
     ("the default ceiling changed in the manual", MANUAL, "<strong>US$1.00</strong>", "<strong>US$2.00</strong>"),
-    ("the largest upload changed in the manual (the video, 16 GB)", MANUAL, "up to 16 GB", "up to 32 GB"),
+    ("the largest upload changed in the manual (the video, 16 GB)", MANUAL, "up to 16 GB", "up to 32 GB", "all"),
     ("the data folder changed in the manual", MANUAL, "VisualMeetingTool-data", "MeetingData", "all"),
     ("the log's name changed in the manual", MANUAL, "window.log", "meetingtool.log", "all"),
     ("a file type the program accepts dropped from the manual (.mkv)", MANUAL, "<code>.mkv</code>, ", ""),
@@ -40,7 +40,7 @@ MUTATIONS = [
      '<h2 id="trouble">12. Troubleshooting</h2>', '<h2 id="trouble-x">12. Troubleshooting</h2>'),
     ("a link of the contents pointing nowhere", MANUAL, 'href="#privacy"', 'href="#privacidad"', "all"),
     ("an outside script added to the manual", MANUAL, "</body>", '<script src="https://example.com/a.js"></script></body>'),
-    ("a price quoted in the manual", MANUAL, "well under one US dollar", "about US$0.30"),
+    ("a price quoted in the manual", MANUAL, "raise it only if the run stops.", "raise it only if the run stops; it costs about US$0.30."),
     ("the manual said not to be an estimate (the ceiling called a guarantee)", MANUAL, "not a guarantee",
      "a guarantee", "all"),
     ("the installer no longer copies the manual", ISS,
