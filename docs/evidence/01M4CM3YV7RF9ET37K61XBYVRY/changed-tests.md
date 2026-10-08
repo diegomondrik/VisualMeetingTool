@@ -45,3 +45,19 @@ megabytes once expanded) and commit none. The module takes about 9 seconds, most
   40 MB is read. This is the test that shows the limit is counted and not taken from `ZipInfo.file_size`.
 
 The mutations (`mutations.py`, output in `mutations.txt`) each make these tests fail.
+
+## After the independent review (P1, P2)
+
+The review measured a 767-byte package with a BZIP2 part holding the process to more than 1 GB before the 32 MB limit
+refused it (zipfile bounds its output only for deflate). `word_package.read_parts` now refuses, before opening any
+part, an entry that is neither stored nor deflated, or is encrypted (message `package.unreadable_part`, in both
+languages). No test that existed before changed. New in `tests/test_word_package_limits.py`, class `LimitsTest`:
+
+- `test_a_part_compressed_in_a_way_zipfile_does_not_bound_is_refused_before_opening_anything`: BZIP2 and LZMA parts
+  that expand to 40 MB are refused with `ZipFile.open` patched to fail if called, with both messages.
+- `test_an_encrypted_part_or_one_of_an_unknown_method_is_refused_not_a_crash`: the flag bit and method 9 (deflate64),
+  which before raised `RuntimeError` and `NotImplementedError` that nothing caught.
+- `test_stored_and_deflated_parts_are_read`: what Word writes is still read.
+
+`mutations.txt` now has nine mutations (two new, for this check), all detected with tests that ran and failed.
+P2 (the directory read whole) is `WI29-P3-2` in the register, reproduced.
