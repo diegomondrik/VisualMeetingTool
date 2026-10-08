@@ -70,3 +70,21 @@ was read to find it. The project page, which lists every meeting, still stops wi
 (`test_the_project_page_still_stops_on_a_broken_record_as_before`).
 
 The mutations (`mutations.py`, output in `mutations.txt`) each make these tests fail.
+
+## After the independent review (P2-1, P3-2)
+
+No test that existed before changed. The review found that on a disk that ignores case (Windows) a loose result whose
+folder is called `Con-Mayuscula`, which the home page does not list, was served by `con-mayuscula`: the name was
+checked as a slug but not against the folder's own name. `library._loose_folder` now also requires the name to be one
+of `os.listdir(data_dir)` (names only; no summary is read, so WI30-AC01 stands). And `store.read_meeting` refuses an
+empty identifier, which was its own slug and built `meetings/meeting.json`.
+
+- `test_an_unknown_or_ill_formed_loose_name_is_not_found` (existing, only a name added to its list of bad ones):
+  `"con-mayuscula"`, the lower-case spelling of a folder that is not listed. On a disk that tells cases apart it passes
+  without the fix; the CI runs on Windows, where it does not.
+- `test_an_empty_identifier_is_not_a_meeting_even_with_a_record_in_the_meetings_folder_itself` (new).
+
+`mutations.txt` now has nine mutations: two new (the name looked up on disk; the empty identifier), and the one about
+the loose name's slug removes the slug check and the lookup together, since each alone is covered by the other. The
+review's P2-2 (a broken record asked for by its address answers 404, not the error that names the file) is the
+owner's to decide: it stays as built, a behaviour change declared in the contract.
