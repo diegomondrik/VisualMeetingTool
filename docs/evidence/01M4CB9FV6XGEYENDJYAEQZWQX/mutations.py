@@ -29,7 +29,10 @@ MUTATIONS = [
     ("a list split across a range mark: a hyphen separates two names like a semicolon does",
      [(WRITER, r"""|;|\b(?i:y|e|and)\b){_SPACE}""", r"""|;|-|\b(?i:y|e|and)\b){_SPACE}""")]),
     ("the wrapper lost: backticks or bold round a list are dropped from the pairs",
-     [(WRITER, 'f"{mark}[{name}]{mark}" for name', 'f"[{name}]" for name')]),
+     [(WRITER, 'f"{mark}[{name.group(0)}]{mark}"', 'f"[{name.group(0)}]"')]),
+    ("the separators dropped: the pairs of a list are joined with \", \" whatever separated the names (the review's P1)",
+     [(WRITER, '''        return re.sub(_NAME, lambda name: f"{mark}[{name.group(0)}]{mark}", found.group("names"))''',
+       '''        return ", ".join(f"{mark}[{name}]{mark}" for name in re.findall(_NAME, found.group("names")))''')]),
     ("the retry note for a range removed from REASONS",
      [(WRITER, '''    "summary.frame_range": (
         "it named a range of frames instead of each frame on its own: {names}", "text",
@@ -40,7 +43,8 @@ MUTATIONS = [
      [(WRITER, '''    "summary.frame_unbracketed": (
         "it mentioned a frame without its file name in square brackets: {names}", "text",
         "Name each frame in its own square brackets, one whole file name for each pair, as in "
-        "[frame_017_t00-13-03.jpg]; never mention a frame by its number, its time or part of its name."),
+        "[frame_017_t00-13-03.jpg]; never a range of frames, and never mention a frame by its number, its time or part "
+        "of its name."),
 ''', "")]),
 ]
 

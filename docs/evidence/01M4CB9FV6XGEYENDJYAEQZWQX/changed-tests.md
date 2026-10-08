@@ -18,8 +18,10 @@ WI27-AC01, a list of whole frame names in one pair of brackets is taken:
   `write_summary`: one request, and `summary.md` holds one pair for each frame.
 - `test_three_names_are_three_pairs_in_the_same_order`: three names, with commas and with "y" last; the order is the
   order written.
-- `test_a_comma_a_semicolon_y_e_and_and_a_comma_before_them_separate_the_names`: every separator the contract lists,
-  with and without spaces, in capitals, with tabs and a non-breaking space.
+- `test_a_comma_a_semicolon_y_e_and_and_a_comma_before_them_separate_the_names_and_stay_between_them`: every
+  separator the contract lists, with and without spaces, in capitals, with tabs and a non-breaking space; what
+  separated the names stays between the pairs. Changed in the correction after the independent review (P1): it
+  expected ", " between the pairs whatever the separator, which turned "entre [a y b]" into a list.
 - `test_spaces_inside_the_brackets_are_taken`.
 - `test_names_in_backticks_or_bold_are_taken_as_a_single_name_is`: with each of the marks a single name accepts, the
   mark goes round each name; a mark not closed round the list is left where it was.
@@ -40,6 +42,10 @@ WI27-AC02, everything else is judged as before:
 - `test_a_range_inside_one_pair_is_not_split_and_is_still_refused`: "a", "to", "al", "hasta", "through", "until",
   "–", "—", "-", "--", "..", "...", "…", "->", "→", with and without spaces: not changed, and refused as
   `summary.frame_range` or `summary.frame_unbracketed`.
+- `test_a_range_in_words_inside_one_pair_is_still_a_range`: "entre [a y b]", "between [a and b]", "entre [a e b]",
+  "Entre [a Y b]" are refused as `summary.frame_range`. Added in the correction after the independent review (P1).
+  `test_three_names_are_three_pairs_in_the_same_order` and `test_spaces_inside_the_brackets_are_taken` changed with
+  it: they expected ", " in place of the "y" and of the spaces written.
 - `test_a_range_written_next_to_a_list_is_still_a_range`: "[a, b] a [c]", "[a] to [b, c]", "[a, b] - [c]".
 - `test_a_frame_named_without_brackets_is_still_refused`.
 - `test_a_single_name_and_everything_accepted_before_comes_out_byte_for_byte_the_same`: a single name (plain, bold,

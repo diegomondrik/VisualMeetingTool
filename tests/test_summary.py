@@ -1190,18 +1190,20 @@ class FrameListTest(Workspace):
         text = self.checked(f"[{self.THIRD}, {self.FIRST}, {self.SECOND}]")
         self.assertEqual(text, self.screen(f"[{self.THIRD}], [{self.FIRST}], [{self.SECOND}]"))
         text = self.checked(f"[{self.FIRST}, {self.SECOND} y {self.THIRD}]")
-        self.assertEqual(text, self.screen(f"[{self.FIRST}], [{self.SECOND}], [{self.THIRD}]"))
+        self.assertEqual(text, self.screen(f"[{self.FIRST}], [{self.SECOND}] y [{self.THIRD}]"))
 
-    def test_a_comma_a_semicolon_y_e_and_and_a_comma_before_them_separate_the_names(self):
+    def test_a_comma_a_semicolon_y_e_and_and_a_comma_before_them_separate_the_names_and_stay_between_them(self):
+        # What separated the names stays between the pairs (WI27's review, P1): the list reads as the same names
+        # each in its own pair would.
         a, b = self.FIRST, self.SECOND
         for separator in (", ", ",", " , ", "; ", ";", " ; ", " y ", " e ", " and ", ", y ", ", e ", ", and ", ",and ",
                           " ,  and  ", "  Y ", " E ", " AND ", ", And ", "\t,\ty\t", " y "):
             with self.subTest(separator=separator):
-                self.assertEqual(self.checked(f"[{a}{separator}{b}]"), self.screen(f"[{a}], [{b}]"))
+                self.assertEqual(self.checked(f"[{a}{separator}{b}]"), self.screen(f"[{a}]{separator}[{b}]"))
 
     def test_spaces_inside_the_brackets_are_taken(self):
         self.assertEqual(self.checked(f"[ {self.FIRST} , {self.SECOND}  ]"),
-                         self.screen(f"[{self.FIRST}], [{self.SECOND}]"))
+                         self.screen(f"[{self.FIRST}] , [{self.SECOND}]"))
 
     def test_names_in_backticks_or_bold_are_taken_as_a_single_name_is(self):
         a, b = self.FIRST, self.SECOND
@@ -1264,6 +1266,13 @@ class FrameListTest(Workspace):
                     self.assertEqual(writer.separate_frames(mention), mention)
                     self.assertIn(self.refusal(mention).message.key,
                                   ("summary.frame_range", "summary.frame_unbracketed"))
+
+    def test_a_range_in_words_inside_one_pair_is_still_a_range(self):
+        # WI27's review, P1: rewritten with ", " between the pairs, "entre [a y b]" was taken as a list of two.
+        a, b = self.FIRST, self.SECOND
+        for mention in (f"entre [{a} y {b}]", f"between [{a} and {b}]", f"entre [{a} e {b}]", f"Entre [{a} Y {b}]"):
+            with self.subTest(mention=mention):
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_range")
 
     def test_a_range_written_next_to_a_list_is_still_a_range(self):
         a, b, c = self.FIRST, self.SECOND, self.THIRD
