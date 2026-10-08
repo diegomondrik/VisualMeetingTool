@@ -16,7 +16,7 @@ import zipfile
 from pathlib import Path
 from xml.etree import ElementTree
 
-from meetingtool import texts
+from meetingtool import texts, word_package
 
 BOOST = 0.12
 WINDOW = 30.0
@@ -59,8 +59,9 @@ def _seconds(clock):
 
 def _docx_lines(path):
     try:
-        with zipfile.ZipFile(path) as archive:
-            root = ElementTree.fromstring(archive.read("word/document.xml"))
+        root = ElementTree.fromstring(word_package.read_parts(path, ["word/document.xml"])["word/document.xml"])
+    except word_package.PackageError as error:
+        raise TranscriptError("transcript.word_too_big", path=str(path), reason=error.message) from None
     except (zipfile.BadZipFile, KeyError, ElementTree.ParseError, OSError) as error:
         raise TranscriptError("transcript.word_unreadable", path=str(path),
                               detail=texts.External(str(error))) from error

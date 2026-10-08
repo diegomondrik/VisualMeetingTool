@@ -13,6 +13,7 @@ TEXTS = {
                             "[[: {detail}]]",
     "transcript.word_unreadable": "no se puede leer la transcripción de Word {path}: fijate que sea el .docx que "
                                   "baja Teams[[: {detail}]]",
+    "transcript.word_too_big": "no se puede leer la transcripción de Word {path}: {reason}",
     "transcript.unreadable": "no se puede leer la transcripción {path}: tiene que ser un texto (UTF-8, UTF-16 o el de Windows)[[: {detail}]]",
     "transcript.not_a_file": "la transcripción {path} no es un archivo",
     "transcript.no_timed_line": "la transcripción {path} no tiene ninguna línea con su minuto (la de Teams, «Nombre   "
@@ -149,6 +150,12 @@ TEXTS = {
                          "necesita saber quién preguntó y quién respondió: escribí el resumen en su lugar (formato "
                          "resumen)",
 
+    # ── Paquetes de Word (meetingtool.word_package) ─────────────────────────
+    "package.too_many_entries": "el archivo trae {count} partes, y uno de Word puede traer {limit} como máximo",
+    "package.part_too_big": "la parte {part} ocupa más de {limit} MB una vez expandida, el máximo para una parte",
+    "package.total_too_big": "las partes juntas ocupan más de {limit} MB una vez expandidas, el máximo para un "
+                             "archivo de Word (se pasó en {part})",
+
     # ── El informe en Word (meetingtool.report) ─────────────────────────────
     "layout.marker_not_alone": "{{informe}} tiene que estar solo en su línea, sin nada más",
     "layout.toc_unreadable": "el índice no se puede leer: insertalo de nuevo en Word (Referencias, Tabla de "
@@ -183,6 +190,8 @@ TEXTS = {
                                "  {items}\nHay que corregir la plantilla que lo dio. Los únicos campos que una "
                                "plantilla puede tener son {allowed}.",
     "report.not_a_document": "la plantilla {name} no se puede abrir como documento de Word[[: {detail}]]",
+    "report.template_too_big": "la plantilla {name} no se puede usar: {reason}",
+    "report.too_big": "no se escribió el informe: {reason}",
     "report.template_unusable": "la plantilla {name} no se puede usar: {error}",
     "report.problem.range": "línea {line}: un rango de imágenes; nombrá cada imagen por separado: {text}",
     "report.problem.missing": "línea {line}: {name} no está en {folder}",

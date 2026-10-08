@@ -12,6 +12,7 @@ TEXTS = {
     "frames.cannot_open": "cannot open recording {path}[[: {detail}]]",
     "frames.cannot_decode": "cannot decode recording {path}[[: {detail}]]",
     "transcript.word_unreadable": "cannot read the Word transcript {path}[[: {detail}]]",
+    "transcript.word_too_big": "cannot read the Word transcript {path}: {reason}",
     "transcript.unreadable": "cannot read the transcript {path}[[: {detail}]]",
     "transcript.not_a_file": "transcript {path} is not a file",
     "transcript.no_timed_line": "transcript {path} has no timed line (Teams 'Speaker   M:SS', a time alone on its "
@@ -145,6 +146,12 @@ TEXTS = {
     "qa.needs_speakers": "the transcript {path} names no speaker, and the register of questions and answers needs "
                          "who asked and who answered: write the summary instead (format summary)",
 
+    # ── Word packages (meetingtool.word_package) ────────────────────────────
+    "package.too_many_entries": "the file holds {count} parts, and a Word file may hold at most {limit}",
+    "package.part_too_big": "the part {part} is larger than {limit} MB once expanded, the most one part may be",
+    "package.total_too_big": "the parts together are larger than {limit} MB once expanded, the most a Word file "
+                             "may be (it went over at {part})",
+
     # ── The Word report (meetingtool.report) ────────────────────────────────
     "layout.marker_not_alone": "{{informe}} must be alone on its line, with nothing else on it",
     "layout.toc_unreadable": "the table of contents cannot be read: insert it again in Word (References, Table of "
@@ -178,6 +185,8 @@ TEXTS = {
                                "The template that gave it must be corrected. The only fields a template may hold are "
                                "{allowed}.",
     "report.not_a_document": "the template {name} cannot be opened as a Word document[[: {detail}]]",
+    "report.template_too_big": "the template {name} cannot be used: {reason}",
+    "report.too_big": "the report was not written: {reason}",
     "report.template_unusable": "the template {name} cannot be used: {error}",
     "report.problem.range": "line {line}: a range of frames; name each frame on its own: {text}",
     "report.problem.missing": "line {line}: {name} is not in {folder}",
