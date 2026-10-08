@@ -56,9 +56,14 @@ MUTATIONS = [
 """, """    if not isinstance(meeting_id, str):
         return None
 """)]),
-    ("the loose name not checked as a slug: it is used as it comes to build the path of the folder",
+    # Since the review's P2-1 the name is also looked up among the names on disk, which refuses "..", "x/y" and the
+    # like by itself: each of the two checks alone is covered by the other, so they are removed together.
+    ("the loose name not checked as a slug nor looked up on disk: it is used as it comes to build the path of the folder",
      [(LIBRARY, """    if not is_slug(name) or not _is_loose(Path(data_dir) / name):""",
-       """    if not _is_loose(Path(data_dir) / name):""")]),
+       """    if not _is_loose(Path(data_dir) / name):"""),
+      (LIBRARY, """    if not called_so:
+        raise NotFound(name)
+""", "")]),
     ("the loose name not looked up among the names on disk (the review's P2-1): on a disk that ignores case, "
      "\"con-mayuscula\" reaches the folder \"Con-Mayuscula\", which the home page does not list",
      [(LIBRARY, """    if not called_so:
