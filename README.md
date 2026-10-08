@@ -207,6 +207,9 @@ address or a place in the document. A template may hold only these Word fields, 
 any other field (`ADDIN`, `FILLIN`, `MERGEFIELD`...) is refused, naming it, and the company's `{placeholders}` are
 not Word fields, so they are not affected. Every branch of a Markup Compatibility alternative (`mc:AlternateContent`) is judged the same way, and one
 that leaves unknown what Word would read is refused, naming the part.
+A Word file (a template, a Word transcript, a report) is refused, naming the part, when it holds more than 4,000 parts,
+one part that expands to more than 32 MB, or parts that expand to more than 256 MB together; the bytes are counted
+as they are decompressed, whatever the file says it holds.
 
 Where the template has a field name in braces, in its body, header or
 footer, the report puts that meeting's data with the template's format:

@@ -36,7 +36,7 @@ from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
 from docx.shared import Cm, Pt
 
-from meetingtool import disk, texts
+from meetingtool import disk, texts, word_package
 from meetingtool.projects import store
 from meetingtool.report import layout
 from meetingtool.summary import qa, writer
@@ -447,10 +447,11 @@ def template_bytes(path):
     if suffix not in TEMPLATE_EXTENSIONS:
         raise ReportError("report.not_word", name=path.name)
     try:
-        with zipfile.ZipFile(path) as archive:
-            names = archive.namelist()
-            types = archive.read("[Content_Types].xml")
-            parts = {name: archive.read(name) for name in names}
+        parts = word_package.read_parts(path)
+        names = list(parts)
+        types = parts["[Content_Types].xml"]
+    except word_package.PackageError as error:
+        raise ReportError("report.template_too_big", name=path.name, reason=error.message) from None
     except (OSError, KeyError, zipfile.BadZipFile) as error:
         raise ReportError("report.cannot_open", name=path.name, detail=texts.External(str(error))) from None
     if carries_macros(parts):
@@ -746,8 +747,10 @@ def check_active_content(path):
     not an allowed one, a part that is not readable XML). A template is checked when it
     is set, but a report is what the client opens, so it is checked again,
     read as it is written now, and not delivered if it fails."""
-    with zipfile.ZipFile(path) as archive:
-        parts = {name: archive.read(name) for name in archive.namelist()}
+    try:
+        parts = word_package.read_parts(path)
+    except word_package.PackageError as error:
+        raise ReportError("report.too_big", reason=error.message) from None
     found = [texts.Message("report.active.macros")] if carries_macros(parts) else []
     found += active_content(parts)
     if found:

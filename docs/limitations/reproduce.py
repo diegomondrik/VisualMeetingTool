@@ -788,7 +788,10 @@ def wi05_p3_8(args, root):
         with zipfile.ZipFile(docx, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("word/document.xml", document)
         compressed = docx.stat().st_size
-        blocks = transcript_module.read_blocks(docx)
+        try:
+            blocks = transcript_module.read_blocks(docx)
+        except transcript_module.TranscriptError as error:
+            return False, f"a {compressed // 1024} KB .docx of {size // (1024 * 1024)} MB of text is refused: {error}"
     return (len(blocks) == 1 and len(blocks[0][1]) >= size,
             f"a {compressed // 1024} KB .docx is read whole: {len(blocks[0][1]) // (1024 * 1024)} MB of text, no limit")
 
@@ -1471,6 +1474,50 @@ def wi28_p3_2(args, root):
             overruns.append(counters["overrun"] is not None)
         sent = len(fake.requests)
     return sent == 2 and all(overruns), f"two runs, each with its own counters: {sent} requests sent, overruns {overruns}"
+
+
+@entry("WI29-P3-1")
+def wi29_p3_1(args, root):
+    import tracemalloc
+    from xml.etree import ElementTree
+    size = 2 * 1024 * 1024  # a thirty-second part of the limit: the reproduction does not take the memory it shows
+    unit = b"<w:t>a</w:t>"
+    data = (b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            + unit * (size // len(unit)) + b"</w:document>")
+    tracemalloc.start()
+    try:
+        ElementTree.fromstring(data)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    return peak > 5 * len(data), (f"a part of {len(data) / 2 ** 20:.0f} MB of small elements: parsing takes "
+                                  f"{peak / len(data):.1f} times its size ({peak / 2 ** 20:.0f} MB)")
+
+
+@entry("WI29-P3-2")
+def wi29_p3_2(args, root):
+    import tracemalloc
+    from meetingtool import word_package
+    entries = 60_000
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "many.docx"
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED) as archive:
+            for number in range(entries):
+                archive.writestr(f"customXml/{number}.xml", b"")
+        size = path.stat().st_size
+        tracemalloc.start()
+        try:
+            try:
+                word_package.read_parts(path)
+                said = "read"
+            except word_package.PackageError as error:
+                said = f"refused: {error.message.key}"
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+    return said == "refused: package.too_many_entries" and peak > 3 * size, (
+        f"a package of {entries} empty parts ({size / 2 ** 20:.1f} MB): {said}, with a peak of "
+        f"{peak / 2 ** 20:.0f} MB ({peak / size:.1f} times its size)")
 
 
 # --- Running ---------------------------------------------------------------------------------
