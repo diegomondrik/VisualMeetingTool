@@ -37,7 +37,7 @@ MUTATIONS = [
     ("an outside script added to the manual", MANUAL, "</body>", '<script src="https://example.com/a.js"></script></body>'),
     ("a price quoted in the manual", MANUAL, "well under one US dollar", "about US$0.30"),
     ("the manual said not to be an estimate (the ceiling called a guarantee)", MANUAL, "not a guarantee",
-     "a guarantee"),
+     "a guarantee", "all"),
     ("the installer no longer copies the manual", ISS,
      'Source: "{#SourcePath}\\..\\docs\\manual\\user-manual.html"; DestDir: "{app}\\manual"; Flags: ignoreversion\n', ""),
     ("the installer's offer to open the manual ticked by default", ISS,
