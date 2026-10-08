@@ -33,7 +33,7 @@ MUTATIONS = [
     ("a file type the program accepts dropped from the manual (.mkv)", MANUAL, "<code>.mkv</code>, ", ""),
     ("a section of the manual removed (Troubleshooting) but left in the contents", MANUAL,
      '<h2 id="trouble">12. Troubleshooting</h2>', '<h2 id="trouble-x">12. Troubleshooting</h2>'),
-    ("a link of the contents pointing nowhere", MANUAL, 'href="#privacy"', 'href="#privacidad"'),
+    ("a link of the contents pointing nowhere", MANUAL, 'href="#privacy"', 'href="#privacidad"', "all"),
     ("an outside script added to the manual", MANUAL, "</body>", '<script src="https://example.com/a.js"></script></body>'),
     ("a price quoted in the manual", MANUAL, "well under one US dollar", "about US$0.30"),
     ("the manual said not to be an estimate (the ceiling called a guarantee)", MANUAL, "not a guarantee",
