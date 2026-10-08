@@ -34,6 +34,15 @@ objective: >
   register, not from Gemini's text, and is not touched; the report's own
   check (document.cited_frames) is left as it is: it reads the summary
   already rewritten.
+
+  Corrected after the independent review of d549b2d
+  (docs/evidence/01M4CB9FV6XGEYENDJYAEQZWQX/independent-review.md): what
+  separated the names stays between the pairs, so "entre [a y b]" is still
+  refused as a range (P1); the note for a frame without its own brackets
+  also says never a range. Known limitation (docs/limitations/REGISTER.md,
+  WI27-P3-1): a range of two written with a comma before its last word,
+  "between [a, and b]", is not taken as a range, as it was not before with
+  each name in its own pair.
 lane: standard
 affected_surfaces:
   - .ingol/work-items/01M4CB9FV6XGEYENDJYAEQZWQX/**

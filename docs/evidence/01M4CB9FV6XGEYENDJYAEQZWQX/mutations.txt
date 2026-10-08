@@ -1,11 +1,12 @@
 mutation run for 01M4CB9FV6XGEYENDJYAEQZWQX: each mutation is applied alone to a copy of the working tree;
 `python -m unittest tests.test_summary.FrameListTest` (no kits, what the CI runs) must fail
-commit: 3e0d46c380e41b952610b03d47528feda9ec42c8 (the working tree has uncommitted changes)
-- the rewriting switched off: check_summary does not separate the frames of a list: exit 1, Ran 21 tests in 5.206s FAILED (failures=6, errors=36) -> DETECTED
-- a list split across a range word: "a" and "to" separate two names like "y" does: exit 1, Ran 21 tests in 5.363s FAILED (failures=4) -> DETECTED
-- a list split across a range mark: a hyphen separates two names like a semicolon does: exit 1, Ran 21 tests in 5.334s FAILED (failures=2) -> DETECTED
-- the wrapper lost: backticks or bold round a list are dropped from the pairs: exit 1, Ran 21 tests in 5.404s FAILED (failures=5) -> DETECTED
-- the retry note for a range removed from REASONS: exit 1, Ran 21 tests in 5.393s FAILED (failures=1, errors=6) -> DETECTED
-- the retry note for a frame without its own brackets removed from REASONS: exit 1, Ran 21 tests in 5.469s FAILED (failures=1, errors=8) -> DETECTED
-- unmutated: exit 0, Ran 21 tests in 5.366s OK
+commit: dd2376c54493cfc956220477c82315650dea0e80 (clean working tree)
+- the rewriting switched off: check_summary does not separate the frames of a list: exit 1, Ran 22 tests in 5.238s FAILED (failures=10, errors=36) -> DETECTED
+- a list split across a range word: "a" and "to" separate two names like "y" does: exit 1, Ran 22 tests in 5.367s FAILED (failures=4) -> DETECTED
+- a list split across a range mark: a hyphen separates two names like a semicolon does: exit 1, Ran 22 tests in 5.374s FAILED (failures=2) -> DETECTED
+- the wrapper lost: backticks or bold round a list are dropped from the pairs: exit 1, Ran 22 tests in 5.382s FAILED (failures=5) -> DETECTED
+- the separators dropped: the pairs of a list are joined with ", " whatever separated the names (the review's P1): exit 1, Ran 22 tests in 5.381s FAILED (failures=25) -> DETECTED
+- the retry note for a range removed from REASONS: exit 1, Ran 22 tests in 5.386s FAILED (failures=1, errors=6) -> DETECTED
+- the retry note for a frame without its own brackets removed from REASONS: exit 1, Ran 22 tests in 5.334s FAILED (failures=1, errors=8) -> DETECTED
+- unmutated: exit 0, Ran 22 tests in 5.386s OK
 all mutations detected
