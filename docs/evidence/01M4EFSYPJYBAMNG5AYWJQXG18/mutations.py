@@ -23,9 +23,14 @@ TESTS = ["tests.test_user_manual", "tests.test_packaging"]
 # the manual says in several places is changed in all of them: a test must see a name that is wrong everywhere).
 MUTATIONS = [
     ("a screen name renamed in the manual (the field of the ceiling goes back to its old name)", MANUAL,
-     "<strong>Estimated spending ceiling in dollars</strong>", "<strong>Spending ceiling in dollars</strong>"),
-    ("a button renamed in the manual (Save the key)", MANUAL, "<strong>Save the key</strong>",
-     "<strong>Store the key</strong>"),
+     '<strong data-ui="app.new.ceiling">Estimated spending ceiling in dollars</strong>',
+     '<strong data-ui="app.new.ceiling">Spending ceiling in dollars</strong>'),
+    ("a button renamed in the manual (Save the key)", MANUAL, '<strong data-ui="app.key.save">Save the key</strong>',
+     '<strong data-ui="app.key.save">Store the key</strong>'),
+    ("a name of the manual pointing to another text of the program (the key of the Save button)", MANUAL,
+     'data-ui="app.key.save"', 'data-ui="app.key.delete"'),
+    ("the largest ceiling changed in the manual (up to 5)", MANUAL, "above 0 and up to 5", "above 0 and up to 10"),
+
     ("the default ceiling changed in the manual", MANUAL, "<strong>US$1.00</strong>", "<strong>US$2.00</strong>"),
     ("the largest upload changed in the manual (the video, 16 GB)", MANUAL, "up to 16 GB", "up to 32 GB"),
     ("the data folder changed in the manual", MANUAL, "VisualMeetingTool-data", "MeetingData", "all"),

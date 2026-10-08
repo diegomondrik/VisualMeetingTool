@@ -51,7 +51,13 @@
   th { background: var(--accent-soft); }
   .scroll { overflow-x: auto; }
   footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 12px; }
-  @media print { nav.toc { display: none; } a { color: inherit; } }
+  @media print {
+    :root, :root:not([data-theme="light"]) {
+      --bg: #ffffff; --text: #000000; --muted: #333333; --line: #999999; --accent: #000000;
+      --accent-soft: #ffffff; --warn: #000000; --warn-soft: #ffffff; --code-bg: #ffffff;
+    }
+    nav.toc { display: none; } a { color: inherit; }
+  }
 </style>
 </head>
 <body>
@@ -86,16 +92,16 @@
   <li>a <strong>summary</strong> of the meeting, with the screens that mattered; or</li>
   <li>a register of <strong>questions and answers</strong>, each question with its whole answer;</li>
 </ul>
-<p>and builds a <strong>Word report</strong> from it. Meetings are grouped in <strong>projects</strong>, and each new summary can use what the project already learned in earlier meetings.</p>
+<p>and builds a <strong data-ui="app.stage.report">Word report</strong> from it. Meetings are grouped in <strong>projects</strong>, and each new summary can use what the project already learned in earlier meetings.</p>
 <p>Everything runs on your computer. The only thing that goes out is what is sent to Gemini while a meeting is being processed (see <a href="#privacy">Privacy</a>).</p>
 
 <h2 id="need">2. What you need</h2>
 <ul>
   <li><strong>Windows 11</strong>, 64-bit. No administrator rights and no Python are needed.</li>
-  <li>About <strong>150 MB</strong> of free disk space for the program, plus room for your meetings.</li>
+  <li>About <strong>150 MB</strong> of free disk space for the program, plus room for your meetings. While a meeting is processed its video is copied into the data folder, so that drive needs free space as large as the video (up to 16 GB).</li>
   <li>An <strong>internet connection</strong> while a meeting is processed.</li>
   <li>A <strong>Gemini API key</strong> from a Google Cloud project with billing enabled (the paid tier). Section <a href="#key">4</a> says why and how.</li>
-  <li>For each meeting: the <strong>transcript</strong> as a <code>.docx</code> (the Teams transcript) or a <code>.txt</code> whose lines start with the time, like <code>[00:05:12] Ana: …</code>. The <strong>video</strong> is optional for questions and answers, and needed for the summary.</li>
+  <li>For each meeting: the <strong>transcript</strong> as a <code>.docx</code> (the Teams transcript) or a <code>.txt</code> whose lines start with the time, like <code>[00:05:12] Ana: …</code>. The <strong>video</strong> is optional for questions and answers, and needed for the summary. In Microsoft Teams, a meeting that had transcription turned on lets you download its transcript as a Word file; if you do not see the option, ask the meeting's organizer or your IT team. A <code>.vtt</code> file is not accepted.</li>
 </ul>
 
 <h2 id="install">3. Installing</h2>
@@ -115,41 +121,41 @@
 <ol>
   <li>Create an API key for Gemini in your Google account (Google AI Studio, <code>aistudio.google.com</code>). Google's pages change from time to time; if you cannot find it, search for "Gemini API key".</li>
   <li>Make sure the key belongs to a <strong>Google Cloud project with billing enabled</strong>. This matters: on the free tier, Google may use what you send to improve its products, and meetings are often confidential.</li>
-  <li>In the program, open <strong>Settings</strong> (top of the window), find <strong>Gemini key</strong>, paste the key into <strong>New key</strong> and choose <strong>Save the key</strong>.</li>
+  <li>In the program, open <strong data-ui="app.nav.settings">Settings</strong> (top of the window), find <strong data-ui="app.key.title">Gemini key</strong>, paste the key into <strong data-ui="app.key.new">New key</strong> and choose <strong data-ui="app.key.save">Save the key</strong>.</li>
 </ol>
-<p>The page then says "A key is saved" and its length. The key is <strong>never shown again</strong>; it is kept in the Windows Credential Manager, not in a file. To replace it, save a new one. To remove it, choose <strong>Delete the key</strong>.</p>
+<p>The page then says "A key is saved" and its length. The key is <strong>never shown again</strong>; it is kept in the Windows Credential Manager, not in a file. To replace it, save a new one. To remove it, choose <strong data-ui="app.key.delete">Delete the key</strong>.</p>
 
 <h2 id="first">5. Your first meeting</h2>
 <h3>5.1 Create a project</h3>
-<p>On the <strong>Projects</strong> page, under <strong>New project</strong>, write a <strong>Name</strong> (and, if you like, the <strong>Client</strong>) and choose <strong>Create the project</strong>. A project is the place where the meetings about the same subject live, so that each one can build on the last.</p>
+<p>On the <strong data-ui="app.nav.projects">Projects</strong> page, under <strong data-ui="app.projects.new">New project</strong>, write a <strong data-ui="app.projects.name">Name</strong> (and, if you like, the <strong data-ui="app.col.client">Client</strong>) and choose <strong data-ui="app.projects.create">Create the project</strong>. A project is the place where the meetings about the same subject live, so that each one can build on the last.</p>
 
 <h3>5.2 Add the meeting</h3>
-<p>Open the project and choose <strong>New meeting</strong>. Fill in:</p>
+<p>Open the project and choose <strong data-ui="app.project.new_meeting">New meeting</strong>. Fill in:</p>
 <div class="scroll"><table>
   <thead><tr><th>Field</th><th>What to put</th></tr></thead>
   <tbody>
-    <tr><td><strong>Title</strong></td><td>A short name, for example "Kickoff with the finance team".</td></tr>
-    <tr><td><strong>Date</strong></td><td>The day the meeting happened.</td></tr>
-    <tr><td><strong>Transcript</strong></td><td>The Teams <code>.docx</code>, or a <code>.txt</code> with <code>[HH:MM:SS]</code> lines. Up to 50 MB.</td></tr>
-    <tr><td><strong>Video</strong></td><td>Optional. <code>.mp4</code>, <code>.mov</code>, <code>.mkv</code>, <code>.webm</code>, <code>.avi</code>, <code>.wmv</code> or <code>.m4v</code>, up to 16 GB. <strong>Without a video only questions and answers can be made.</strong></td></tr>
-    <tr><td><strong>Meeting type</strong></td><td>Presale, Sales or negotiation, Requirements gathering, Project kickoff, Status, Technical or Training. It changes how the summary reads the meeting. "No type" is fine.</td></tr>
-    <tr><td><strong>Language of the result</strong></td><td>Spanish, English, or "The meeting's" (the language of the transcript).</td></tr>
-    <tr><td><strong>Format</strong></td><td><strong>Summary</strong> (needs the video) or <strong>Questions and answers</strong> (each question with its whole answer; the transcript must show who is speaking).</td></tr>
-    <tr><td><strong>Estimated spending ceiling in dollars</strong></td><td>The most you accept to spend on this meeting: a number above 0 and up to 5. It starts at 1. It is an estimate, not a guarantee: see <a href="#cost">section 6</a>.</td></tr>
+    <tr><td><strong data-ui="app.new.meeting_title">Title</strong></td><td>A short name, for example "Kickoff with the finance team".</td></tr>
+    <tr><td><strong data-ui="app.col.date">Date</strong></td><td>The day the meeting happened.</td></tr>
+    <tr><td><strong data-ui="app.new.transcript">Transcript</strong></td><td>The Teams <code>.docx</code>, or a <code>.txt</code> with <code>[HH:MM:SS]</code> lines. Up to 50 MB.</td></tr>
+    <tr><td><strong data-ui="app.new.recording">Video</strong></td><td>Optional. <code>.mp4</code>, <code>.mov</code>, <code>.mkv</code>, <code>.webm</code>, <code>.avi</code>, <code>.wmv</code> or <code>.m4v</code>, up to 16 GB. <strong>Without a video only questions and answers can be made.</strong></td></tr>
+    <tr><td><strong data-ui="app.new.type">Meeting type</strong></td><td>Presale, Sales or negotiation, Requirements gathering, Project kickoff, Status, Technical or Training. It changes how the summary reads the meeting. "No type" is fine.</td></tr>
+    <tr><td><strong data-ui="app.new.language">Language of the result</strong></td><td>Spanish, English, or "The meeting's" (the language of the transcript).</td></tr>
+    <tr><td><strong>Format</strong></td><td><strong data-ui="app.format.summary">Summary</strong> (needs the video) or <strong data-ui="app.format.qa">Questions and answers</strong> (each question with its whole answer; the transcript must show who is speaking).</td></tr>
+    <tr><td><strong data-ui="app.new.ceiling">Estimated spending ceiling in dollars</strong></td><td>The most you accept to spend on this meeting: a number above 0 and up to 5. It starts at 1. It is an estimate, not a guarantee: see <a href="#cost">section 6</a>.</td></tr>
   </tbody>
 </table></div>
-<p>The file windows are the normal Windows file dialogs. Choose <strong>Process</strong> to start.</p>
+<p>The file windows are the normal Windows file dialogs. Choose <strong data-ui="app.new.process">Process</strong> to start.</p>
 
 <h3>5.3 Watch it work</h3>
-<p>The <strong>Processing</strong> page lists the stages, each with its state (<em>waiting, running, done, not needed, failed</em>), its time and what it cost:</p>
+<p>The <strong data-ui="app.job.title">Processing</strong> page lists the stages, each with its state (<em>waiting, running, done, not needed, failed</em>), its time and what it cost:</p>
 <ol>
-  <li><strong>Frames of the video</strong>: the program picks the moments worth keeping (slides, shared screens; not people's faces) from the video. This is the slowest stage on a long recording: expect several minutes for a two-hour meeting.</li>
-  <li><strong>Reading of the frames</strong>: Gemini describes what each kept frame shows.</li>
-  <li><strong>Summary</strong> or <strong>Questions and answers</strong>: Gemini writes the text from the transcript and the readings.</li>
-  <li><strong>Word report</strong>: the report is built on your computer, with no cost.</li>
-  <li><strong>Saving the meeting in the project</strong>.</li>
+  <li><strong data-ui="app.stage.frames">Frames of the video</strong>: the program picks the moments worth keeping (slides, shared screens; not frames that only show people on camera) from the video. This is the slowest stage on a long recording; the page shows which stage it is on.</li>
+  <li><strong data-ui="app.stage.reading">Reading of the frames</strong>: Gemini describes what each kept frame shows.</li>
+  <li><strong data-ui="app.format.summary">Summary</strong> or <strong data-ui="app.format.qa">Questions and answers</strong>: Gemini writes the text from the transcript and the readings.</li>
+  <li><strong data-ui="app.stage.report">Word report</strong>: the report is built on your computer, with no cost.</li>
+  <li><strong data-ui="app.stage.saving">Saving the meeting in the project</strong>: the last step. The page lists it only if it fails.</li>
 </ol>
-<p>Only <strong>one meeting is processed at a time</strong>. You can leave the page; the work continues while the program's window stays open. If you close the window with the <strong>X</strong> during processing, the program asks first. If you confirm, that meeting is dropped and nothing of it is kept.</p>
+<p>Only <strong>one meeting is processed at a time</strong>. You can leave the page; the work continues while the program's window stays open. If you close the window with the <strong>X</strong> during processing, the program asks first. If you confirm, the meeting is not added to the project; what was already paid for is kept, as for a failed run, so that processing it again does not pay for it twice (see <strong data-ui="app.kept.title">Kept from runs that failed</strong> in <a href="#trouble">Troubleshooting</a>). If it was just being saved, it is saved whole.</p>
 <div class="note"><p>A meeting is added to its project only when the whole run succeeds. If a stage fails, the page says <strong>which</strong> stage, <strong>why</strong>, and <strong>how much was spent</strong>; the meeting is not added and nothing is left half done. What was already paid for stays safe so that running the same meeting again does not pay for it twice (see <a href="#trouble">Troubleshooting</a>).</p></div>
 
 <h2 id="cost">6. Cost and the spending ceiling</h2>
@@ -159,7 +165,7 @@
   <li><strong>A request that was already sent is paid even if its answer is then refused.</strong> The program checks Gemini's text before accepting it (for example, that it has all its sections); a refused answer still cost money. The ceiling counts it.</li>
   <li><strong>If an answer costs more than was estimated, the run stops.</strong> The estimate cannot be trusted any more, so nothing more is sent in that run. What was already answered is kept and not paid again if you process the same meeting again.</li>
   <li>A ceiling that is too low stops a long meeting early. Raise it for that meeting and process it again.</li>
-  <li>For a sense of scale: in the developer's tests, reading the screens of a two-hour meeting and writing its summary cost well under one US dollar. Your cost depends on the length of the video and on how many frames are kept.</li>
+  <li>Your cost depends on the length of the video and on how many frames are kept. For your first meeting, keep the ceiling low and raise it only if the run stops.</li>
   <li>Google can change its prices at any time, and the program works from the prices it knows. Check your Google Cloud billing page if the exact figure matters.</li>
 </ul>
 
@@ -168,19 +174,19 @@
 <ul>
   <li>the <strong>summary</strong> (or the register of questions and answers), with its <strong>key points</strong>;</li>
   <li>the <strong>frames</strong> that were kept, each labelled with its minute in the meeting;</li>
-  <li>a button to <strong>Open the Word report</strong> (or <strong>Download</strong> it);</li>
+  <li>a button to <strong data-ui="app.result.open_word">Open the Word report</strong> (or <strong>Download</strong> it);</li>
   <li>a line "<em>N</em> images in the report, of <em>M</em> kept from the video" and <strong>what it cost</strong>.</li>
 </ul>
-<p>The project page also shows <strong>What the project already knows</strong>: what each meeting leaves behind and the next summary reads.</p>
-<p>The recording itself is <strong>not copied</strong> into the program's folders; only the frames, the transcript, the text and the report are kept.</p>
+<p>The project page also shows <strong data-ui="app.project.knowledge">What the project already knows</strong>: what each meeting leaves behind and the next summary reads.</p>
+<p>While a meeting is processed the recording is copied into the data folder, so that drive needs free space for it; the copy is deleted once its frames are taken, and the meeting keeps only the frames, the transcript, the text and the report.</p>
 
 <h2 id="settings">8. Settings: language, company, Word template</h2>
-<p>Open <strong>Settings</strong> at the top of the window.</p>
+<p>Open <strong data-ui="app.nav.settings">Settings</strong> at the top of the window.</p>
 <ul>
-  <li><strong>Language of the application</strong>: Spanish or English. It changes everything the program says. The language of each summary is chosen per meeting.</li>
-  <li><strong>Company</strong>: a name and a logo (PNG or JPG, up to 1 MB) shown at the top of every screen. SVG logos are refused.</li>
-  <li><strong>Gemini key</strong>: see <a href="#key">section 4</a>.</li>
-  <li><strong>The company's Word template</strong>: optional. A <code>.docx</code> or <code>.dotx</code> <em>without macros</em> with your logo, header, footer, colours and fonts. What is written on its first page becomes the <strong>cover</strong> of every report, and data written between braces is filled in for you (<code>{client}</code>, <code>{project}</code>, <code>{meeting}</code>, <code>{date}</code>, <code>{type}</code>). If it has a table of contents, each report puts its sections there. The Settings page checks the template and tells you what it will do; use <strong>Download an example template</strong> to start from a working one. Without a template, reports come out with a neutral design.</li>
+  <li><strong data-ui="app.settings.language">Language of the application</strong>: Spanish or English. It changes everything the program says. The language of each summary is chosen per meeting.</li>
+  <li><strong data-ui="app.company.title">Company</strong>: a name and a logo (PNG or JPG, up to 1 MB) shown at the top of every screen. SVG logos are refused.</li>
+  <li><strong data-ui="app.key.title">Gemini key</strong>: see <a href="#key">section 4</a>.</li>
+  <li><strong data-ui="app.template.title">The company's Word template</strong>: optional. A <code>.docx</code> or <code>.dotx</code> <em>without macros</em> with your logo, header, footer, colours and fonts. What is written on its first page, before the table of contents or the <code>{report}</code> marker, becomes the <strong>cover</strong> of every report (what comes after them is a model and does not go into the reports), and data written between braces is filled in for you (<code>{client}</code>, <code>{project}</code>, <code>{meeting}</code>, <code>{date}</code>, <code>{type}</code>). If it has a table of contents, each report puts its sections there. The Settings page checks the template and tells you what it will do; use <strong data-ui="app.template.example">Download an example template</strong> to start from a working one. Without a template, reports come out with a neutral design.</li>
 </ul>
 
 <h2 id="where">9. Where your files are</h2>
@@ -199,7 +205,7 @@
 <h2 id="privacy">10. Privacy: what leaves your computer</h2>
 <ul>
   <li>The program's pages are served by your own computer and can only be used from it. The footer of every page says so.</li>
-  <li>While a meeting is processed, the program sends to <strong>Gemini (Google)</strong>: the <strong>kept frames</strong> (images from your video) and the <strong>text of the transcript</strong>, plus what earlier meetings of the project taught it. Nothing else is sent, and the recording itself is never uploaded.</li>
+  <li>While a meeting is processed, the program sends to <strong>Gemini (Google)</strong>: the <strong>kept frames</strong> (images from your video) and the <strong>text of the transcript</strong>, plus the meeting's <strong>title</strong> and <strong>type</strong> and what earlier meetings of the project taught it. Nothing else is sent, and the video file itself is never uploaded. A title with the client's name leaves your computer, so choose titles accordingly.</li>
   <li>Use a key from a project with billing enabled, as explained in <a href="#key">section 4</a>, and follow your organization's rules about what may be sent to a third party.</li>
   <li>The log file written at each start holds technical facts about the program and the computer, never your key.</li>
 </ul>
@@ -207,7 +213,7 @@
 <h2 id="update">11. Updating and uninstalling</h2>
 <ul>
   <li><strong>Updating</strong>: run the newer installer. It installs over the old version. Your data and your Gemini key are kept.</li>
-  <li><strong>Uninstalling</strong>: Settings → Apps → Installed apps → VisualMeetingTool → Uninstall. This removes the program but <strong>keeps your data folder and your key</strong>. To remove them too, delete <code>C:\Users\&lt;you&gt;\VisualMeetingTool-data</code> yourself and, if you want, delete the key in Settings before uninstalling.</li>
+  <li><strong>Uninstalling</strong>: Settings → Apps → Installed apps → VisualMeetingTool → Uninstall. This removes the program but <strong>keeps your data folder and your key</strong>. To remove them too, delete <code>C:\Users\&lt;you&gt;\VisualMeetingTool-data</code> yourself and, if you want, delete the key in Settings before uninstalling. The small folder of the log, <code>C:\Users\&lt;you&gt;\AppData\Local\VisualMeetingTool</code>, also stays.</li>
 </ul>
 
 <h2 id="trouble">12. Troubleshooting</h2>
@@ -216,13 +222,13 @@
   <tbody>
     <tr><td>"Windows protected your PC" when starting the installer</td><td>The installer is not signed yet. Choose <strong>More info</strong> → <strong>Run anyway</strong>.</td></tr>
     <tr><td>The window is blank, or a message says the Windows component (Microsoft Edge WebView2) could not start</td><td>Install or repair <strong>Microsoft Edge WebView2 Runtime</strong> from Microsoft's page, then open the program again. The message gives the place of the log. Some restricted environments, such as Windows Sandbox on Windows 11 24H2, cannot run WebView2 at all.</td></tr>
-    <tr><td>"MeetingTool is already open on this folder: use that window"</td><td>Only one copy can use a data folder. Find the open window (check the taskbar) or close it from the Task Manager.</td></tr>
+    <tr><td>"MeetingTool is already open on <em>the data folder</em>: use that window"</td><td>Only one copy can use a data folder. Find the open window (check the taskbar) or close it from the Task Manager.</td></tr>
     <tr><td>"No key is saved: without one nothing can be processed"</td><td>Save your Gemini key in Settings (section 4).</td></tr>
-    <tr><td>"The summary needs the video. Without a video, choose questions and answers."</td><td>Attach the video, or change the format to <strong>Questions and answers</strong>.</td></tr>
+    <tr><td>"The summary needs the video. Without a video, choose questions and answers."</td><td>Attach the video, or change the format to <strong data-ui="app.format.qa">Questions and answers</strong>.</td></tr>
     <tr><td>The register of questions and answers cannot be made because the transcript names no speaker</td><td>Questions and answers need to know who asked and who answered. Use a transcript with speaker names, or choose the summary format.</td></tr>
-    <tr><td>"It failed at «Reading of the frames»: stopped before sending frames 1-15: that request could cost up to US$… and … could go over the budget"</td><td>The spending ceiling protected you. Nothing was sent or written. Raise the ceiling (section 6) and process the meeting again.</td></tr>
+    <tr><td>"It failed at «Reading of the frames»: stopped before sending frames 1-15: that request could cost up to US$… and … could go over the budget"</td><td>The spending ceiling protected you. That request was not sent and nothing was written. What the earlier requests of the run cost was paid and is kept (see the row about <strong data-ui="app.kept.title">Kept from runs that failed</strong>). Raise the ceiling (section 6) and process the meeting again.</td></tr>
     <tr><td>"…the answer … used more tokens than its request was estimated to use … nothing more is sent in this run. What was already answered is kept"</td><td>An answer cost more than the program had estimated, so it stopped on purpose. What was paid is kept: process the same meeting again, with a higher ceiling if you like, and it is not paid twice.</td></tr>
-    <tr><td>A run failed after it had already paid for something</td><td>The page lists it under <strong>Kept from runs that failed</strong>. Processing <em>the same meeting</em> again (same project, format and transcript) reuses what was paid and does not pay for it twice. <strong>Discard</strong> removes it for good, and processing it again would pay for it again.</td></tr>
+    <tr><td>A run failed after it had already paid for something</td><td>The page lists it under <strong data-ui="app.kept.title">Kept from runs that failed</strong>. Processing <em>the same meeting</em> again (same project, format and transcript) reuses what was paid and does not pay for it twice. <strong data-ui="app.kept.discard">Discard</strong> removes it for good, and processing it again would pay for it again.</td></tr>
     <tr><td>A message with a reason from Google (a quota, a key problem, a refusal)</td><td>It is shown as Google sent it, below the program's own sentence. Check that the key is valid, that billing is enabled and that you have not run out of quota; then try again.</td></tr>
     <tr><td>The summary was rejected and the run stopped</td><td>The program checks Gemini's text before accepting it (it must have its sections, the right language, and only frames that exist) and retries once. If it still fails, process the meeting again: answers vary from one try to the next.</td></tr>
     <tr><td>The antivirus quarantines or blocks the program</td><td>The program is new and unsigned, so some antivirus products are cautious. If you trust the source of your installer, allow it in your antivirus.</td></tr>

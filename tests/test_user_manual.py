@@ -7,6 +7,7 @@ names are the ones the installer and the window use. They read files; nothing is
 """
 
 import html
+import inspect
 import re
 import unittest
 from html.parser import HTMLParser
@@ -42,6 +43,7 @@ class Text(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.ids, self.links, self.tags, self.parts = set(), [], [], []
         self.skip = 0
+        self.marked, self.open_marks = [], []  # (key, text) of the <strong data-ui="key"> names
 
     def handle_starttag(self, tag, attributes):
         attributes = dict(attributes)
@@ -52,14 +54,21 @@ class Text(HTMLParser):
             self.links.append(attributes["href"])
         if tag in ("style", "script"):
             self.skip += 1
+        if tag == "strong" and "data-ui" in attributes:
+            self.open_marks.append([attributes["data-ui"], ""])
 
     def handle_endtag(self, tag):
         if tag in ("style", "script"):
             self.skip -= 1
+        if tag == "strong" and self.open_marks:
+            key, text = self.open_marks.pop()
+            self.marked.append((key, text))
 
     def handle_data(self, data):
         if not self.skip:
             self.parts.append(data)
+            for mark in self.open_marks:
+                mark[1] += data
 
 
 PAGE = Text()
@@ -124,6 +133,15 @@ class ItIsTrueTest(unittest.TestCase):
             self.assertIn(name, VISIBLE, f"the manual does not say {name!r}")
             self.assertIn(name, known, f"the program does not show {name!r}")
 
+    def test_every_name_the_page_marks_is_exactly_the_text_of_the_key_it_names(self):
+        """A name between <strong data-ui="key"> is compared with that text of the program, so a new quotation
+        cannot drift from the program without this test seeing it."""
+        catalogue = {key: re.sub(r"\[\[.*?\]\]", "", value) for key, value in texts.catalog("en").items()}
+        self.assertGreaterEqual(len(PAGE.marked), 30)
+        for key, text in PAGE.marked:
+            self.assertIn(key, catalogue, f"the program has no text {key!r}")
+            self.assertEqual(text, catalogue[key], key)
+
     def test_the_numbers_it_gives_are_the_code_s(self):
         self.assertEqual(f"US${jobs.DEFAULT_MAX_COST_USD:.2f}", "US$1.00")
         self.assertIn("US$1.00", VISIBLE)
@@ -131,6 +149,9 @@ class ItIsTrueTest(unittest.TestCase):
         self.assertIn(f"Up to {limits['transcript'] // 1_000_000} MB", VISIBLE)
         self.assertIn(f"up to {limits['recording'] // 1_000_000_000} GB", VISIBLE)
         self.assertIn("up to 1 MB", VISIBLE)  # the logo
+        limit = re.search(r"0 < max_cost <= (\d+)", inspect.getsource(jobs.check_request)).group(1)
+        self.assertIn(f"above 0 and up to {limit}", VISIBLE)
+        self.assertIn(f'max=\\"{limit}\\"', (ROOT / "meetingtool" / "app" / "pages.py").read_text(encoding="utf-8"))
         self.assertEqual(company.LOGO_LIMIT, 1024 * 1024)
 
     def test_the_files_it_accepts_are_the_ones_the_program_accepts(self):
@@ -141,7 +162,8 @@ class ItIsTrueTest(unittest.TestCase):
 
     def test_the_places_it_names_are_the_ones_the_program_uses(self):
         self.assertIn(f"C:\\Users\\<you>\\{store.DEFAULT_DATA_DIR_NAME}", VISIBLE)
-        self.assertIn(f"AppData\\Local\\VisualMeetingTool\\{window.LOG_NAME}", VISIBLE)
+        log = window.log_dir() / window.LOG_NAME
+        self.assertIn(f"AppData\\Local\\{log.parent.name}\\{log.name}", VISIBLE)
         iss = (ROOT / "packaging" / "installer.iss").read_text(encoding="utf-8")
         self.assertIn("DefaultDirName={autopf}\\VisualMeetingTool", iss)
         self.assertIn("C:\\Users\\<you>\\AppData\\Local\\Programs\\VisualMeetingTool", VISIBLE)
