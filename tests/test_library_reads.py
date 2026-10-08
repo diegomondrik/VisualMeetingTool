@@ -12,6 +12,7 @@ fix and shows a test here fails.
 import builtins
 import contextlib
 import datetime
+import json
 import tempfile
 import unittest
 from pathlib import Path
@@ -224,6 +225,19 @@ class LibraryReadsTest(unittest.TestCase):
         for name in ("otra-carpeta", record["id"]):
             with self.assertRaises(library.NotFound, msg=name):
                 library.meeting_record(self.data, self.project, name)
+
+    def test_a_record_whose_own_id_is_not_a_slug_is_not_reached_by_that_name(self):
+        """The name is checked before the path is built, not only against the record's id (a hand-edited record
+        can say anything)."""
+        record = add_meetings(self.data, self.project, 2)[0]
+        odd = f"../meetings/{record['id']}"
+        path = self.data / self.project / "meetings" / record["id"] / "meeting.json"
+        path.write_text(json.dumps({**record, "id": odd}), encoding="utf-8")
+        for call in (library.meeting_record, library.meeting):
+            with self.assertRaises(library.NotFound):
+                call(self.data, self.project, odd)
+        with self.assertRaises(library.NotFound):
+            library.meeting_file(self.data, self.project, odd, FRAME)
 
     def test_an_unknown_or_ill_formed_loose_name_is_not_found(self):
         names = add_loose(self.data, 2)
