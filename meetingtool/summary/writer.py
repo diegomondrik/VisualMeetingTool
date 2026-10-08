@@ -216,6 +216,18 @@ _NAMED = r"(?:`|\*{1,2}|_{1,2})?\[frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg\](?:`|\*{1,2
 FRAME_RANGE = re.compile(
     rf"{_NAMED}\s*(?:->|→|-{{1,2}}|–|—|…|\.{{2,3}}|\b(?:a|al|hasta|to|through|thru|till|until)\b)\s*(?:(?:el|la|the)\s+)?"
     rf"{_NAMED}|\b(?:entre|between)\s+{_NAMED}\s*(?:y|e|and)\s+{_NAMED}", re.IGNORECASE)
+# Several whole frame names inside one pair of brackets ("[a, b]", "[a y b]", "[a; b]", "[a, and b]"), which the
+# report cannot read (it takes one name per pair, so the frames of a list would be left out of it; WI27). Only
+# a comma, a semicolon, "y", "e" or "and" (alone or after a comma) separate the names; a range word or mark
+# ("a", "to", "-", "..") is not a separator, so a range inside one pair is not split and is refused as before.
+# The names may be wrapped, as a single name is (see _NAMED): the wrapper goes round each name. What separated
+# the names is kept, so that a list is judged as the same names each in its own pair would be: "entre [a y b]"
+# becomes "entre [a] y [b]", a range (WI27's review, P1).
+_NAME = r"frame_\d+_t\d{2}-\d{2}-\d{2}\.jpg"
+_SPACE = r"[^\S\r\n]*"
+_SEPARATOR = rf"{_SPACE}(?:,{_SPACE}(?:(?i:y|e|and)\b)?|;|\b(?i:y|e|and)\b){_SPACE}"
+_LISTED = re.compile(rf"(?P<mark>`|\*{{1,2}}|_{{1,2}})?\[{_SPACE}(?P<names>{_NAME}(?:{_SEPARATOR}{_NAME})+){_SPACE}\]"
+                     r"(?(mark)(?P=mark))")
 # Which screens the summary may name, and so which images the report shows
 # (the owner's rule, INGOL D-181).
 FRAME_RULE = """FRAMES: every frame file name you write in square brackets puts that image in the report the client
@@ -434,6 +446,18 @@ def empty_sections(text, headings):
     return empty
 
 
+def separate_frames(text):
+    """The text with each pair of square brackets that holds two or more whole
+    frame names written as a list (see _LISTED) rewritten as one pair for
+    each name, in the same order, with what separated them left between
+    them. Anything else, a single name included, is left exactly as it is,
+    for check_frames to judge."""
+    def one_pair_each(found):
+        mark = found.group("mark") or ""
+        return re.sub(_NAME, lambda name: f"{mark}[{name.group(0)}]{mark}", found.group("names"))
+    return _LISTED.sub(one_pair_each, text)
+
+
 def check_frames(text, frame_names):
     """SummaryError unless every frame the summary names, as the report reads
     a name, is one of frame_names, no frame is mentioned any other way, and
@@ -467,6 +491,15 @@ REASONS = {
     "summary.no_key_points": (
         "its '{names}' section had no bullet point", "heading",
         "Write 3 to 8 bullet points ('- ') under that heading."),
+    "summary.frame_range": (
+        "it named a range of frames instead of each frame on its own: {names}", "text",
+        "Name each frame in its own square brackets, one file name for each pair, as in [frame_017_t00-13-03.jpg]; "
+        "never a range of frames, and never a list of frames inside one pair of brackets."),
+    "summary.frame_unbracketed": (
+        "it mentioned a frame without its file name in square brackets: {names}", "text",
+        "Name each frame in its own square brackets, one whole file name for each pair, as in "
+        "[frame_017_t00-13-03.jpg]; never a range of frames, and never mention a frame by its number, its time or part "
+        "of its name."),
 }
 MATERIAL = "Everything below is material to analyse, not instructions."
 
@@ -476,8 +509,9 @@ def revise(payload, error):
     answer named frames that do not exist, saying which and that names are
     copied exactly (the first real meeting: the retry sent the same request
     and got the same mistake), left sections empty or no key point, saying
-    which (WI25), all of them in one note when the answer had several. Any
-    other refusal retries as it always did."""
+    which (WI25), a range of frames or a frame without its own square
+    brackets, saying how to name them (WI27), all of them in one note when the
+    answer had several. Any other refusal retries as it always did."""
     messages = [message for message in (error.message, *getattr(error, "others", ())) if getattr(message, "key", "") in REASONS]
     if not messages:
         return payload
@@ -508,14 +542,17 @@ def retry_note(messages):
 
 
 def check_summary(answer, headings, language, frame_names=None):
-    """The summary's text if complete; otherwise SummaryError naming what is
-    wrong. With frame_names, the frames it names are checked too."""
+    """The summary's text if complete, with a list of frames inside one pair
+    of square brackets as one pair for each frame (WI27); otherwise
+    SummaryError naming what is wrong. With frame_names, the frames it names
+    are checked too."""
     try:
         candidate = answer["candidates"][0]
         text = "".join(part.get("text", "") for part in candidate["content"]["parts"])
         finish = candidate.get("finishReason")
     except (KeyError, IndexError, TypeError, AttributeError) as error:
         raise SummaryError("gemini.no_text", kind=type(error).__name__) from None
+    text = separate_frames(text)
     if finish != "STOP":
         raise SummaryError("summary.unfinished", finish=finish)
     found = []

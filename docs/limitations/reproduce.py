@@ -1412,6 +1412,19 @@ def wi26_p3_2(args, root):
     return said == "transcript.no_timed_line", f"a transcript saved as UTF-32: {said}"
 
 
+@entry("WI27-P3-1")
+def wi27_p3_1(args, root):
+    from meetingtool.summary import writer
+    a, b = "frame_029_t00-23-24.jpg", "frame_037_t00-31-24.jpg"
+    text = writer.separate_frames(f"between [{a}, and {b}]")
+    try:
+        writer.check_frames(text, {a, b})
+        said = "accepted"
+    except writer.SummaryError as error:
+        said = f"refused: {error.message.key}"
+    return said == "accepted", f"'between [a, and b]', rewritten as {text!r}: {said}"
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))
