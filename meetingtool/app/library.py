@@ -120,10 +120,7 @@ def meeting_record(data_dir, project_id, meeting_id):
     """One meeting's record, read from its own folder: no other meeting's record
     or result is read, so a broken one elsewhere does not matter."""
     project(data_dir, project_id)
-    try:
-        record = store.read_meeting(data_dir, project_id, meeting_id)
-    except store.ProjectError:
-        raise NotFound(meeting_id) from None
+    record = store.read_meeting(data_dir, project_id, meeting_id)  # ProjectError for a record that cannot be read
     if record is None:
         raise NotFound(meeting_id)
     return record

@@ -90,6 +90,6 @@ No corrí la suite completa (unos 12 minutos). El contrato la deja a propósito 
 ## Lo que se hizo con cada hallazgo
 
 - P2-1 (en Windows un resultado suelto que la portada no lista se servía por su nombre en minúsculas): corregido en 8da90f4; `library._loose_folder` exige además que el nombre sea uno de los de la carpeta de datos en disco; prueba y mutación nuevas.
-- P2-2 (404 en lugar del error que nombra el archivo, para una reunión dañada pedida por su dirección): decisión del dueño; queda como se construyó (cambio de conducta declarado en el contrato) hasta que decida.
+- P2-2 (404 en lugar del error que nombra el archivo, para una reunión dañada pedida por su dirección): decidido el 2026-10-08 como propone la revisión: el error de lectura sube (400 con el nombre del archivo), ya no es 404.
 - P3-1 (la reunión cuya carpeta no se llama como su id deja de servirse): conducta declarada; los 3 de 3 datos reales coinciden.
 - P3-2 (identificador vacío): corregido en 8da90f4, con prueba y mutación. P3-3 (alcance del conteo de lecturas): sin cambio, la revisión concluye que no deja ningún hueco hoy.

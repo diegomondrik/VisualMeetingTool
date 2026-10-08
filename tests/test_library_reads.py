@@ -175,13 +175,13 @@ class LibraryReadsTest(unittest.TestCase):
         self.assertEqual(library.meeting_file(self.data, self.project, sound["id"], library.REPORT_NAME),
                          folder / library.REPORT_NAME)
 
-    def test_a_meeting_whose_record_cannot_be_read_is_not_found_and_one_whose_summary_is_not_text_has_its_files(self):
+    def test_a_meeting_whose_record_cannot_be_read_says_so_and_one_whose_summary_is_not_text_has_its_files(self):
         records = add_meetings(self.data, self.project, 6)
         broken_record, broken_summary = self.break_two_meetings(records)
         for call in (library.meeting_record, library.meeting):
-            with self.assertRaises(library.NotFound):
+            with self.assertRaises(store.ProjectError, msg=call.__name__):
                 call(self.data, self.project, broken_record["id"])
-        with self.assertRaises(library.NotFound):
+        with self.assertRaises(store.ProjectError):
             library.meeting_file(self.data, self.project, broken_record["id"], FRAME)
         folder = self.data / self.project / broken_summary["folder"]
         self.assertEqual(library.meeting_file(self.data, self.project, broken_summary["id"], FRAME), folder / FRAME)
@@ -192,7 +192,7 @@ class LibraryReadsTest(unittest.TestCase):
         path.write_text('{"id": "%s", "title": "Sin fecha"}' % record["id"], encoding="utf-8")
         with self.assertRaises(store.ProjectError):
             store.list_meetings(self.data, self.project)
-        with self.assertRaises(library.NotFound):
+        with self.assertRaises(store.ProjectError):
             library.meeting_record(self.data, self.project, record["id"])
 
     def test_a_broken_loose_result_does_not_stop_a_sound_one(self):
@@ -360,14 +360,16 @@ class ServerReadsTest(Running):
         self.assertEqual(seen["summaries"], [])
         self.assertEqual(len(self.opened), 2)
 
-    def test_a_broken_meeting_does_not_stop_the_others_and_is_itself_not_found(self):
+    def test_a_broken_meeting_does_not_stop_the_others_and_is_itself_answered_with_the_error_naming_its_file(self):
         (self.data / self.project / "meetings" / self.records[0]["id"] / "meeting.json").write_bytes(b"\xff\xfe{")
         (self.data / self.project / self.records[1]["folder"] / writer.OUTPUT_NAME).write_bytes(b"\xff\xfe\xc3(")
         self.assertEqual(self.request("GET", f"{self.base}/f/{FRAME}")[0], 200)
         self.assertEqual(self.request("GET", self.base)[0], 200)
         broken = f"/p/{self.project}/m/{self.records[0]['id']}"
-        self.assertEqual(self.request("GET", broken)[0], 404)
-        self.assertEqual(self.request("GET", f"{broken}/f/{FRAME}")[0], 404)
+        for address in (broken, f"{broken}/f/{FRAME}"):
+            status, _, body = self.request("GET", address)
+            self.assertEqual(status, 400, address)
+            self.assertIn("meeting.json", body.decode("utf-8"))
         other = f"/p/{self.project}/m/{self.records[1]['id']}"
         self.assertEqual(self.request("GET", f"{other}/f/{FRAME}")[0], 200)
 

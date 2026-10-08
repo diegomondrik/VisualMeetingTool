@@ -86,5 +86,10 @@ empty identifier, which was its own slug and built `meetings/meeting.json`.
 
 `mutations.txt` now has nine mutations: two new (the name looked up on disk; the empty identifier), and the one about
 the loose name's slug removes the slug check and the lookup together, since each alone is covered by the other. The
-review's P2-2 (a broken record asked for by its address answers 404, not the error that names the file) is the
-owner's to decide: it stays as built, a behaviour change declared in the contract.
+review's P2-2 (a broken record asked for by its address answered 404, hiding the damage) was decided on 2026-10-08 as
+the review proposed: `library.meeting_record` no longer turns the `ProjectError` into `NotFound`, so a meeting whose
+`meeting.json` cannot be read, asked for by its address, is answered 400 with the error that names the file, as the
+project page already does; a sound neighbour is still served, since only the record asked for is read. Three tests of
+`tests/test_library_reads.py` (all new in this work item) changed their expectation from `NotFound`/404 to
+`ProjectError`/400 and were renamed; no test that existed before is touched. There is one behaviour change left to
+declare (the meeting is found by the name of its folder), not two.
