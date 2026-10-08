@@ -1,0 +1,12 @@
+mutation run for 01M4CM3YV7RF9ET37K61XBYVRY: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_word_package_limits` (no kits, what the CI runs) must fail
+commit: ae05d94cea8b30f255c35df9bbd7280dd792034b (clean working tree)
+- the limit per part removed: a part of any size is read: exit 1, Ran 14 tests in 13.265s FAILED (failures=5) -> DETECTED
+- the total not counted: parts each within the limit are read however many they are: exit 1, Ran 14 tests in 11.748s FAILED (failures=2) -> DETECTED
+- the size taken from the directory (ZipInfo.file_size) instead of counted: exit 1, Ran 14 tests in 9.978s FAILED (errors=1) -> DETECTED
+- the entries not counted: a package of any number of parts is read: exit 1, Ran 14 tests in 10.360s FAILED (failures=3) -> DETECTED
+- the transcript's reader left on zipfile directly: exit 1, Ran 14 tests in 10.418s FAILED (failures=2) -> DETECTED
+- the template's reader left on zipfile directly: exit 1, Ran 14 tests in 10.932s FAILED (failures=3) -> DETECTED
+- the report check's reader left on zipfile directly: exit 1, Ran 14 tests in 9.169s FAILED (failures=1) -> DETECTED
+- unmutated: exit 0, Ran 14 tests in 8.703s OK
+all mutations detected
