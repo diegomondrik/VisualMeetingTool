@@ -1425,6 +1425,24 @@ def wi27_p3_1(args, root):
     return said == "accepted", f"'between [a, and b]', rewritten as {text!r}: {said}"
 
 
+@entry("WI29-P3-1")
+def wi29_p3_1(args, root):
+    import tracemalloc
+    from xml.etree import ElementTree
+    size = 2 * 1024 * 1024  # a thirty-second part of the limit: the reproduction does not take the memory it shows
+    unit = b"<w:t>a</w:t>"
+    data = (b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            + unit * (size // len(unit)) + b"</w:document>")
+    tracemalloc.start()
+    try:
+        ElementTree.fromstring(data)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    return peak > 5 * len(data), (f"a part of {len(data) / 2 ** 20:.0f} MB of small elements: parsing takes "
+                                  f"{peak / len(data):.1f} times its size ({peak / 2 ** 20:.0f} MB)")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))
