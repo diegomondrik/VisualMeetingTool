@@ -1,0 +1,22 @@
+schema_version: "1"
+work_item: 01M4ECC5BTJBWXB51SCSV8XNBJ
+status: approved
+next_gate: register-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (criterion role)
+branch: work-item/01M4ECC5BTJBWXB51SCSV8XNBJ-d1-limitations
+steps:
+  - the-reproductions-of-the-five-findings-wi32-ac01
+  - the-register-entries-wi32-ac01
+  - nothing-else-changes-wi32-ac02
+  - review-and-suite-wi32-ac03
+evaluations:
+  - criterion: WI32-AC01
+    method: deterministic
+    control: python docs/limitations/reproduce.py for the five entries and for the whole register.
+  - criterion: WI32-AC02
+    method: deterministic
+    control: git diff --stat against main lists only docs/limitations and this work item's files.
+  - criterion: WI32-AC03
+    method: adversarial
+    control: the independent review; local-test-run.txt.
