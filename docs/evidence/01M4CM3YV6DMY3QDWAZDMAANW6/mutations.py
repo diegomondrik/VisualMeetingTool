@@ -92,15 +92,18 @@ def main(argv):
             for name in names:
                 (work / name).write_text(changed[name], encoding="utf-8", newline="\n")
             result = run_tests(work)
-            detected = result.returncode != 0
+            # Detected only when the tests ran and some failed: a process that died (no memory, killed) has no
+            # result line and says nothing about the mutation.
+            ran = "Ran " in result.stderr
+            detected = ran and result.returncode == 1 and "FAILED" in result.stderr
             detected_all &= detected
-            print(f"- {label}: exit {result.returncode}, {summary_line(result.stderr)} -> "
-                  f"{'DETECTED' if detected else 'NOT DETECTED'}", flush=True)
+            verdict = "DETECTED" if detected else ("NOT DETECTED" if ran and result.returncode == 0 else "NOT RUN (the tests did not finish)")
+            print(f"- {label}: exit {result.returncode}, {summary_line(result.stderr)} -> {verdict}", flush=True)
             for name in names:
                 (work / name).write_text(originals[name], encoding="utf-8", newline="\n")
         result = run_tests(work)
         print(f"- unmutated: exit {result.returncode}, {summary_line(result.stderr)}")
-        unmutated_ok = result.returncode == 0
+        unmutated_ok = result.returncode == 0 and "OK" in result.stderr
     finally:
         shutil.rmtree(work, ignore_errors=True)
     ok = detected_all and unmutated_ok
