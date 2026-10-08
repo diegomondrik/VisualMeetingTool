@@ -62,9 +62,29 @@ class InstallerTest(unittest.TestCase):
         self.assertNotIn("{userdocs}", ISS)
         self.assertNotIn("{%USERPROFILE}", ISS)
 
-    def test_the_shortcuts_open_the_window_program(self):
-        for line in section("Icons") + section("Run"):
-            self.assertIn('Filename: "{app}\\MeetingTool.exe"', line)
+    def test_the_shortcuts_open_the_window_program_and_the_user_manual(self):
+        # WI33: besides the program's own entries there is one for the manual in each list, and nothing else.
+        manual = 'Filename: "{app}\\manual\\user-manual.html"'
+        for lines in (section("Icons"), section("Run")):
+            others = [line for line in lines if manual not in line]
+            self.assertTrue(others)
+            for line in others:
+                self.assertIn('Filename: "{app}\\MeetingTool.exe"', line)
+            self.assertEqual(len(lines) - len(others), 1, "the manual has one entry here")
+
+    def test_the_user_manual_is_installed_next_to_the_program_and_offered_unticked(self):
+        [manual] = [line for line in section("Files") if "user-manual.html" in line]
+        self.assertIn('Source: "{#SourcePath}\\..\\docs\\manual\\user-manual.html"', manual)
+        self.assertIn('DestDir: "{app}\\manual"', manual)
+        [offer] = [line for line in section("Run") if "user-manual.html" in line]
+        self.assertIn("postinstall", offer)
+        self.assertIn("skipifsilent", offer)
+        self.assertIn("unchecked", offer)  # the program's launch stays the one ticked
+        self.assertIn("shellexec", offer)  # a .html is opened by the user's browser, not run
+        names = [re.match(r"(\w+)\.(\w+)=", line) for line in section("CustomMessages")]
+        for language in texts.LANGUAGES:
+            for key in ("UserManual", "OpenManual"):
+                self.assertIn((language, key), [match.groups() for match in names if match])
 
     def test_the_program_starts_the_window(self):
         launcher = (PACKAGING / "launcher.py").read_text(encoding="utf-8")

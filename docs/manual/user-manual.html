@@ -1,0 +1,239 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>VisualMeetingTool User Manual</title>
+<style>
+  :root {
+    --bg: #ffffff; --text: #1d2733; --muted: #566274; --line: #d9e0e8;
+    --accent: #1f5fae; --accent-soft: #e8f0fb; --warn: #8a5a00; --warn-soft: #fff4de;
+    --code-bg: #f3f5f8;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #12171d; --text: #e4e9ef; --muted: #9aa6b5; --line: #2b3541;
+      --accent: #7fb2f0; --accent-soft: #1b2a3d; --warn: #f0c36b; --warn-soft: #33290f;
+      --code-bg: #1b222b;
+    }
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0; background: var(--bg); color: var(--text);
+    font: 16px/1.6 "Segoe UI", system-ui, -apple-system, sans-serif;
+  }
+  .wrap { max-width: 860px; margin: 0 auto; padding: 24px 16px 64px; }
+  header { border-bottom: 1px solid var(--line); padding-bottom: 16px; margin-bottom: 24px; }
+  h1 { font-size: 2rem; margin: 0 0 4px; line-height: 1.2; }
+  .lead { color: var(--muted); margin: 0; }
+  h2 { font-size: 1.4rem; margin: 40px 0 8px; padding-top: 8px; border-top: 1px solid var(--line); }
+  h3 { font-size: 1.1rem; margin: 24px 0 4px; }
+  p, ul, ol { margin: 8px 0; }
+  li { margin: 4px 0; }
+  a { color: var(--accent); }
+  code, kbd {
+    font: 0.92em Consolas, "Cascadia Mono", monospace; background: var(--code-bg);
+    border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; overflow-wrap: anywhere;
+  }
+  nav.toc { background: var(--accent-soft); border-radius: 8px; padding: 12px 16px; margin: 16px 0 8px; }
+  nav.toc strong { display: block; margin-bottom: 4px; }
+  nav.toc ol { margin: 0; padding-left: 20px; columns: 2 220px; }
+  .note, .warn {
+    border-left: 4px solid var(--accent); background: var(--accent-soft);
+    padding: 8px 14px; border-radius: 0 6px 6px 0; margin: 14px 0;
+  }
+  .warn { border-color: var(--warn); background: var(--warn-soft); }
+  .note > :first-child, .warn > :first-child { margin-top: 0; }
+  .note > :last-child, .warn > :last-child { margin-bottom: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 0.95rem; }
+  th, td { border: 1px solid var(--line); padding: 8px 10px; text-align: left; vertical-align: top; }
+  th { background: var(--accent-soft); }
+  .scroll { overflow-x: auto; }
+  footer { margin-top: 48px; color: var(--muted); font-size: 0.9rem; border-top: 1px solid var(--line); padding-top: 12px; }
+  @media print { nav.toc { display: none; } a { color: inherit; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>VisualMeetingTool User Manual</h1>
+  <p class="lead">Turn a recorded meeting and its transcript into a written summary and a Word report, on your own computer.</p>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <strong>Contents</strong>
+  <ol>
+    <li><a href="#what">What it does</a></li>
+    <li><a href="#need">What you need</a></li>
+    <li><a href="#install">Installing</a></li>
+    <li><a href="#key">First start: your Gemini key</a></li>
+    <li><a href="#first">Your first meeting</a></li>
+    <li><a href="#cost">Cost and the spending ceiling</a></li>
+    <li><a href="#result">Reading the result</a></li>
+    <li><a href="#settings">Settings: language, company, Word template</a></li>
+    <li><a href="#where">Where your files are</a></li>
+    <li><a href="#privacy">Privacy: what leaves your computer</a></li>
+    <li><a href="#update">Updating and uninstalling</a></li>
+    <li><a href="#trouble">Troubleshooting</a></li>
+  </ol>
+</nav>
+
+<h2 id="what">1. What it does</h2>
+<p>VisualMeetingTool takes the <strong>transcript</strong> of a meeting (for example the one Microsoft Teams produces) and, if you have it, the <strong>video recording</strong>. It picks the moments where something worth showing appeared on screen, has Google's Gemini read them, and writes:</p>
+<ul>
+  <li>a <strong>summary</strong> of the meeting, with the screens that mattered; or</li>
+  <li>a register of <strong>questions and answers</strong>, each question with its whole answer;</li>
+</ul>
+<p>and builds a <strong>Word report</strong> from it. Meetings are grouped in <strong>projects</strong>, and each new summary can use what the project already learned in earlier meetings.</p>
+<p>Everything runs on your computer. The only thing that goes out is what is sent to Gemini while a meeting is being processed (see <a href="#privacy">Privacy</a>).</p>
+
+<h2 id="need">2. What you need</h2>
+<ul>
+  <li><strong>Windows 11</strong>, 64-bit. No administrator rights and no Python are needed.</li>
+  <li>About <strong>150 MB</strong> of free disk space for the program, plus room for your meetings.</li>
+  <li>An <strong>internet connection</strong> while a meeting is processed.</li>
+  <li>A <strong>Gemini API key</strong> from a Google Cloud project with billing enabled (the paid tier). Section <a href="#key">4</a> says why and how.</li>
+  <li>For each meeting: the <strong>transcript</strong> as a <code>.docx</code> (the Teams transcript) or a <code>.txt</code> whose lines start with the time, like <code>[00:05:12] Ana: …</code>. The <strong>video</strong> is optional for questions and answers, and needed for the summary.</li>
+</ul>
+
+<h2 id="install">3. Installing</h2>
+<ol>
+  <li>Run <code>VisualMeetingTool-Setup-&lt;version&gt;.exe</code>.</li>
+  <li><strong>Windows may warn you.</strong> The program is not digitally signed yet, so Windows SmartScreen can show "Windows protected your PC". Choose <strong>More info</strong>, then <strong>Run anyway</strong>. Some antivirus programs also ask before running a new file; allow it if you got the installer from someone you trust.</li>
+  <li>The first question is the <strong>language</strong> of the installer (Spanish or English). The installed application starts in the language you pick, and you can change it later in Settings.</li>
+  <li>The installer proposes a folder inside your own user profile (<code>C:\Users\&lt;you&gt;\AppData\Local\Programs\VisualMeetingTool</code>). Keep it unless you have a reason to change it. Because it is your own folder, <strong>no administrator password is asked</strong>.</li>
+  <li>Choose whether to add a <strong>desktop icon</strong> (off by default). The program is always added to the Start menu.</li>
+  <li>Finish. Leave "Launch VisualMeetingTool" ticked to open it now.</li>
+</ol>
+<p>The program opens in <strong>its own window</strong> titled "MeetingTool". It does not use your web browser and there is no console window.</p>
+<div class="note"><p>The window is drawn by <strong>Microsoft Edge WebView2</strong>, a component that comes with Windows 11. If it is missing or damaged, the program says so and how to repair it (see <a href="#trouble">Troubleshooting</a>).</p></div>
+
+<h2 id="key">4. First start: your Gemini key</h2>
+<p>The program uses Google's Gemini to read the screens and to write the text. It uses <strong>your own key</strong>, so the cost goes to your Google account. Without a key nothing can be processed.</p>
+<ol>
+  <li>Create an API key for Gemini in your Google account (Google AI Studio, <code>aistudio.google.com</code>). Google's pages change from time to time; if you cannot find it, search for "Gemini API key".</li>
+  <li>Make sure the key belongs to a <strong>Google Cloud project with billing enabled</strong>. This matters: on the free tier, Google may use what you send to improve its products, and meetings are often confidential.</li>
+  <li>In the program, open <strong>Settings</strong> (top of the window), find <strong>Gemini key</strong>, paste the key into <strong>New key</strong> and choose <strong>Save the key</strong>.</li>
+</ol>
+<p>The page then says "A key is saved" and its length. The key is <strong>never shown again</strong>; it is kept in the Windows Credential Manager, not in a file. To replace it, save a new one. To remove it, choose <strong>Delete the key</strong>.</p>
+
+<h2 id="first">5. Your first meeting</h2>
+<h3>5.1 Create a project</h3>
+<p>On the <strong>Projects</strong> page, under <strong>New project</strong>, write a <strong>Name</strong> (and, if you like, the <strong>Client</strong>) and choose <strong>Create the project</strong>. A project is the place where the meetings about the same subject live, so that each one can build on the last.</p>
+
+<h3>5.2 Add the meeting</h3>
+<p>Open the project and choose <strong>New meeting</strong>. Fill in:</p>
+<div class="scroll"><table>
+  <thead><tr><th>Field</th><th>What to put</th></tr></thead>
+  <tbody>
+    <tr><td><strong>Title</strong></td><td>A short name, for example "Kickoff with the finance team".</td></tr>
+    <tr><td><strong>Date</strong></td><td>The day the meeting happened.</td></tr>
+    <tr><td><strong>Transcript</strong></td><td>The Teams <code>.docx</code>, or a <code>.txt</code> with <code>[HH:MM:SS]</code> lines. Up to 50 MB.</td></tr>
+    <tr><td><strong>Video</strong></td><td>Optional. <code>.mp4</code>, <code>.mov</code>, <code>.mkv</code>, <code>.webm</code>, <code>.avi</code>, <code>.wmv</code> or <code>.m4v</code>, up to 16 GB. <strong>Without a video only questions and answers can be made.</strong></td></tr>
+    <tr><td><strong>Meeting type</strong></td><td>Presale, Sales or negotiation, Requirements gathering, Project kickoff, Status, Technical or Training. It changes how the summary reads the meeting. "No type" is fine.</td></tr>
+    <tr><td><strong>Language of the result</strong></td><td>Spanish, English, or "The meeting's" (the language of the transcript).</td></tr>
+    <tr><td><strong>Format</strong></td><td><strong>Summary</strong> (needs the video) or <strong>Questions and answers</strong> (each question with its whole answer; the transcript must show who is speaking).</td></tr>
+    <tr><td><strong>Estimated spending ceiling in dollars</strong></td><td>The most you accept to spend on this meeting: a number above 0 and up to 5. It starts at 1. It is an estimate, not a guarantee: see <a href="#cost">section 6</a>.</td></tr>
+  </tbody>
+</table></div>
+<p>The file windows are the normal Windows file dialogs. Choose <strong>Process</strong> to start.</p>
+
+<h3>5.3 Watch it work</h3>
+<p>The <strong>Processing</strong> page lists the stages, each with its state (<em>waiting, running, done, not needed, failed</em>), its time and what it cost:</p>
+<ol>
+  <li><strong>Frames of the video</strong>: the program picks the moments worth keeping (slides, shared screens; not people's faces) from the video. This is the slowest stage on a long recording: expect several minutes for a two-hour meeting.</li>
+  <li><strong>Reading of the frames</strong>: Gemini describes what each kept frame shows.</li>
+  <li><strong>Summary</strong> or <strong>Questions and answers</strong>: Gemini writes the text from the transcript and the readings.</li>
+  <li><strong>Word report</strong>: the report is built on your computer, with no cost.</li>
+  <li><strong>Saving the meeting in the project</strong>.</li>
+</ol>
+<p>Only <strong>one meeting is processed at a time</strong>. You can leave the page; the work continues while the program's window stays open. If you close the window with the <strong>X</strong> during processing, the program asks first. If you confirm, that meeting is dropped and nothing of it is kept.</p>
+<div class="note"><p>A meeting is added to its project only when the whole run succeeds. If a stage fails, the page says <strong>which</strong> stage, <strong>why</strong>, and <strong>how much was spent</strong>; the meeting is not added and nothing is left half done. What was already paid for stays safe so that running the same meeting again does not pay for it twice (see <a href="#trouble">Troubleshooting</a>).</p></div>
+
+<h2 id="cost">6. Cost and the spending ceiling</h2>
+<p>Gemini charges for what it reads and writes. The program shows, for every run, <strong>what it cost</strong>: "<em>X</em> of an estimated ceiling of <em>Y</em>". That figure is an <strong>estimate at Google's list prices</strong>; the exact charge is on your Google Cloud billing.</p>
+<ul>
+  <li>The <strong>estimated spending ceiling</strong> is a safety limit, not a guarantee. It starts at <strong>US$1.00</strong>. Before it sends each request, the program estimates the most that request could cost; <strong>if that could take the run over the ceiling, it does not send it</strong> and stops with a message that nothing was written.</li>
+  <li><strong>A request that was already sent is paid even if its answer is then refused.</strong> The program checks Gemini's text before accepting it (for example, that it has all its sections); a refused answer still cost money. The ceiling counts it.</li>
+  <li><strong>If an answer costs more than was estimated, the run stops.</strong> The estimate cannot be trusted any more, so nothing more is sent in that run. What was already answered is kept and not paid again if you process the same meeting again.</li>
+  <li>A ceiling that is too low stops a long meeting early. Raise it for that meeting and process it again.</li>
+  <li>For a sense of scale: in the developer's tests, reading the screens of a two-hour meeting and writing its summary cost well under one US dollar. Your cost depends on the length of the video and on how many frames are kept.</li>
+  <li>Google can change its prices at any time, and the program works from the prices it knows. Check your Google Cloud billing page if the exact figure matters.</li>
+</ul>
+
+<h2 id="result">7. Reading the result</h2>
+<p>When the run finishes, open the meeting from its project. You will find:</p>
+<ul>
+  <li>the <strong>summary</strong> (or the register of questions and answers), with its <strong>key points</strong>;</li>
+  <li>the <strong>frames</strong> that were kept, each labelled with its minute in the meeting;</li>
+  <li>a button to <strong>Open the Word report</strong> (or <strong>Download</strong> it);</li>
+  <li>a line "<em>N</em> images in the report, of <em>M</em> kept from the video" and <strong>what it cost</strong>.</li>
+</ul>
+<p>The project page also shows <strong>What the project already knows</strong>: what each meeting leaves behind and the next summary reads.</p>
+<p>The recording itself is <strong>not copied</strong> into the program's folders; only the frames, the transcript, the text and the report are kept.</p>
+
+<h2 id="settings">8. Settings: language, company, Word template</h2>
+<p>Open <strong>Settings</strong> at the top of the window.</p>
+<ul>
+  <li><strong>Language of the application</strong>: Spanish or English. It changes everything the program says. The language of each summary is chosen per meeting.</li>
+  <li><strong>Company</strong>: a name and a logo (PNG or JPG, up to 1 MB) shown at the top of every screen. SVG logos are refused.</li>
+  <li><strong>Gemini key</strong>: see <a href="#key">section 4</a>.</li>
+  <li><strong>The company's Word template</strong>: optional. A <code>.docx</code> or <code>.dotx</code> <em>without macros</em> with your logo, header, footer, colours and fonts. What is written on its first page becomes the <strong>cover</strong> of every report, and data written between braces is filled in for you (<code>{client}</code>, <code>{project}</code>, <code>{meeting}</code>, <code>{date}</code>, <code>{type}</code>). If it has a table of contents, each report puts its sections there. The Settings page checks the template and tells you what it will do; use <strong>Download an example template</strong> to start from a working one. Without a template, reports come out with a neutral design.</li>
+</ul>
+
+<h2 id="where">9. Where your files are</h2>
+<div class="scroll"><table>
+  <thead><tr><th>What</th><th>Where</th></tr></thead>
+  <tbody>
+    <tr><td>The program</td><td><code>C:\Users\&lt;you&gt;\AppData\Local\Programs\VisualMeetingTool</code></td></tr>
+    <tr><td><strong>Your data</strong> (projects, meetings, reports, settings)</td><td><code>C:\Users\&lt;you&gt;\VisualMeetingTool-data</code></td></tr>
+    <tr><td>One processed meeting</td><td><code>…\VisualMeetingTool-data\&lt;project&gt;\results\&lt;meeting&gt;\</code>: frames, transcript, summary, Word report and a record of the run.</td></tr>
+    <tr><td>The log of the last start</td><td><code>C:\Users\&lt;you&gt;\AppData\Local\VisualMeetingTool\window.log</code></td></tr>
+    <tr><td>Your Gemini key</td><td>Windows Credential Manager (not a file).</td></tr>
+  </tbody>
+</table></div>
+<p><strong>Back up the data folder</strong> if the reports matter to you: it is outside the program, so a copy of it is a copy of everything. It holds client information, so do not put it in a shared or public folder.</p>
+
+<h2 id="privacy">10. Privacy: what leaves your computer</h2>
+<ul>
+  <li>The program's pages are served by your own computer and can only be used from it. The footer of every page says so.</li>
+  <li>While a meeting is processed, the program sends to <strong>Gemini (Google)</strong>: the <strong>kept frames</strong> (images from your video) and the <strong>text of the transcript</strong>, plus what earlier meetings of the project taught it. Nothing else is sent, and the recording itself is never uploaded.</li>
+  <li>Use a key from a project with billing enabled, as explained in <a href="#key">section 4</a>, and follow your organization's rules about what may be sent to a third party.</li>
+  <li>The log file written at each start holds technical facts about the program and the computer, never your key.</li>
+</ul>
+
+<h2 id="update">11. Updating and uninstalling</h2>
+<ul>
+  <li><strong>Updating</strong>: run the newer installer. It installs over the old version. Your data and your Gemini key are kept.</li>
+  <li><strong>Uninstalling</strong>: Settings → Apps → Installed apps → VisualMeetingTool → Uninstall. This removes the program but <strong>keeps your data folder and your key</strong>. To remove them too, delete <code>C:\Users\&lt;you&gt;\VisualMeetingTool-data</code> yourself and, if you want, delete the key in Settings before uninstalling.</li>
+</ul>
+
+<h2 id="trouble">12. Troubleshooting</h2>
+<div class="scroll"><table>
+  <thead><tr><th>What you see</th><th>What it means and what to do</th></tr></thead>
+  <tbody>
+    <tr><td>"Windows protected your PC" when starting the installer</td><td>The installer is not signed yet. Choose <strong>More info</strong> → <strong>Run anyway</strong>.</td></tr>
+    <tr><td>The window is blank, or a message says the Windows component (Microsoft Edge WebView2) could not start</td><td>Install or repair <strong>Microsoft Edge WebView2 Runtime</strong> from Microsoft's page, then open the program again. The message gives the place of the log. Some restricted environments, such as Windows Sandbox on Windows 11 24H2, cannot run WebView2 at all.</td></tr>
+    <tr><td>"MeetingTool is already open on this folder: use that window"</td><td>Only one copy can use a data folder. Find the open window (check the taskbar) or close it from the Task Manager.</td></tr>
+    <tr><td>"No key is saved: without one nothing can be processed"</td><td>Save your Gemini key in Settings (section 4).</td></tr>
+    <tr><td>"The summary needs the video. Without a video, choose questions and answers."</td><td>Attach the video, or change the format to <strong>Questions and answers</strong>.</td></tr>
+    <tr><td>The register of questions and answers cannot be made because the transcript names no speaker</td><td>Questions and answers need to know who asked and who answered. Use a transcript with speaker names, or choose the summary format.</td></tr>
+    <tr><td>"It failed at «Reading of the frames»: stopped before sending frames 1-15: that request could cost up to US$… and … could go over the budget"</td><td>The spending ceiling protected you. Nothing was sent or written. Raise the ceiling (section 6) and process the meeting again.</td></tr>
+    <tr><td>"…the answer … used more tokens than its request was estimated to use … nothing more is sent in this run. What was already answered is kept"</td><td>An answer cost more than the program had estimated, so it stopped on purpose. What was paid is kept: process the same meeting again, with a higher ceiling if you like, and it is not paid twice.</td></tr>
+    <tr><td>A run failed after it had already paid for something</td><td>The page lists it under <strong>Kept from runs that failed</strong>. Processing <em>the same meeting</em> again (same project, format and transcript) reuses what was paid and does not pay for it twice. <strong>Discard</strong> removes it for good, and processing it again would pay for it again.</td></tr>
+    <tr><td>A message with a reason from Google (a quota, a key problem, a refusal)</td><td>It is shown as Google sent it, below the program's own sentence. Check that the key is valid, that billing is enabled and that you have not run out of quota; then try again.</td></tr>
+    <tr><td>The summary was rejected and the run stopped</td><td>The program checks Gemini's text before accepting it (it must have its sections, the right language, and only frames that exist) and retries once. If it still fails, process the meeting again: answers vary from one try to the next.</td></tr>
+    <tr><td>The antivirus quarantines or blocks the program</td><td>The program is new and unsigned, so some antivirus products are cautious. If you trust the source of your installer, allow it in your antivirus.</td></tr>
+  </tbody>
+</table></div>
+<p>If something else goes wrong, the file <code>C:\Users\&lt;you&gt;\AppData\Local\VisualMeetingTool\window.log</code> says what happened at the last start. It never contains your key; read it before sharing it, as it names folders on your computer.</p>
+
+<footer>
+  <p>VisualMeetingTool runs on your computer. Summaries and reports are written by an AI model and can contain mistakes: read them before you use or share them.</p>
+</footer>
+
+</div>
+</body>
+</html>
