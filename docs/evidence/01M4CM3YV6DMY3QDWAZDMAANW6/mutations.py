@@ -40,14 +40,11 @@ MUTATIONS = [
     ("an answer at exactly its estimate counts as an overrun",
      [(GEMINI, "if cost > worst and counters", "if cost >= worst and counters")]),
     ("the end-of-run check removed from the reading: an overrun on its last request is written and done",
-     [(GEMINI, "    check_estimate(counters)
-    header = ", "    header = ")]),
+     [(GEMINI, "    check_estimate(counters)\n    header = ", "    header = ")]),
     ("the end-of-run check removed from the summary: an overrun on its last request is written and done (the review's P1-2)",
-     [(WRITER, "    gemini.check_estimate(counters)
-", "")]),
+     [(WRITER, "    gemini.check_estimate(counters)\n", "")]),
     ("the end-of-run check removed from the register",
-     [(QA, "    gemini.check_estimate(counters)
-", "")]),
+     [(QA, "    gemini.check_estimate(counters)\n", "")]),
     ("the end-of-run check does nothing: check_estimate returns without raising",
      [(GEMINI, '''    if counters["overrun"] is not None:
         stop_for_estimate(counters, texts.Message("gemini.estimate_short.end"))''', "    return")]),
