@@ -30,7 +30,7 @@ Class `WorkflowInstallsWithTheConstraintsTest`, the CI (WI31-AC01):
 
 The guide (WI31-AC02) is not checked by a test but by `check_guide.py` in this folder: it looks up each name between
 backticks in `docs/MAINTAINING.md` (134 of 175; the rest are flags, snippets and files a run writes). Run it after
-editing the guide. `mutations.txt` shows twelve mutations (nine of the pins and the workflow, three of the guide);
+editing the guide. `mutations.txt` shows thirteen mutations (ten of the pins and the workflow, three of the guide);
 each makes its guard fail, and each guard ran to its end (a process that dies is counted "NOT RUN", never detected).
 
 ## After the independent review (P1-1, P2-1)
