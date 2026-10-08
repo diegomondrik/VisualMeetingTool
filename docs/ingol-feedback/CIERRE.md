@@ -36,7 +36,7 @@ cerró con un work item (WI) y su PR. "Commit" es el de integración en `main`, 
 | R06 | Una transcripción de texto sólo se leía en una codificación | WI26, PR #26 | Cerrada | `f1bde92` |
 | R07 | Techo de gasto: una respuesta que costó más de lo estimado | WI28, PR #28 | **Abierta**: hecha y revisada, sin integrar | `30a9583` (punta de la rama) |
 | R08 | El límite de subida no limita lo que un Word descomprime | WI29, PR #29 | **Abierta**: sin integrar | `0ecf53f` (punta de la rama) |
-| R09 | Cada imagen de una reunión relee los resúmenes de todo el proyecto | WI30, PR #31 | **Abierta**: sin integrar | `b4f10ca`… punta de la rama al abrir el PR (código en `ccda496`) |
+| R09 | Cada imagen de una reunión relee los resúmenes de todo el proyecto | WI30, PR #31 | **Abierta**: sin integrar | `30b0951` (punta de la rama; el código es el de `ccda496`) |
 | R10 | La suite no prueba las versiones que empaqueta el instalador | WI31, PR #30 | **Abierta**: sin integrar | `f787048` (punta de la rama) |
 | R11 | La guía contradice el estado de las pruebas | WI31, PR #30 | **Abierta**: sin integrar | `f787048` (punta de la rama) |
 
@@ -207,7 +207,7 @@ uno (`metrics.yaml` sólo los acumula por sesión).
   `limitations`, `proposals` y esta carpeta. Los hallazgos de las revisiones están sólo en cada `independent-review.md`,
   así que el tablero de INGOL no los ve. **Costo.** No medido. **Resuelto.** No. **ID.** No tiene.
 
-### 2.12 INGOL no avisa al aprobar el contrato que un cambio de workflow lo pasa a la vía controlada
+### 2.12 Un cambio de workflow pasa el trabajo a la vía controlada, y el contrato `standard` no lo detectó antes del PR
 
 - **Qué pasó.** El contrato de WI31 declaraba la vía `standard` y listaba `.github/workflows/tests.yml` entre sus
   superficies. Al abrir el PR #30, `bootstrap` falló en TP-06 ("contract lane standard is lower than derived lane
@@ -265,7 +265,7 @@ Tres tipos: (a) del proyecto, (b) de plataforma, (c) de método. "Convertida" di
 | Regla | Qué la originó | Convertida |
 |---|---|---|
 | Una mutación cuenta como detectada sólo si las pruebas **terminaron y fallaron**; un proceso caído no es una detección | En la noche del 7 al 8, tres mutaciones de WI28 salieron con códigos de falta de memoria y el guion las marcó `DETECTED` | Sí, en los guiones de las cuatro ramas (`1a666bc`, `a2ef2fc`, `8da90f4`, `daf9b74`): exigen la línea `Ran N tests`, salida 1 y `FAILED`, y imprimen `NOT RUN` si no |
-| Si un cambio toca un workflow del proyecto, el contrato no puede ser `standard`: el workflow lo cambia el owner a mano en la rama protegida, antes del PR | WI31: el contrato declaró `standard` con `tests.yml` entre sus superficies; `bootstrap` falló en TP-06, TP-08, TP-05, TP-15, TP-12 y TP-03 (punto 2.12) | No: es práctica; INGOL podría comprobarlo al aprobar el contrato |
+| Si un cambio toca un workflow del proyecto, el contrato no puede ser `standard`: el workflow lo cambia el owner a mano en la rama protegida, antes del PR | WI31: el contrato declaró `standard` con `tests.yml` entre sus superficies; `bootstrap` falló en TP-06, TP-08, TP-05, TP-15, TP-12 y TP-03 (punto 2.12) | No: es práctica. Si INGOL ya avisa al aprobar el contrato, no lo vi; no verificado |
 | No se salta la revisión independiente por ser un cambio "chico" | 7 de 12 revisiones encontraron un P1 (punto 3.4) | No: es práctica, no control |
 | Un "no aprobar" pide una segunda revisión, acotada, del arreglo | WI29: la primera dijo no aprobar; la segunda aprobó y encontró dos P3 más (bits de bandera 5 y 6; bytes de control crudos) | No: es práctica |
 | Si el texto afirma que algo se detecta, la reproducción tiene que mostrar esa detección, no un sustituto | WI28 P1-1: los textos decían que se detecta un cambio de precios; no se puede, y la reproducción dividía la estimación en vez de cambiar un precio | Parcial: los textos se corrigieron (`61c88fb`); la regla no es un control |
