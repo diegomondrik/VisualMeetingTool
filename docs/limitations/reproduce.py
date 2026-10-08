@@ -1558,6 +1558,33 @@ def wi31_p3_1(args, root):
                         f"constraints; every library runs above its minimum: {'; '.join(above)}")
 
 
+# --- Work item 18, the installer (version 0.1.0) --------------------------------------------------
+
+@entry("WI18-P3-1")
+def wi18_p3_1(args, root):
+    iss = (REPO / "packaging" / "installer.iss").read_text(encoding="utf-8")
+    build = (REPO / "packaging" / "build.py").read_text(encoding="utf-8")
+    signs = "SignTool" in iss or "signtool" in build.lower()
+    return not signs, ("neither installer.iss nor build.py signs the installer (no SignTool): "
+                       f"signing present: {signs}")
+
+
+@entry("WI18-P3-2")
+def wi18_p3_2(args, root):
+    return None, ("the clean-machine test (a teammate's computer, 2026-10-01/02) showed steps 1 to 4 of 10; steps 5 to "
+                  "10 (the closing question, the second start, installing again in the other language, uninstalling, "
+                  "the antivirus, the log) were not in the report. Source: docs/evidence/"
+                  "01M3VRRZJ3XYC0ADJT8N733F03/clean-machine-run.txt, last paragraph")
+
+
+@entry("WI18-P3-3")
+def wi18_p3_3(args, root):
+    return None, ("Windows Sandbox on Windows 11 24H2 registers WebView2 but cannot start it, so the installed "
+                  "program shows a blank window there and now says so at once (app.window.webview2_failed). Source: "
+                  "docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/clean-machine-sandbox-attempt.txt; "
+                  "https://github.com/MicrosoftEdge/WebView2Feedback/issues/5697")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))

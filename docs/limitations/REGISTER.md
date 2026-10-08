@@ -266,3 +266,14 @@ reproduction reads `pyproject.toml`, `constraints.txt` and the workflow; it runs
 | ID | What it means | State | Seen by running |
 |---|---|---|---|
 | `WI31-P3-1` | The minimums of `pyproject.toml` are not tested: the suite runs only on the exact versions of `constraints.txt`, which are all above them, so a library at its minimum (or between it and the pin) could break the program without any test saying so. The minimums are a promise nobody checks | open | The CI has one install step, with the constraints; every library of `pyproject.toml` runs above its minimum |
+
+## Work item 18, the installer for Windows (`01M3VRRZJ3XYC0ADJT8N733F03`)
+
+Source: the installer's own evidence (`docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/`), kept as limitations of
+version 0.1.0 by the owner's decision of 2026-10-08.
+
+| ID | What it means | State | Seen by running |
+|---|---|---|---|
+| `WI18-P3-1` | The installer is not digitally signed, so Windows SmartScreen (and some antivirus products) warn the first time it runs ("More info" then "Run anyway"); the user manual says so. A certificate is a purchase and a process that this version does not have | open | `packaging/installer.iss` and `packaging/build.py` carry no signing step |
+| `WI18-P3-2` | The clean-machine test of the installer is incomplete: a teammate's computer showed installing without administrator rights, the language asked first, the window, uploading a transcript and a video, the frames extracted and the spending ceiling stopping a run. Not shown: the closing question during a processing, the second start, installing again over it in the other language, uninstalling keeping the data, the antivirus verdict and the log | not reproducible here: it needs a clean Windows machine. Source: `docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/clean-machine-run.txt` | — |
+| `WI18-P3-3` | Windows Sandbox on Windows 11 24H2 cannot run the installed program: WebView2 is registered there but cannot start. The program says so at once and how to repair it; the same program shows its screens on a real machine | not reproducible here: it needs Windows Sandbox on 24H2. Source: `docs/evidence/01M3VRRZJ3XYC0ADJT8N733F03/clean-machine-sandbox-attempt.txt` | — |
