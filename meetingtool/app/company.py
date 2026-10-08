@@ -66,11 +66,14 @@ def _change(data_dir, change):
         _write(folder, settings)
 
 
-def language(data_dir):
-    """The application's language; the default one if none was chosen or the
-    record was edited by hand into something else."""
+def language(data_dir, default=texts.DEFAULT_LANGUAGE):
+    """The application's language; `default` if none was chosen or the record
+    was edited by hand into something else. The installed application's
+    default is the language its installer was read in (WI18)."""
     chosen = _read(data_dir).get("language")
-    return chosen if chosen in texts.LANGUAGES else texts.DEFAULT_LANGUAGE
+    if chosen in texts.LANGUAGES:
+        return chosen
+    return default if default in texts.LANGUAGES else texts.DEFAULT_LANGUAGE
 
 
 def set_language(data_dir, code):

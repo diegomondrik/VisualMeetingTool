@@ -286,6 +286,41 @@ token at each start), and a request from a page of another site (another
 Origin, Sec-Fetch-Site or Host) is refused. `--port` fixes the port and
 `--no-browser` only prints the launch address.
 
+## The installer for Windows
+
+`VisualMeetingTool-Setup-<version>.exe`, on the repository's releases page,
+installs the application for the current user, without administrator rights
+and without Python. It first asks in which language it is to be read (Spanish
+or English); the installed application starts in that language until one is
+chosen in its settings. The installed program opens the same screens in a
+window of its own, through WebView2, which Windows 11 already has: no browser
+and no console (`meetingtool/app/window.py`). Closed with the X while a meeting
+is being processed, it asks first; confirmed, the meeting is not added to the
+project and what was already paid for stays, as for any failed run, so that processing it
+again does not pay for it twice. A second start on the same data folder says the
+application is already open. The data folder is the user's, outside the
+program: uninstalling, or installing a new version over the old one, keeps it
+and the Gemini key. The program is not signed, so Windows warns the first time
+("More info" → "Run anyway").
+
+To build it, once: a separate environment with the pinned tools, and Inno
+Setup 6:
+
+```
+python -m venv <build environment>
+<build environment>\Scripts\python -m pip install -r packaging\requirements-build.txt
+winget install --id JRSoftware.InnoSetup -e
+```
+
+Then, from a clean working tree:
+
+```
+<build environment>\Scripts\python packaging\build.py
+```
+
+It refuses other versions of the tools and changes not committed, and prints
+the commit, the tools, the size and the SHA-256 of `dist\VisualMeetingTool-Setup-<version>.exe`.
+
 ## Running the tests
 
 Python 3.11 or newer, with the libraries in `pyproject.toml` installed. The

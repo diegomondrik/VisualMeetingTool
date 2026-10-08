@@ -1,0 +1,14 @@
+clone of f8335b3 in C:\Users\Diego\AppData\Local\Temp\wi18-mutations-e90x87ga
+caught       the run does not take the saving lock (review P2-3)  [tests.test_window.ClosingTest: FAILED (failures=1)]
+caught       close() does not wait for a saving  [tests.test_window.ClosingTest tests.test_window.CloseWhileSavingTest: FAILED (failures=2)]
+caught       a run saves its meeting after close()  [tests.test_window.ClosingTest: FAILED (failures=1)]
+caught       the window does not close the runner when pywebview returns (review P3-4)  [tests.test_window.LogTest: FAILED (failures=1)]
+caught       a % in installation.ini is read as a reference (review P2-1)  [tests.test_window.LanguageTest: FAILED (errors=1)]
+caught       the trace of an exception keeps the token (review P3-2)  [tests.test_window.LogTest: FAILED (failures=1)]
+caught       Internet Explorer's component goes unsaid (review P3-1)  [tests.test_window.LogTest: FAILED (failures=1)]
+caught       WebView2 failing to start goes unsaid  [tests.test_window.LogTest: FAILED (failures=1)]
+caught       the installer's language is not the default  [tests.test_window.LanguageTest: FAILED (failures=2)]
+caught       the build ignores tools that are not the pinned ones (review P3-5)  [tests.test_packaging.BuildTest: FAILED (failures=1)]
+caught       the build ignores changes not committed (review P3-5)  [tests.test_packaging.BuildTest: FAILED (failures=1)]
+caught       the build packs files git ignores (review P2-2)  [tests.test_packaging.BuildTest: FAILED (failures=1)]
+12 of 12 caught

@@ -381,6 +381,9 @@ class Runner:
         self.retry_delays = gemini.RETRY_DELAYS if retry_delays is None else retry_delays
         self.jobs = {}
         self.lock = threading.Lock()
+        # Closing the window (WI18): no run saves its meeting after close(); one saving then ends first.
+        self.saving = threading.Lock()
+        self.closed = False
 
     def running(self):
         with self.lock:
@@ -395,6 +398,15 @@ class Runner:
             if any(job.state == "running" for job in self.jobs.values()):
                 raise JobError("app.run.busy")
             discard_kept(self.data_dir, project_id, run)
+
+    def close(self):
+        """After this no run joins its meeting to a project: a run being
+        processed fails like any other, so its meeting is not added and what
+        it paid stays in the project's working folder (WI20); what paid
+        nothing is cleared at the next start (clear_leftovers). A meeting being
+        saved right now is saved whole first."""
+        with self.saving:
+            self.closed = True
 
     def start(self, request, wait=False):
         key = self.read_key()
@@ -438,7 +450,7 @@ class Runner:
         project_dir = self.data_dir / request["project"]
         work = final = None
         folder_name = ""
-        added, moved, phase = False, False, "preparing"
+        added, moved, saving, phase = False, False, False, "preparing"
         try:
             store.check_data_dir(project_dir)
             fingerprint = request_fingerprint(request)
@@ -513,6 +525,11 @@ class Runner:
                    (len(extracted.kept) if extracted else 0),
                    "report_images": report.images, "finished_utc": store._now_utc()}
             disk.write_text(work / library.RUN_NAME, json.dumps(run, indent=2, ensure_ascii=False) + "\n")
+            # Held until what a failed saving made is undone: the window closes only after that.
+            self.saving.acquire()
+            saving = True
+            if self.closed:
+                raise JobError("app.run.closed")
             final.parent.mkdir(parents=True, exist_ok=True)
             if final.exists():
                 raise JobError("app.run.folder_taken", folder=folder_name)
@@ -537,6 +554,9 @@ class Runner:
                     pass
             except Exception as error:  # noqa: BLE001 - the job must end, and say why
                 job.error = job.error or texts.Message("app.unexpected", detail=texts.External(str(error)))
+            finally:
+                if saving:
+                    self.saving.release()
             # Said last: a page told the run failed finds it settled.
             job.seconds = time.monotonic() - job.started
             job.state = "done" if added else "failed"
