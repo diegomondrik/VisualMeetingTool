@@ -1425,6 +1425,36 @@ def wi27_p3_1(args, root):
     return said == "accepted", f"'between [a, and b]', rewritten as {text!r}: {said}"
 
 
+@entry("WI28-P3-1")
+def wi28_p3_1(args, root):
+    from meetingtool.reading import gemini
+    from tests import test_summary
+    from tests.test_reading import FakeGemini
+    # The provider charges more than the prices in the code say: the same tokens cost four times what the code
+    # counts. Nothing before the request can know it; the answer's usage is what tells.
+    answer = test_summary.answer("Uno.")
+    answer["usageMetadata"] = {"promptTokenCount": 120000, "candidatesTokenCount": 3000, "thoughtsTokenCount": 2000}
+    worst = gemini.token_cost(120000, 5000)
+    with FakeGemini([lambda first, count: answer]) as fake:
+        counters = gemini.new_counters()
+        payload = {"contents": [{"role": "user", "parts": [{"text": "x"}]}]}
+        url = gemini.model_url(fake.endpoint, gemini.MODEL)
+
+        def send():
+            return gemini.call_checked(url, "k" * 39, payload, lambda reply: "ok", worst / 4, "x", (), lambda s: None,
+                                       counters, 5.0)
+        send()
+        sent_before_noticing = len(fake.requests)
+        try:
+            send()
+            said = "sent again"
+        except gemini.ReadingError as error:
+            said = error.message.key
+    return (gemini.MODEL == "gemini-flash-latest" and sent_before_noticing == 1 and said == "gemini.estimate_short",
+            f"model {gemini.MODEL!r}, prices in the code: the request went out ({sent_before_noticing} sent) and "
+            f"the run stopped only after its answer cost more than estimated: {said}")
+
+
 # --- Running ---------------------------------------------------------------------------------
 
 STATE_WORDS = (("not reproducible", "not-reproducible"), ("open", "open"), ("fixed", "fixed"))
