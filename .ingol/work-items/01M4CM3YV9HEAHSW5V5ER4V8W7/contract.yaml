@@ -42,6 +42,13 @@ objective: >
   Built by a construction-role agent (Sonnet), gated by the criterion; one
   independent review through INGOL's mailbox.
 
+  Decided on 2026-10-08, after the pull request failed the protected review (TP-05,
+  TP-15, TP-06: a candidate cannot change a project workflow, and a workflow
+  surface makes the lane controlled): constraints.txt and the change of
+  .github/workflows/tests.yml were pushed by the owner by hand to the protected
+  main (a5624cb), so this work item no longer changes the workflow and does not
+  list it among its surfaces.
+
   Not done: a test matrix over the minimums; an audit of known
   vulnerabilities (it needs the network).
 lane: standard
@@ -50,7 +57,6 @@ affected_surfaces:
   - docs/evidence/01M4CM3YV9HEAHSW5V5ER4V8W7/**
   - docs/limitations/**
   - docs/MAINTAINING.md
-  - .github/workflows/tests.yml
   - constraints.txt
   - tests/**
   - README.md
