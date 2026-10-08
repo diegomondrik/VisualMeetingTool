@@ -788,7 +788,10 @@ def wi05_p3_8(args, root):
         with zipfile.ZipFile(docx, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("word/document.xml", document)
         compressed = docx.stat().st_size
-        blocks = transcript_module.read_blocks(docx)
+        try:
+            blocks = transcript_module.read_blocks(docx)
+        except transcript_module.TranscriptError as error:
+            return False, f"a {compressed // 1024} KB .docx of {size // (1024 * 1024)} MB of text is refused: {error}"
     return (len(blocks) == 1 and len(blocks[0][1]) >= size,
             f"a {compressed // 1024} KB .docx is read whole: {len(blocks[0][1]) // (1024 * 1024)} MB of text, no limit")
 
@@ -1423,6 +1426,54 @@ def wi27_p3_1(args, root):
     except writer.SummaryError as error:
         said = f"refused: {error.message.key}"
     return said == "accepted", f"'between [a, and b]', rewritten as {text!r}: {said}"
+
+
+@entry("WI28-P3-1")
+def wi28_p3_1(args, root):
+    from meetingtool.reading import gemini
+    from tests import test_summary
+    from tests.test_reading import FakeGemini
+    # The provider charges twice the prices written in the code for the same tokens. Google's answer holds token
+    # counts, never a price, and the run counts what an answer cost with the code's own prices, so nothing differs
+    # from the estimate and nothing is noticed: the run does not stop, and what it records is half the bill.
+    answer = test_summary.answer("Uno.")
+    answer["usageMetadata"] = {"promptTokenCount": 120000, "candidatesTokenCount": 3000, "thoughtsTokenCount": 2000}
+    worst = 0.15  # what the request was estimated to cost at the most; the answer costs less at the code's prices
+    with FakeGemini([lambda first, count: answer, lambda first, count: answer]) as fake:
+        counters = gemini.new_counters()
+        url = gemini.model_url(fake.endpoint, gemini.MODEL)
+        for text in ("x", "y"):
+            payload = {"contents": [{"role": "user", "parts": [{"text": text}]}]}
+            gemini.call_checked(url, "k" * 39, payload, lambda reply: "ok", worst, "x", (), lambda s: None, counters, 5.0)
+        recorded = counters["spent"] / 2
+        with mock.patch.object(gemini, "PRICE_INPUT_PER_MILLION", 2 * gemini.PRICE_INPUT_PER_MILLION), \
+                mock.patch.object(gemini, "PRICE_OUTPUT_PER_MILLION", 2 * gemini.PRICE_OUTPUT_PER_MILLION):
+            billed = gemini.token_cost(120000, 5000)
+        sent, overrun = len(fake.requests), counters["overrun"]
+    return (gemini.MODEL == "gemini-flash-latest" and sent == 2 and overrun is None and billed > worst > recorded,
+            f"model {gemini.MODEL!r}; each request recorded as US${recorded:.4f}, estimated at most US${worst:.2f}; at "
+            f"twice the prices it would be billed US${billed:.4f}: {sent} requests sent, overrun {overrun}")
+
+
+@entry("WI28-P3-2")
+def wi28_p3_2(args, root):
+    from meetingtool.reading import gemini
+    from tests import test_summary
+    from tests.test_reading import FakeGemini
+    # A run that stopped for an overrun and is processed again starts with new counters: the answers it kept cost
+    # nothing, but a request it has to pay for goes out, and can overrun again with the same estimate.
+    answer = test_summary.answer("Uno.")
+    answer["usageMetadata"] = {"promptTokenCount": 800000, "candidatesTokenCount": 1, "thoughtsTokenCount": 0}
+    with FakeGemini([lambda first, count: answer, lambda first, count: answer]) as fake:
+        url = gemini.model_url(fake.endpoint, gemini.MODEL)
+        overruns = []
+        for text in ("x", "y"):  # the second run needs an answer the first did not keep
+            counters = gemini.new_counters()
+            payload = {"contents": [{"role": "user", "parts": [{"text": text}]}]}
+            gemini.call_checked(url, "k" * 39, payload, lambda reply: "ok", 0.10, "x", (), lambda s: None, counters, 5.0)
+            overruns.append(counters["overrun"] is not None)
+        sent = len(fake.requests)
+    return sent == 2 and all(overruns), f"two runs, each with its own counters: {sent} requests sent, overruns {overruns}"
 
 
 @entry("WI29-P3-1")

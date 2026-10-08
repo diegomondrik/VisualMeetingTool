@@ -1,0 +1,21 @@
+schema_version: "1"
+work_item: 01M4CM3YV6DMY3QDWAZDMAANW6
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M4CM3YV6DMY3QDWAZDMAANW6-spending-ceiling
+steps:
+  - an-answer-over-its-estimate-stops-the-run-wi28-ac01
+  - the-ceiling-says-it-is-an-estimate-wi28-ac02
+  - mutations-review-suite-register-wi28-ac03
+evaluations:
+  - criterion: WI28-AC01
+    method: adversarial
+    control: fake Gemini answers whose usage costs more than the request's estimate, in each stage and on a retry.
+  - criterion: WI28-AC02
+    method: deterministic
+    control: the texts of the form, the run page, the README and the docstring, in both languages.
+  - criterion: WI28-AC03
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py.

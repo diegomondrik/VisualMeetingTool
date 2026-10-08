@@ -49,6 +49,12 @@ TEXTS = {
     "gemini.over_budget": "se frenó antes de mandar {what}: ese pedido podía costar hasta US${worst:.2f}, y con unos "
                           "US${spent:.2f} ya gastados podía pasar el techo de US${budget:.2f}; no se escribió nada"
                           "{refused}",
+    "gemini.estimate_short": "se frenó{unsent}: la respuesta a {after} usó más tokens de los que se estimaba que usaría "
+                             "su pedido, y costó US${cost:.4f} contra los US${estimated:.4f} estimados, así que la "
+                             "estimación no es confiable y en esta corrida no se manda nada más. Lo que ya se "
+                             "respondió queda guardado{refused}",
+    "gemini.estimate_short.before": " antes de mandar {what}",
+    "gemini.estimate_short.end": " al terminar la corrida, antes de escribir nada",
     "gemini.before.no_answer": " (el intento anterior no tuvo respuesta[[: {reason}]])",
     "gemini.before.refused": " (la respuesta anterior se rechazó: {error})",
     "gemini.refused": "Gemini rechazó el pedido (HTTP {status}); si dice que la clave no sirve, guardala de nuevo en "
@@ -284,7 +290,8 @@ TEXTS = {
     "app.state.skipped": "no hace falta",
     "app.state.failed": "falló",
     "app.cost.title": "Lo que costó",
-    "app.cost.total_html": "<strong>{spent}</strong> de un techo de {ceiling}, en {seconds} s.",
+    "app.cost.total_html": "<strong>{spent}</strong> de un techo estimado de {ceiling} (con precios de lista; un pedido "
+                           "ya mandado se paga aunque se rechace su respuesta), en {seconds} s.",
     "app.frame.mention": "imagen {clock}",
     "app.frame.caption": "Minuto {clock}",
     "app.result.open_word": "Abrir el Word",
@@ -306,8 +313,9 @@ TEXTS = {
     "app.new.language": "Idioma del resultado",
     "app.new.meeting_language": "El de la reunión",
     "app.new.qa_hint": "(cada pregunta con su respuesta completa)",
-    "app.new.ceiling": "Techo de gasto en dólares",
-    "app.new.ceiling_hint": "(si una etapa pudiera pasarlo, no se manda)",
+    "app.new.ceiling": "Techo de gasto estimado en dólares",
+    "app.new.ceiling_hint": "(es una estimación con precios de lista: un pedido ya mandado se paga aunque se rechace "
+                            "su respuesta, y la corrida se frena si una respuesta costó más de lo estimado)",
     "app.new.process": "Procesar",
     "app.job.title": "Procesando",
     "app.job.loading": "Cargando…",
@@ -460,7 +468,7 @@ TEXTS = {
     "js.state.done": "listo",
     "js.state.skipped": "no hace falta",
     "js.state.failed": "falló",
-    "js.spent": "Gastado: {spent} de un techo de {ceiling} · {seconds} s",
+    "js.spent": "Gastado: {spent} de un techo estimado de {ceiling} · {seconds} s",
     "js.see_meeting": "Ver la reunión",
     "js.failed_at": "Falló en «{stage}»: {error}. La reunión no se agregó al proyecto y no quedó nada a medias.",
     "js.detail": "Detalle: {detail}",
