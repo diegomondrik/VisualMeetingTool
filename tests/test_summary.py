@@ -3,8 +3,11 @@ test_reading: no test reaches the network. Transcripts, frames readings and
 projects are invented at test time in a temporary folder."""
 
 import contextlib
+import hashlib
 import io
 import json
+import re
+import shutil
 import subprocess
 import sys
 import tempfile
@@ -12,12 +15,13 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+from meetingtool import texts
 from meetingtool.frames.transcript import read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.summary import writer
 from meetingtool.summary.__main__ import main
-from tests.test_frames import write_teams_docx
+from tests.test_frames import TIMED, write_teams_docx, write_timed_docx, write_timed_text
 from tests.test_reading import KEY, FakeGemini
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -29,7 +33,9 @@ ENGLISH = [("Ann Parker", "0:04", "Good morning, we are reviewing the plant's pr
            ("Ann Parker", "1:02:03", "Agreed: John sends the detail on Friday.")]
 
 
-def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=False, points=True):
+def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=False, points=True, empty=None,
+                 emptied=""):
+    """A complete summary; the section of the heading `empty` holds `emptied` (nothing, by default)."""
     headings = writer.required_headings(language, meeting_type)
     if swap:
         headings[1], headings[2] = headings[2], headings[1]
@@ -41,6 +47,8 @@ def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=
             body = "- John sends the detail on Friday\n- The total is above what was expected" if points else "(none)"
         elif heading == writer.KEY_POINTS[language]:
             body = "- Juan manda el detalle el viernes\n- El total supera lo esperado" if points else "(ninguno)"
+        elif heading == empty:
+            body = emptied
         else:
             body = f"The text of {heading}." if language == "en" else f"Texto de {heading}."
         parts.append(f"## {heading}\n{body}")
@@ -72,6 +80,11 @@ class Workspace(unittest.TestCase):
         write_teams_docx(self.transcript, SPANISH)
         self.data = self.tmp / "data"
         self.sleeps = []
+
+    def forget_paid(self):
+        """Drop the answers kept by an earlier request (WI20), for a test whose
+        requests are the same and must each be sent."""
+        shutil.rmtree(self.frames / gemini.KEPT_DIR, ignore_errors=True)
 
     def tearDown(self):
         self._tmp.cleanup()
@@ -106,7 +119,8 @@ class WritingTest(Workspace):
         self.assertEqual(request["headers"]["x-goog-api-key"], KEY)
         self.assertNotIn(KEY, request["path"] + json.dumps(request["body"]))
         self.assertIn("[00:01:22] Juan Gómez: Fijate el total", prompt)
-        self.assertIn("[FRAME 1]\n- Key Data: total 1.250", prompt)
+        # WI24: the block is labelled with its frame's file name (it was "[FRAME 1]").
+        self.assertIn("[frame_001_t00-01-22.jpg]\n- Key Data: total 1.250", prompt)
         self.assertIn("Write the summary in Spanish.", prompt)
         for heading in writer.required_headings("es"):
             self.assertIn(f"## {heading}", prompt)
@@ -220,6 +234,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
     def test_a_meeting_type_adds_its_sections_and_they_are_required(self):
         with FakeGemini([returning(summary_text(meeting_type="technical"))] + [returning(summary_text())] * 2) as fake:
             self.summarise(fake, meeting_type="technical")
+            self.forget_paid()
             with self.assertRaises(writer.SummaryError):
                 self.summarise(fake, meeting_type="technical")
         self.assertIn("## Decisiones técnicas", fake.requests[0]["body"]["contents"][0]["parts"][0]["text"])
@@ -234,6 +249,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
     def test_the_key_never_appears_in_any_output(self):
         outputs = []
         for script in ([returning(summary_text())], [400], [returning(summary_text(drop="Temas"))] * 2):
+            self.forget_paid()
             stdout, stderr = io.StringIO(), io.StringIO()
             with FakeGemini(script) as fake, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 code = main(["--frames", str(self.frames), "--transcript", str(self.transcript)],
@@ -242,7 +258,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
         self.assertEqual([code for code, _ in outputs], [0, 2, 2])
         for _, text in outputs:
             self.assertNotIn(KEY, text)
-        for path in self.frames.iterdir():
+        for path in (p for p in self.frames.rglob("*") if p.is_file()):
             self.assertNotIn(KEY, path.read_text(encoding="utf-8"))
 
     def test_with_no_key_saved_nothing_is_sent(self):
@@ -571,6 +587,7 @@ class KeyAndBudgetWithTypesTest(Workspace):
         spanish_body = summary_text("en", "requirements").replace("The text of", "Texto de la sección")
         scripts = ([returning(summary_text("en", "requirements"))], [returning(spanish_body)] * 2)
         for script in scripts:
+            self.forget_paid()
             stdout, stderr = io.StringIO(), io.StringIO()
             with FakeGemini(script) as fake, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type",
@@ -582,7 +599,7 @@ class KeyAndBudgetWithTypesTest(Workspace):
         self.assertIn("not in English", outputs[1][1])
         for _, text in outputs:
             self.assertNotIn(KEY, text)
-        for path in self.frames.iterdir():
+        for path in (p for p in self.frames.rglob("*") if p.is_file()):
             self.assertNotIn(KEY, path.read_text(encoding="utf-8"))
 
     def test_a_typed_request_that_could_go_over_the_budget_is_not_sent(self):
@@ -748,6 +765,626 @@ NOT_RANGES = ["[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]",
               "[frame_001_t00-01-22.jpg] a la derecha del total",
               "**[frame_001_t00-01-22.jpg]** y **[frame_002_t00-05-00.jpg]**",
               "| [frame_001_t00-01-22.jpg] | - | [frame_002_t00-05-00.jpg] |"]
+
+
+class NoSpeakerTest(Workspace):
+    """WI24-AC01: the summary of a meeting whose transcript names no one."""
+
+    def written(self, kind):
+        path = self.tmp / f"timed.{kind}"
+        (write_timed_docx if kind == "docx" else write_timed_text)(path, TIMED)
+        return path
+
+    def test_the_summary_is_written_and_its_request_has_the_turns_with_no_speaker(self):
+        for kind in ("docx", "txt"):
+            with self.subTest(kind=kind):
+                self.transcript = self.written(kind)
+                self.forget_paid()
+                with FakeGemini([returning(summary_text())]) as fake:
+                    result = self.summarise(fake)
+                prompt = prompt_of(fake.requests[0])
+                self.assertEqual(result.language, "es")
+                self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text())
+                self.assertIn("[00:00:02] Buen día a todos, empezamos con el costo de proceso.\n[00:00:41] Primero el "
+                              "total.\nLuego la columna de kilos, que se cierra a las 10:30.\n[00:12:09] Mirá el "
+                              "tablero.\n[01:02:03] Queda acordado enviar el detalle.\n[02:11:00] Hasta la próxima.",
+                              prompt)
+                self.assertEqual(re.findall(r"^\[\d\d:\d\d:\d\d\] \w+: ", prompt, re.MULTILINE), [])
+
+    def test_turns_with_no_speaker_are_read_by_the_summary_as_by_the_register(self):
+        self.assertEqual([speaker for _, speaker, _ in read_turns(self.written("docx"))], [""] * len(TIMED))
+
+
+def reading_of(count, folder):
+    """A frames folder of `count` frames named as the extractor names them
+    (distinct times) and the reading of them as gemini.read_frames writes it."""
+    names = [f"frame_{n:03d}_t{n * 47 // 3600:02d}-{n * 47 % 3600 // 60:02d}-{n * 47 % 60:02d}.jpg"
+             for n in range(1, count + 1)]
+    for name in names:
+        (folder / name).write_bytes(b"")
+    header = ["# What each frame shows (read by Gemini)", "", f"{count} frames, 3 request(s), model fake.", ""]
+    header += [f"- FRAME {n}: {name}" for n, name in enumerate(names, start=1)] + [""]
+    blocks = [f"[FRAME {n}]\n- Window/App: Excel\n- Key Data: row {n}: 1, 2, 3" for n in range(1, count + 1)]
+    (folder / gemini.OUTPUT_NAME).write_text("\n".join(header) + "\n" + "\n\n".join(blocks) + "\n", encoding="utf-8")
+    return names
+
+
+class FrameLabelsTest(Workspace):
+    """WI24-AC03: with 141 frames Gemini named frame_071_t01-05-36.jpg, the
+    number of one frame with the time of another, because the request listed
+    the names at the top and labelled each block only "[FRAME n]"."""
+
+    def setUp(self):
+        super().setUp()
+        (self.frames / gemini.OUTPUT_NAME).unlink()
+        (self.frames / "frame_001_t00-01-22.jpg").unlink(missing_ok=True)
+        self.names = reading_of(141, self.frames)
+
+    def naming(self, *names):
+        return summary_text().replace("Texto de Lo que se vio en pantalla.",
+                                      "Texto de Lo que se vio en pantalla: " + " y ".join(f"[{n}]" for n in names)
+                                      + ", con el total de la columna.")
+
+    def test_every_block_of_the_reading_is_labelled_with_its_frames_exact_file_name(self):
+        with FakeGemini([returning(summary_text())]) as fake:
+            self.summarise(fake)
+        prompt = prompt_of(fake.requests[0])
+        self.assertEqual(len(self.names), 141)
+        for number, name in enumerate(self.names, start=1):
+            self.assertIn(f"\n[{name}]\n- Window/App: Excel\n- Key Data: row {number}: 1, 2, 3", prompt)
+        self.assertEqual(re.findall(r"\[FRAME \d+\]", prompt), [])
+        self.assertNotIn("- FRAME 71:", prompt)  # the list at the top is no longer needed: the labels carry the names
+        self.assertIn("every file name exactly, character by character, as it appears next to the block",
+                      " ".join(writer.FRAME_RULE.split()))
+        self.assertIn(writer.FRAME_RULE, prompt)
+
+    def test_the_numbers_of_a_reading_of_141_frames_are_matched_to_the_names_of_the_header(self):
+        # The case of the owner's meeting: frame 71 is not the frame of minute 65.
+        self.assertEqual(self.names[70], "frame_071_t00-55-37.jpg")
+        labelled = writer.label_frames((self.frames / gemini.OUTPUT_NAME).read_text(encoding="utf-8"))
+        self.assertIn("[frame_071_t00-55-37.jpg]\n- Window/App: Excel", labelled)
+        self.assertNotIn("frame_071_t01-05-36", labelled)
+
+    def test_a_label_wrapped_in_bold_or_a_block_the_header_does_not_list_is_handled(self):
+        reading = "- FRAME 1: frame_001_t00-00-10.jpg\n\n**[FRAME 1]**\n- Key Data: a\n\n[FRAME 2]\n- Key Data: b\n"
+        self.assertEqual(writer.label_frames(reading),
+                         "**[frame_001_t00-00-10.jpg]**\n- Key Data: a\n\n[FRAME 2]\n- Key Data: b")
+
+    def test_a_wrong_name_then_only_real_ones_is_accepted_and_the_retry_says_what_was_wrong(self):
+        wrong = "frame_071_t01-05-36.jpg"
+        self.assertNotIn(wrong, self.names)
+        good = self.naming(self.names[70], self.names[100])
+        with FakeGemini([returning(self.naming(wrong)), returning(good)]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), good)
+        first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
+        self.assertNotIn(wrong, first)
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED", second)
+        self.assertIn(f"do not exist: {wrong}.", second)
+        self.assertIn("exactly as it is written in the label of its block", second)
+        # The retry is the same request with the note added, before the material.
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""),
+                         first)
+
+    def test_the_retry_names_every_name_that_does_not_exist(self):
+        with FakeGemini([returning(self.naming("frame_071_t01-05-36.jpg", "frame_072_t02-00-00.jpg")),
+                         returning(self.naming(self.names[70]))]) as fake:
+            self.summarise(fake)
+        self.assertIn("do not exist: frame_071_t01-05-36.jpg, frame_072_t02-00-00.jpg.", prompt_of(fake.requests[1]))
+
+    def test_two_answers_naming_frames_that_do_not_exist_are_refused_and_nothing_is_written(self):
+        for second in (self.naming("frame_071_t01-05-36.jpg"), self.naming(self.names[70], "frame_080_t09-09-09.jpg")):
+            with self.subTest(second=second[-60:]):
+                self.forget_paid()
+                with FakeGemini([returning(self.naming("frame_071_t01-05-36.jpg")), returning(second)]) as fake:
+                    with self.assertRaises(writer.SummaryError) as caught:
+                        self.summarise(fake)
+                self.assertEqual(caught.exception.message.key, "summary.frames_missing")
+                self.assertEqual(len(fake.requests), 2)
+                self.assertFalse(self.output().exists())
+
+    def test_another_refusal_retries_with_the_same_request_as_before(self):
+        with FakeGemini([returning(summary_text(drop="Temas")), returning(summary_text())]) as fake:
+            self.summarise(fake)
+        self.assertEqual(fake.requests[0]["body"], fake.requests[1]["body"])
+
+    def test_the_check_of_the_names_is_as_strict_as_ever(self):
+        names = set(self.names)
+        writer.check_frames(self.naming(self.names[70]), names)
+        for wrong in ("frame_071_t01-05-36.jpg", "frame_071_t00-55-38.jpg", "frame_142_t01-50-00.jpg"):
+            with self.subTest(wrong=wrong), self.assertRaises(writer.SummaryError):
+                writer.check_frames(self.naming(wrong), names)
+
+    def test_the_budget_reserves_the_retrys_note_too(self):
+        prompt = writer.build_prompt(read_turns(self.transcript), (self.frames / gemini.OUTPUT_NAME).read_text(
+            encoding="utf-8"), "es")
+        without_note = gemini.token_cost(len(prompt) / writer.CHARS_PER_TOKEN, writer.MAX_OUTPUT_TOKENS)
+        with FakeGemini() as fake:
+            with self.assertRaises(gemini.ReadingError):
+                self.summarise(fake, max_cost_usd=without_note + 0.00001)
+        self.assertEqual(fake.requests, [])
+
+
+class EmptySectionTest(Workspace):
+    """WI25-AC02: a summary with every heading and nothing under it was
+    accepted as complete (the external review's R04). Each section needs
+    content, or a line saying plainly that there was none."""
+
+    NOTHING = {"es": "No hubo nada de esto en la reunión.", "en": "None of this came up in the meeting."}
+
+    def sections(self):
+        """(language, meeting type, headings) of every summary the program asks for."""
+        for language in ("es", "en"):
+            for meeting_type in (None, *writer.MEETING_TYPES):
+                yield language, meeting_type, writer.required_headings(language, meeting_type)
+
+    def refusal(self, text, headings, language="es"):
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(text), headings, language)
+        return caught.exception.message
+
+    def test_each_section_left_empty_in_turn_is_refused_naming_it(self):
+        for language, meeting_type, headings in self.sections():
+            for heading in headings[:-1]:
+                with self.subTest(language=language, meeting_type=meeting_type, heading=heading):
+                    message = self.refusal(summary_text(language, meeting_type, empty=heading), headings, language)
+                    self.assertEqual(message.key, "summary.empty_sections")
+                    self.assertEqual(message.params["headings"], heading)
+                    self.assertIn(heading, str(message))
+
+    def test_the_key_points_left_empty_is_still_the_key_points_refusal(self):
+        for language in ("es", "en"):
+            headings = writer.required_headings(language)
+            with self.subTest(language=language):
+                text = summary_text(language)
+                text = text[:text.index(f"## {headings[-1]}")] + f"## {headings[-1]}\n"
+                self.assertEqual(self.refusal(text, headings, language).key, "summary.no_key_points")
+
+    def test_every_empty_section_is_named_in_the_refusal(self):
+        headings = writer.required_headings("es")
+        text = summary_text("es", empty=headings[2])
+        text = text.replace(f"## {headings[3]}\nTexto de {headings[3]}.", f"## {headings[3]}\n")
+        self.assertEqual(self.refusal(text, headings).params["headings"], f"{headings[2]}, {headings[3]}")
+
+    def test_the_answer_of_the_review_with_the_headings_and_nothing_else_is_refused(self):
+        headings = writer.required_headings("es")
+        text = "\n\n".join(f"## {heading}" for heading in headings[:-1])
+        text += f"\n\n## {headings[-1]}\n- Se habló de la planta.\n"
+        message = self.refusal(text, headings)
+        self.assertEqual(message.params["headings"], ", ".join(headings[:-1]))
+
+    def test_what_is_not_content_is_empty(self):
+        for nothing in ("", "   ", "\n\n", "---", "***", "___", "| --- | --- |", "|---|---|", "-", "* ", "1.", ". . .",
+                        "…", "---\n\n|---|---|\n-"):
+            with self.subTest(nothing=nothing):
+                headings = writer.required_headings("es")
+                message = self.refusal(summary_text(empty=headings[2], emptied=nothing), headings)
+                self.assertEqual(message.params["headings"], headings[2])
+
+    def test_a_line_saying_there_was_nothing_is_content_whatever_it_says(self):
+        for language, meeting_type, headings in self.sections():
+            for heading in headings[1:-1]:
+                with self.subTest(language=language, meeting_type=meeting_type, heading=heading):
+                    text = summary_text(language, meeting_type, empty=heading, emptied=self.NOTHING[language])
+                    self.assertEqual(writer.check_summary(answer(text), headings, language), text)
+
+    def test_other_ways_of_saying_nothing_or_a_little_are_content(self):
+        headings = writer.required_headings("es")
+        for little in ("Ninguna.", "*Ninguno.*", "- Sin decisiones.", "1. Ninguna", "| Tarea | Responsable |", "0",
+                       "N/A", "No se tomó ninguna decisión."):
+            with self.subTest(little=little):
+                text = summary_text(empty=headings[2], emptied=little)
+                self.assertEqual(writer.check_summary(answer(text), headings, "es"), text)
+
+    def test_a_meeting_without_decisions_is_a_real_meeting(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2], emptied="No se tomó ninguna decisión en esta reunión.")
+        with FakeGemini([returning(text)]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+
+    def test_a_section_with_subsections_has_the_content_under_them(self):
+        headings = writer.required_headings("es")
+        heading = headings[6]
+        titled = "### Costos\nEl total supera lo esperado.\n### Plazos\nEl viernes."
+        with_text = summary_text(empty=heading, emptied=titled)
+        self.assertEqual(writer.check_summary(answer(with_text), headings, "es"), with_text)
+        only_titles = summary_text(empty=heading, emptied="### Costos\n### Plazos\n")
+        self.assertEqual(self.refusal(only_titles, headings).params["headings"], heading)
+
+    def test_a_heading_with_nothing_is_empty_whatever_its_level_or_form(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2])
+        for variant in (text.replace(f"## {headings[2]}", f"#### {headings[2]}:"),
+                        text.replace(f"## {headings[2]}", f"## **{headings[2]}**"),
+                        text.replace(f"## {headings[2]}", f"## 3. {headings[2]}"),
+                        # the next required heading is of a lower level than the empty section's own
+                        text.replace(f"## {headings[3]}", f"#### {headings[3]}")):
+            with self.subTest(variant=variant[:80]):
+                self.assertEqual(self.refusal(variant, headings).params["headings"], headings[2])
+
+    def test_what_follows_a_heading_that_is_not_required_is_not_the_content_of_the_one_before(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2], emptied="## Anexo\nTexto del anexo.")
+        self.assertEqual(self.refusal(text, headings).params["headings"], headings[2])
+
+    def test_the_request_asks_for_content_or_a_line_saying_there_was_none(self):
+        with FakeGemini([returning(summary_text())]) as fake:
+            self.summarise(fake)
+        prompt = prompt_of(fake.requests[0])
+        self.assertIn(writer.EMPTY_RULE, prompt)
+        self.assertLess(prompt.index(f"## {writer.KEY_POINTS['es']}"), prompt.index(writer.EMPTY_RULE))
+        self.assertLess(prompt.index(writer.EMPTY_RULE), prompt.index(writer.MATERIAL))
+        rule = " ".join(writer.EMPTY_RULE.split())
+        self.assertIn("Every section must have content under its heading", rule)
+        self.assertIn("one line saying plainly that there was none", rule)
+
+    def test_an_empty_section_then_a_complete_summary_is_delivered_and_the_retry_names_the_section(self):
+        headings = writer.required_headings("es")
+        with FakeGemini([returning(summary_text(empty=headings[2])), returning(summary_text())]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text())
+        first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
+        self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: these sections had nothing under their heading: "
+                      f"{headings[2]}.", second)
+        self.assertIn("Every section must have content under its heading, or one line saying plainly that there "
+                      "was none", second)
+        # The retry is the same request with the note added, before the material.
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""),
+                         first)
+
+    def test_the_retry_names_every_empty_section(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2]).replace(f"## {headings[5]}\nTexto de {headings[5]}.",
+                                                       f"## {headings[5]}\n---")
+        with FakeGemini([returning(text), returning(summary_text())]) as fake:
+            self.summarise(fake)
+        self.assertIn(f"nothing under their heading: {headings[2]}, {headings[5]}.", prompt_of(fake.requests[1]))
+
+    def test_two_answers_with_an_empty_section_are_refused_and_nothing_is_written(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[4])
+        with FakeGemini([returning(text), returning(text)]) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertEqual(caught.exception.message.key, "summary.empty_sections")
+        self.assertIn(headings[4], str(caught.exception))
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_the_budget_reserves_the_note_with_every_section_of_every_type_named(self):
+        for language in ("es", "en"):
+            for meeting_type in (None, *writer.MEETING_TYPES):
+                headings = writer.required_headings(language, meeting_type)[:-1]
+                error = writer.SummaryError("summary.empty_sections", headings=", ".join(headings))
+                payload = {"contents": [{"role": "user", "parts": [{"text": f"{writer.ROLE}\n{writer.MATERIAL}\nx"}]}]}
+                with self.subTest(language=language, meeting_type=meeting_type):
+                    before = payload["contents"][0]["parts"][0]["text"]
+                    after = writer.revise(payload, error)["contents"][0]["parts"][0]["text"]
+                    self.assertLessEqual(len(after) - len(before), writer.RETRY_NOTE_CHARS)
+                    self.assertIn(headings[-1], after)
+
+
+class SeveralReasonsTest(Workspace):
+    """WI25's review (P3-a): an answer refused for more than one reason is
+    retried with every reason in one note, not only the first one."""
+
+    MISSING = "frame_999_t09-09-09.jpg"
+
+    def broken(self, empty=True, points=False, frame=True):
+        headings = writer.required_headings("es")
+        text = summary_text("es", empty=headings[2] if empty else None, points=points)
+        if frame:
+            text = text.replace(f"Texto de {headings[6]}.", f"Texto de {headings[6]} [{self.MISSING}].")
+        return text
+
+    def retry_of(self, text):
+        with FakeGemini([returning(text), returning(summary_text())]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        return prompt_of(fake.requests[1]), prompt_of(fake.requests[0])
+
+    def test_the_first_refusal_is_the_one_it_always_was_and_the_others_travel_with_it(self):
+        headings = writer.required_headings("es")
+        with self.assertRaises(writer.SummaryError) as caught:
+            writer.check_summary(answer(self.broken()), headings, "es", frame_names=set())
+        self.assertEqual(caught.exception.message.key, "summary.no_key_points")
+        self.assertEqual([message.key for message in caught.exception.others],
+                         ["summary.empty_sections", "summary.frames_missing"])
+
+    def test_the_retry_names_the_empty_sections_the_missing_key_points_and_the_frames_that_do_not_exist(self):
+        headings = writer.required_headings("es")
+        second, first = self.retry_of(self.broken())
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED, for 3 reasons: ", second)
+        self.assertIn(f"(1) its '{headings[-1]}' section had no bullet point", second)
+        self.assertIn(f"(2) these sections had nothing under their heading: {headings[2]}", second)
+        self.assertIn(f"(3) it named frame(s) that do not exist: {self.MISSING}", second)
+        for advice in ("Write 3 to 8 bullet points", "Every section must have content under its heading",
+                       "Name only frames whose label appears in the material below"):
+            self.assertIn(advice, second)
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""),
+                         first)
+
+    def test_two_reasons_in_any_pair_are_named_and_one_reason_is_named_as_before(self):
+        headings = writer.required_headings("es")
+        cases = [(dict(points=True), "for 2 reasons", (headings[2], self.MISSING)),
+                 (dict(empty=False), "for 2 reasons", (headings[-1], self.MISSING)),
+                 (dict(frame=False), "for 2 reasons", (headings[-1], headings[2])),
+                 (dict(points=True, frame=False), "REFUSED: these sections", (headings[2],))]
+        for options, wanted, named in cases:
+            with self.subTest(options=options):
+                self.forget_paid()
+                second, _ = self.retry_of(self.broken(**options))
+                self.assertIn(wanted, second)
+                for name in named:
+                    self.assertIn(name, second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)])
+
+    def test_two_answers_with_several_reasons_are_refused_with_the_first_one_and_nothing_is_written(self):
+        with FakeGemini([returning(self.broken()), returning(self.broken())]) as fake:
+            with self.assertRaises(writer.SummaryError) as caught:
+                self.summarise(fake)
+        self.assertEqual(caught.exception.message.key, "summary.no_key_points")
+        self.assertEqual(len(fake.requests), 2)
+        self.assertFalse(self.output().exists())
+
+    def test_the_note_with_three_reasons_at_their_longest_fits_what_the_budget_reserves(self):
+        for language in ("es", "en"):
+            for meeting_type in (None, *writer.MEETING_TYPES):
+                headings = writer.required_headings(language, meeting_type)
+                messages = [texts.Message("summary.no_key_points", heading=headings[-1]),
+                            texts.Message("summary.empty_sections", headings=", ".join(headings[:-1])),
+                            texts.Message("summary.frames_missing",
+                                          names=", ".join(f"frame_{n:03d}_t01-02-03.jpg" for n in range(100)))]
+                with self.subTest(language=language, meeting_type=meeting_type):
+                    note = writer.retry_note(messages)
+                    self.assertLessEqual(len(note), writer.RETRY_NOTE_CHARS)
+                    self.assertIn(headings[2], note)
+
+
+class FrameListTest(Workspace):
+    """WI27: Gemini wrote "[frame_029_t00-23-24.jpg, frame_037_t00-31-24.jpg]" in one pair of square brackets, the
+    summary was refused, and the retry sent the very same request. A list of whole frame names in one pair is
+    rewritten as one pair for each name before the summary is checked; everything else is judged as before; and a
+    refusal for how a frame is named is retried saying why."""
+
+    FIRST, SECOND, THIRD = "frame_029_t00-23-24.jpg", "frame_037_t00-31-24.jpg", "frame_040_t00-40-00.jpg"
+    OWNERS_LINE = "- **Outlier Treatment Mechanics** [{0}, {1}]: cómo se trata un valor atípico en la planilla."
+
+    def setUp(self):
+        super().setUp()
+        from PIL import Image
+        names = ("frame_001_t00-01-22.jpg", "frame_002_t00-05-00.jpg", self.FIRST, self.SECOND, self.THIRD)
+        for number, name in enumerate(names):
+            Image.new("RGB", (320, 180), (40 * number, 90, 200 - 40 * number)).save(self.frames / name)
+        self.names = set(names)
+
+    def screen(self, mention):
+        return summary_text().replace("Texto de Lo que se vio en pantalla.", mention)
+
+    def checked(self, mention):
+        return writer.check_summary(answer(self.screen(mention)), writer.required_headings("es"), "es", self.names)
+
+    def refusal(self, mention):
+        with self.assertRaises(writer.SummaryError) as caught:
+            self.checked(mention)
+        return caught.exception
+
+    # WI27-AC01
+
+    def test_the_line_of_the_owners_meeting_is_saved_with_one_pair_of_brackets_for_each_frame(self):
+        line = self.OWNERS_LINE.format(self.FIRST, self.SECOND)
+        with FakeGemini([returning(self.screen(line))]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 1)
+        self.assertEqual(len(fake.requests), 1)
+        saved = self.output().read_text(encoding="utf-8").strip()
+        self.assertEqual(saved, self.screen(f"- **Outlier Treatment Mechanics** [{self.FIRST}], [{self.SECOND}]: "
+                                            "cómo se trata un valor atípico en la planilla."))
+        self.assertEqual(writer.FRAME_REF.findall(saved), [self.FIRST, self.SECOND])
+
+    def test_three_names_are_three_pairs_in_the_same_order(self):
+        text = self.checked(f"[{self.THIRD}, {self.FIRST}, {self.SECOND}]")
+        self.assertEqual(text, self.screen(f"[{self.THIRD}], [{self.FIRST}], [{self.SECOND}]"))
+        text = self.checked(f"[{self.FIRST}, {self.SECOND} y {self.THIRD}]")
+        self.assertEqual(text, self.screen(f"[{self.FIRST}], [{self.SECOND}] y [{self.THIRD}]"))
+
+    def test_a_comma_a_semicolon_y_e_and_and_a_comma_before_them_separate_the_names_and_stay_between_them(self):
+        # What separated the names stays between the pairs (WI27's review, P1): the list reads as the same names
+        # each in its own pair would.
+        a, b = self.FIRST, self.SECOND
+        for separator in (", ", ",", " , ", "; ", ";", " ; ", " y ", " e ", " and ", ", y ", ", e ", ", and ", ",and ",
+                          " ,  and  ", "  Y ", " E ", " AND ", ", And ", "\t,\ty\t", " y "):
+            with self.subTest(separator=separator):
+                self.assertEqual(self.checked(f"[{a}{separator}{b}]"), self.screen(f"[{a}]{separator}[{b}]"))
+
+    def test_spaces_inside_the_brackets_are_taken(self):
+        self.assertEqual(self.checked(f"[ {self.FIRST} , {self.SECOND}  ]"),
+                         self.screen(f"[{self.FIRST}] , [{self.SECOND}]"))
+
+    def test_names_in_backticks_or_bold_are_taken_as_a_single_name_is(self):
+        a, b = self.FIRST, self.SECOND
+        for mark in ("`", "**", "*", "__", "_"):
+            with self.subTest(mark=mark):
+                self.checked(f"{mark}[{a}]{mark}")
+                self.assertEqual(self.checked(f"{mark}[{a}, {b}]{mark}"),
+                                 self.screen(f"{mark}[{a}]{mark}, {mark}[{b}]{mark}"))
+        # A mark that is not closed round the list stays where it was.
+        self.assertEqual(self.checked(f"**[{a}, {b}]"), self.screen(f"**[{a}], [{b}]"))
+
+    def test_the_report_built_from_a_summary_with_a_list_shows_both_frames(self):
+        import docx
+        from meetingtool.report import document
+        line = self.OWNERS_LINE.format(self.FIRST, self.SECOND)
+        with FakeGemini([returning(self.screen(line))]) as fake:
+            self.summarise(fake)
+        document.build_report(self.frames, data_dir=self.data)
+        report = docx.Document(str(self.frames / document.OUTPUT_NAME))
+        sha = lambda name: hashlib.sha256((self.frames / name).read_bytes()).hexdigest()
+        self.assertEqual(document._body_images(report), [sha(self.FIRST), sha(self.SECOND)])
+
+    def test_the_summary_and_the_report_agree_on_every_list_once_it_is_rewritten(self):
+        from meetingtool.report import document
+        a, b = self.FIRST, self.SECOND
+        for mention in (f"[{a}, {b}]", f"[{a}; {b}]", f"[{a} y {b}]", f"[{a} and {b}]", f"`[{a}, {b}]`",
+                        f"[{a}, {b}, {self.THIRD}]"):
+            with self.subTest(mention=mention):
+                text = self.checked(mention)
+                writer.check_frames(text, self.names)
+                self.assertEqual(list(document.cited_frames(text, self.frames)), writer.FRAME_REF.findall(text))
+
+    # WI27-AC02
+
+    def test_a_list_with_a_name_that_does_not_exist_is_refused_naming_it(self):
+        missing = "frame_071_t01-05-36.jpg"
+        for mention in (f"[{self.FIRST}, {missing}]", f"[{missing}; {self.FIRST}]",
+                        f"[{self.FIRST} y {missing} y {self.SECOND}]"):
+            with self.subTest(mention=mention):
+                error = self.refusal(mention)
+                self.assertEqual(error.message.key, "summary.frames_missing")
+                self.assertEqual(error.message.params["names"], missing)
+
+    def test_a_list_with_an_item_that_is_not_a_whole_frame_name_is_refused(self):
+        a, b = self.FIRST, self.SECOND
+        for mention in (f"[{a}, la tabla]", f"[{a}, frame_037]", f"[{a}, frame_037_t00-31-24]",
+                        f"[{a}, frame_037_t00-31-24.png]", f"[{a}, {b},]", f"[{a},]", f"[, {a}]", f"[{a} y]",
+                        f"[{a}, y, {b}]", f"[{a} {b}]", f"[{a}, {b}.]", f"[{a} y también {b}]"):
+            with self.subTest(mention=mention):
+                self.assertEqual(writer.separate_frames(mention), mention)
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_unbracketed")
+
+    def test_a_range_inside_one_pair_is_not_split_and_is_still_refused(self):
+        a, b = self.FIRST, self.SECOND
+        for word in ("–", "—", "-", "--", "to", "a", "al", "hasta", "through", "..", "...", "…", "->", "→", "until",
+                     "A", "TO", "a la", "to the"):
+            for gap in (" ", ""):
+                mention = f"[{a}{gap}{word}{gap}{b}]"
+                with self.subTest(mention=mention):
+                    self.assertEqual(writer.separate_frames(mention), mention)
+                    self.assertIn(self.refusal(mention).message.key,
+                                  ("summary.frame_range", "summary.frame_unbracketed"))
+
+    def test_a_range_in_words_inside_one_pair_is_still_a_range(self):
+        # WI27's review, P1: rewritten with ", " between the pairs, "entre [a y b]" was taken as a list of two.
+        a, b = self.FIRST, self.SECOND
+        for mention in (f"entre [{a} y {b}]", f"between [{a} and {b}]", f"entre [{a} e {b}]", f"Entre [{a} Y {b}]"):
+            with self.subTest(mention=mention):
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_range")
+
+    def test_a_range_written_next_to_a_list_is_still_a_range(self):
+        a, b, c = self.FIRST, self.SECOND, self.THIRD
+        for mention in (f"[{a}, {b}] a [{c}]", f"[{a}] to [{b}, {c}]", f"[{a}, {b}] - [{c}]"):
+            with self.subTest(mention=mention):
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_range")
+
+    def test_a_frame_named_without_brackets_is_still_refused(self):
+        for mention in (self.FIRST, f"{self.FIRST}, {self.SECOND}", f"`{self.FIRST}`", "(frame_029, t00:23:24)",
+                        f"[{self.FIRST}, {self.SECOND}] y {self.THIRD}"):
+            with self.subTest(mention=mention):
+                self.assertEqual(self.refusal(mention).message.key, "summary.frame_unbracketed")
+
+    def test_a_single_name_and_everything_accepted_before_comes_out_byte_for_byte_the_same(self):
+        a, b = "frame_001_t00-01-22.jpg", "frame_002_t00-05-00.jpg"
+        accepted = [f"[{a}]", f"**[{a}]**", f"`[{a}]`", f"[{a}] y [{b}]", f"[{a}], la tabla; y [{b}], el total",
+                    f"[{a}] and [{b}]", f"[{a}] a la derecha del total", f"| [{a}] | - | [{b}] |", "sin imágenes",
+                    f"* **[{a}]** y **[{b}]**: la planilla  de costos.\n* **[{b}]**: otra vez.", "[1, 2] y [a, b]",
+                    f"[{a}], [{b}]", f"[{a}] [{b}]", f"[{a}]\n[{b}]"]
+        for mention in accepted:
+            with self.subTest(mention=mention):
+                self.assertEqual(writer.separate_frames(mention), mention)
+                self.assertEqual(self.checked(mention), self.screen(mention))
+        self.assertEqual(writer.separate_frames(summary_text()), summary_text())
+        for mention in RANGES + NOT_RANGES:
+            with self.subTest(mention=mention):
+                self.assertEqual(writer.separate_frames(mention), mention)
+
+    def test_a_list_already_rewritten_is_not_changed_again(self):
+        once = writer.separate_frames(f"[{self.FIRST}, {self.SECOND}] y `[{self.THIRD}; {self.FIRST}]`")
+        self.assertEqual(writer.separate_frames(once), once)
+
+    # WI27-AC03
+
+    def retry_of(self, refused):
+        """The note the retry carries, after a refused answer and a good one."""
+        good = self.screen(f"[{self.FIRST}], [{self.SECOND}]")
+        with FakeGemini([returning(refused), returning(good)]) as fake:
+            result = self.summarise(fake)
+        self.assertEqual(result.attempts, 2)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), good)
+        first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
+        self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
+        # The retry is the same request with the note added, before the material.
+        self.assertEqual(second.replace(second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)], ""), first)
+        return second[second.index("YOUR PREVIOUS"):second.index(writer.MATERIAL)]
+
+    def test_a_range_then_a_good_answer_is_delivered_and_the_retry_says_why(self):
+        note = self.retry_of(self.screen(f"[{self.FIRST}] a [{self.SECOND}]"))
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: it named a range of frames instead of each frame on its own: "
+                      f"[{self.FIRST}] a [{self.SECOND}].", note)
+        self.assertIn("Name each frame in its own square brackets, one file name for each pair", note)
+        self.assertIn("never a range of frames, and never a list of frames inside one pair", note)
+
+    def test_a_range_inside_one_pair_then_a_good_answer_is_delivered_and_the_retry_says_why(self):
+        note = self.retry_of(self.screen(f"[{self.FIRST} – {self.SECOND}]"))
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: it mentioned a frame without its file name in square "
+                      f"brackets: [{self.FIRST} – {self.SECOND}]", note)
+        self.assertIn("Name each frame in its own square brackets", note)
+
+    def test_a_frame_without_brackets_then_a_good_answer_is_delivered_and_the_retry_says_why(self):
+        note = self.retry_of(self.screen(f"la planilla ({self.FIRST})"))
+        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: it mentioned a frame without its file name in square "
+                      "brackets: ", note)
+        self.assertIn(self.FIRST, note)
+        self.assertIn("one whole file name for each pair", note)
+        self.assertIn("never mention a frame by its number, its time or part of its name", note)
+
+    def test_two_answers_refused_for_how_a_frame_is_named_are_refused_and_nothing_is_written(self):
+        for refused, key in ((f"[{self.FIRST}] a [{self.SECOND}]", "summary.frame_range"),
+                             (f"[{self.FIRST}, la tabla]", "summary.frame_unbracketed")):
+            with self.subTest(key=key):
+                self.forget_paid()
+                with FakeGemini([returning(self.screen(refused))] * 2) as fake:
+                    with self.assertRaises(writer.SummaryError) as caught:
+                        self.summarise(fake)
+                self.assertEqual(caught.exception.message.key, key)
+                self.assertEqual(len(fake.requests), 2)
+                self.assertFalse(self.output().exists())
+
+    def test_the_retry_names_every_reason_when_the_answer_had_a_range_and_an_empty_section(self):
+        headings = writer.required_headings("es")
+        text = summary_text(empty=headings[2]).replace("Texto de Lo que se vio en pantalla.",
+                                                       f"[{self.FIRST}] to [{self.SECOND}]")
+        note = self.retry_of(text)
+        self.assertIn("for 2 reasons", note)
+        self.assertIn(f"(1) these sections had nothing under their heading: {headings[2]}", note)
+        self.assertIn("(2) it named a range of frames instead of each frame on its own: "
+                      f"[{self.FIRST}] to [{self.SECOND}]", note)
+        self.assertIn("Every section must have content under its heading", note)
+        self.assertIn("Name each frame in its own square brackets", note)
+
+    def test_the_retry_names_every_reason_when_the_answer_had_no_key_points_and_a_frame_without_brackets(self):
+        text = summary_text(points=False).replace("Texto de Lo que se vio en pantalla.", f"la planilla ({self.FIRST})")
+        note = self.retry_of(text)
+        self.assertIn("for 2 reasons", note)
+        self.assertIn("(1) its 'Puntos clave' section had no bullet point", note)
+        self.assertIn("(2) it mentioned a frame without its file name in square brackets", note)
+
+    def test_the_note_with_every_reason_at_its_longest_fits_what_the_budget_reserves(self):
+        headings = writer.required_headings("es")
+        long = "x" * 5000
+        messages = [texts.Message("summary.no_key_points", heading=headings[-1]),
+                    texts.Message("summary.empty_sections", headings=", ".join(headings[:-1])),
+                    texts.Message("summary.frames_missing",
+                                  names=", ".join(f"frame_{n:03d}_t01-02-03.jpg" for n in range(100))),
+                    texts.Message("summary.frame_range", text=long),
+                    texts.Message("summary.frame_unbracketed", text=long)]
+        for count in range(1, len(messages) + 1):
+            with self.subTest(reasons=count):
+                self.assertLessEqual(len(writer.retry_note(messages[-count:])), writer.RETRY_NOTE_CHARS)
+        self.assertIn("(5) it mentioned a frame", writer.retry_note(messages))
 
 
 if __name__ == "__main__":

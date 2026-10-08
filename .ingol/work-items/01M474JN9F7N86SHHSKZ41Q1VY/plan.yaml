@@ -1,0 +1,33 @@
+schema_version: "1"
+work_item: 01M474JN9F7N86SHHSKZ41Q1VY
+status: approved
+next_gate: implement-then-independent-review-then-real-run-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent, gated by the criterion role)
+branch: work-item/01M474JN9F7N86SHHSKZ41Q1VY-read-to-the-end
+steps:
+  - the-pilot-test-of-r05-passes-wi21-ac01
+  - read-to-the-end-with-a-transcript-wi21-ac02
+  - mutations-restoring-the-cut-wi21-ac03
+  - real-meeting-before-and-after-wi21-ac04
+  - the-suite-in-a-fresh-clone-and-the-register-wi21-ac05
+evaluations:
+  - criterion: WI21-AC01
+    method: deterministic
+    control: tests/test_d1_final_de_la_reunion.py.
+  - criterion: WI21-AC02
+    method: adversarial
+    control: >-
+      tests/test_frames.py: the samples with and without a transcript, for a
+      transcript that ends early, a long last line, and times past the end.
+  - criterion: WI21-AC03
+    method: adversarial
+    control: docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/mutations.py and mutations.txt.
+  - criterion: WI21-AC04
+    method: deterministic
+    control: docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/real-recording-run.txt.
+  - criterion: WI21-AC05
+    method: deterministic
+    control: >-
+      docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/local-test-run.txt, from a
+      fresh clone of the tested commit; python docs/limitations/reproduce.py.

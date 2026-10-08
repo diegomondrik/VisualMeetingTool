@@ -1,0 +1,97 @@
+schema_version: "1"
+id: 01M474JN9F7N86SHHSKZ41Q1VY
+objective: >
+  WI21. With a transcript, the frames of the recording are read to the end
+  of the recording, never cut where the transcript's last line starts
+  (finding R05, P1, of the external review of 2026-10-02, at 03b8573). The
+  owner decided on 2026-10-05 that the cut is a defect, not a product
+  decision, and approved this contract the same day. Second work item of the correction of that review and of INGOL's
+  D1 pilot; it starts from main (bc24f89, with WI20) and does not touch the
+  installer's branch (WI18, PR #19).
+
+  Today, with a transcript, extraction stops TRANSCRIPT_TAIL (120) seconds
+  after the transcript's last line starts (WI10, INGOL D-176). A transcript
+  gives when each line starts, not when it ends: a long last explanation, or
+  a transcript that stops early, loses every slide shown after that point,
+  before anything is sent to Gemini. After this work item the recording is
+  read to its end whether or not there is a transcript; the transcript keeps
+  doing what else it does (raising the frames shown while someone talks
+  about the screen). The terminal command no longer says "read until".
+
+  What it costs, declared: a recording that runs on after the meeting is
+  read to its end. On the owner's real 117-minute meeting measured in WI10,
+  the recording ran 35 minutes past the last line and the cut saved 19% of
+  the time; frames of that tail can reach the report (camera close-ups are
+  still never candidates, since WI10). Both are measured on a synthetic
+  recording with a tail after its transcript's last line, with no Gemini:
+  the owner decided on 2026-10-05 not to use the real meeting for it.
+
+  The test that shows the defect was written in this pilot and fails on
+  main: tests/test_d1_final_de_la_reunion.py (a 14-second slide A while one
+  long last line is spoken, then slide B: with the transcript only A is
+  kept). It needs no kits. The two WI10 tests that pin the cut change with
+  the rule, each named in the evidence.
+
+  Not done: an end the person sets by hand; telling the person that the
+  transcript and the recording seem misaligned; leaving out a tail after the
+  meeting by what it shows (the review's other suggestions); R02, R04, R06
+  and the second batch.
+
+  Corrected after the independent review of a9a09f3
+  (docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/independent-review.md): the
+  mutation record names its commit (P3-1), the mutation script does not
+  call its selection all of the CI (P3-2), and the evidence says which test
+  covers which criterion (P3-3). No P0, P1 or P2.
+
+  Known limitations (docs/limitations/REGISTER.md, WI21-P3-1 to WI21-P3-4):
+  a recording that runs on after the meeting is read to its end; frames of
+  that tail can reach the report; no end set by hand and no warning when the
+  transcript and the recording seem misaligned; the questions-and-answers
+  register reads an answer's frames only until its last turn began (already
+  so before WI21).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M474JN9F7N86SHHSKZ41Q1VY/**
+  - docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI21-AC01
+    description: >
+      tests/test_d1_final_de_la_reunion.py passes: with a transcript whose
+      last line starts at 1 s, the slide shown from 14 s on is kept, as it
+      is without a transcript (its control).
+  - id: WI21-AC02
+    description: >
+      With a transcript, the recording is read to its end: the samples read
+      are the same as without one, for a transcript that ends early, one
+      whose last line is long, and one whose times run past the recording;
+      the frames the transcript raises are still raised.
+  - id: WI21-AC03
+    description: >
+      Restoring the cut (in either of its forms: a stop time, or the decode
+      loop leaving early) makes a test fail; recorded by a mutation script
+      in the evidence.
+  - id: WI21-AC04
+    description: >
+      A synthetic recording made by a script in the evidence (slides, a last
+      transcript line followed by a slide past the old cut, and a tail after
+      the meeting), extracted with its transcript on main and on this
+      branch, each from a fresh clone, with no Gemini: duration, samples,
+      candidates, frames kept, seconds, and how many kept frames come after
+      the transcript's last line, recorded under
+      docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/. Changed from the owner's
+      real meeting by the owner's decision of 2026-10-05.
+  - id: WI21-AC05
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, with
+      INGOL's kits on the import path, and its complete output is committed
+      under docs/evidence/01M474JN9F7N86SHHSKZ41Q1VY/ before the pull request
+      (INGOL D-163); every test that existed before passes, or is named in
+      the evidence with the rule that changed it; the README and the
+      module's documentation say the new rule; the limitations register
+      gets this work item's known limitations, each reproduced by
+      docs/limitations/reproduce.py.

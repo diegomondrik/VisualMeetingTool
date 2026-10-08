@@ -19,7 +19,10 @@ objective: >
   the screens of WI15 to WI17 inside, through the web component that
   Windows 11 already has (WebView2): no browser, no tab, no terminal. It is
   closed with the X; if a meeting is being processed it asks first, and if
-  the answer is yes the meeting is dropped leaving nothing half done. Every
+  the answer is yes the meeting is not added and nothing is left half done
+  (what was already paid for stays, as for any failed run since WI20: the
+  owner's decision of 2026-10-08, when this work item was brought up to date
+  with main). Every
   action of the screens works in it: uploading a recording, a transcript,
   a template and a logo; downloading the example template; opening the Word
   report. The server inside keeps every protection it has today: it listens

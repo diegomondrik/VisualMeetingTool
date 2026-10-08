@@ -11,7 +11,7 @@ page shares the window. `python -m meetingtool app` keeps opening the browser.
   chosen in Settings wins over it.
 - One application per data folder: a second start says so and stops.
 - Closed with the X while a meeting is being processed, the window asks
-  first; confirmed, the meeting is dropped (meetingtool.app.jobs.Runner.close)
+  first; confirmed, the meeting is not added (meetingtool.app.jobs.Runner.close)
   and what it left is cleared at the next start.
 - What happened at the last start is written to a log (LOG_NAME, in the
   user's local application data, outside the data folder; the session token
@@ -190,7 +190,7 @@ class Window:
             log.info("close refused while a meeting is processed")
             return False
         self.app.runner.close()
-        log.info("closed while a meeting was processed: dropped")
+        log.info("closed while a meeting was processed: not added")
         return True
 
     def on_loaded(self, *args):

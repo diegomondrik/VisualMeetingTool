@@ -30,8 +30,9 @@ def main(argv=None, *, read_key=None, save_key=None, delete_key=None, ask_key=No
     read = commands.add_parser("read", help="read the frames of a folder")
     read.add_argument("--frames", required=True, help="folder of frame_*.jpg, outside any git repository")
     read.add_argument("--max-cost", type=float, default=gemini.MAX_COST_USD,
-                      help=f"spend budget in US$ for this run (default {gemini.MAX_COST_USD:.2f}); a request that "
-                           "could go over it is not sent")
+                      help=f"estimated spending ceiling in US$ for this run (default {gemini.MAX_COST_USD:.2f}), from "
+                           "list prices; a request that could go over it is not sent, and a run in which an answer "
+                           "used more tokens than estimated stops")
     key = commands.add_parser("key", help="the Gemini key in the Windows Credential Manager")
     key.add_argument("action", choices=["set", "status", "delete"])
     args = parser.parse_args(argv)

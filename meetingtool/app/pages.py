@@ -257,7 +257,26 @@ def projects_page(view, projects, loose):
     return layout_page(view, view.say("app.projects.title"), body, "projects")
 
 
-def project_page(view, project, meetings, knowledge):
+def _kept_block(view, project, kept):
+    """What failed runs kept of what was paid (WI20), each with a button to
+    discard it."""
+    if not kept:
+        return ""
+    rows = "".join(
+        f'<tr><td>{e(k["date"])}</td><td>{e(k["title"])}</td><td>{e(view.name(FORMAT_KEYS, k["format"]))}</td>'
+        f'<td>{e(view.name(STAGE_KEYS, k["failed_stage"]))}</td><td>{view.money(k["paid_usd"])}</td>'
+        f'<td><form data-api="/api/kept/discard" data-confirm="{view.t("app.kept.confirm", title=k["title"])}">'
+        f'<input type="hidden" name="project" value="{e(project["id"])}">'
+        f'<input type="hidden" name="run" value="{e(k["run"])}">'
+        f'<button type="submit">{view.t("app.kept.discard")}</button><p class="message" role="status"></p>'
+        "</form></td></tr>" for k in kept)
+    return (f"<section><h2>{view.t('app.kept.title')}</h2><p class=\"hint\">{view.t('app.kept.hint')}</p>"
+            f"<table class=\"list\"><tr><th>{view.t('app.col.date')}</th><th>{view.t('app.col.meeting')}</th>"
+            f"<th>{view.t('app.col.format')}</th><th>{view.t('app.col.stage')}</th><th>{view.t('app.col.paid')}</th>"
+            f"<th></th></tr>{rows}</table></section>")
+
+
+def project_page(view, project, meetings, knowledge, kept=()):
     pid = quote(project["id"])
     rows = "".join(
         f'<tr><td>{e(m["record"]["date"])}</td><td><a href="/p/{pid}/m/{quote(m["record"]["id"])}">'
@@ -270,6 +289,7 @@ def project_page(view, project, meetings, knowledge):
             f"<h2>{view.t('app.project.meetings')}</h2><table class=\"list\"><tr><th>{view.t('app.col.date')}</th>"
             f"<th>{view.t('app.col.meeting')}</th><th>{view.t('app.col.type')}</th>"
             f"<th>{view.t('app.col.format')}</th><th>{view.t('app.col.cost')}</th></tr>{rows}</table>"
+            f"{_kept_block(view, project, kept)}"
             f"<section><h2>{view.t('app.project.knowledge')}</h2>"
             f"<p class=\"hint\">{view.t('app.project.knowledge_hint')}</p>"
             f"<div class=\"summary knowledge\">{markdown(view, knowledge)}</div></section>")

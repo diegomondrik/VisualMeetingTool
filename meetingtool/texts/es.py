@@ -13,10 +13,11 @@ TEXTS = {
                             "[[: {detail}]]",
     "transcript.word_unreadable": "no se puede leer la transcripción de Word {path}: fijate que sea el .docx que "
                                   "baja Teams[[: {detail}]]",
-    "transcript.unreadable": "no se puede leer la transcripción {path}: tiene que ser un texto UTF-8[[: {detail}]]",
+    "transcript.word_too_big": "no se puede leer la transcripción de Word {path}: {reason}",
+    "transcript.unreadable": "no se puede leer la transcripción {path}: tiene que ser un texto (UTF-8, UTF-16 o el de Windows)[[: {detail}]]",
     "transcript.not_a_file": "la transcripción {path} no es un archivo",
     "transcript.no_timed_line": "la transcripción {path} no tiene ninguna línea con su minuto (la de Teams, «Nombre   "
-                                "M:SS», o «[HH:MM:SS]»)",
+                                "M:SS», la hora sola en su renglón, o «[HH:MM:SS]»)",
 
     # ── Proyectos (meetingtool.projects) ────────────────────────────────────
     "projects.inside_repository": "la carpeta de datos {folder} está dentro del repositorio git {work_tree}; los "
@@ -26,6 +27,10 @@ TEXTS = {
     "projects.needs_name": "un proyecto necesita un nombre",
     "projects.exists": "ya existe el proyecto {project} en {folder}",
     "projects.needs_title": "una reunión necesita un título",
+    "projects.unreadable": "no se puede leer el registro {file}[[: {detail}]]; no se cambió nada: arreglalo "
+                           "o sacalo del proyecto",
+    "projects.busy": "otro MeetingTool (la aplicación o un comando) tiene la carpeta de datos {folder} hace "
+                     "más de {seconds:.0f} s; no se cambió nada: probá de nuevo cuando termine",
     "meeting.bad_date": "la fecha de la reunión {date!r} no es una fecha AAAA-MM-DD válida",
 
     # ── La clave de Gemini y la lectura de las imágenes (meetingtool.reading)
@@ -44,6 +49,12 @@ TEXTS = {
     "gemini.over_budget": "se frenó antes de mandar {what}: ese pedido podía costar hasta US${worst:.2f}, y con unos "
                           "US${spent:.2f} ya gastados podía pasar el techo de US${budget:.2f}; no se escribió nada"
                           "{refused}",
+    "gemini.estimate_short": "se frenó{unsent}: la respuesta a {after} usó más tokens de los que se estimaba que usaría "
+                             "su pedido, y costó US${cost:.4f} contra los US${estimated:.4f} estimados, así que la "
+                             "estimación no es confiable y en esta corrida no se manda nada más. Lo que ya se "
+                             "respondió queda guardado{refused}",
+    "gemini.estimate_short.before": " antes de mandar {what}",
+    "gemini.estimate_short.end": " al terminar la corrida, antes de escribir nada",
     "gemini.before.no_answer": " (el intento anterior no tuvo respuesta[[: {reason}]])",
     "gemini.before.refused": " (la respuesta anterior se rechazó: {error})",
     "gemini.refused": "Gemini rechazó el pedido (HTTP {status}); si dice que la clave no sirve, guardala de nuevo en "
@@ -74,6 +85,7 @@ TEXTS = {
     "summary.section_count": "el resumen tiene la sección «{heading}» {count} veces, no una",
     "summary.order": "las secciones del resumen no están en el orden pedido",
     "summary.no_key_points": "la sección «{heading}» del resumen no tiene ningún punto",
+    "summary.empty_sections": "el resumen no tiene nada bajo estas secciones: {headings}",
     "summary.not_read": "las imágenes de {folder} todavía no se leyeron: corré python -m meetingtool.reading read "
                         "--frames <carpeta> antes",
     "summary.retired_type": "el tipo de reunión {meeting_type!r} ya no se usa: cubría {covered}; usá {use}",
@@ -97,6 +109,8 @@ TEXTS = {
     "qa.not_text": "{where}: «{key}» no es texto",
     "qa.mentions_frame": "{where} menciona una imagen",
     "qa.invented_date": "{where} escribe una fecha que la transcripción no dice ({dates})",
+    "qa.invented_year": "{where} escribe un año que la transcripción no dice ({years})",
+    "qa.invented_figure": "{where} escribe una cifra que nadie dijo en la reunión ({figures})",
     "qa.question_not_object": "{where} no es un objeto JSON",
     "qa.no_question": "{where} no tiene la pregunta",
     "qa.bad_status": "{where}: el estado {status!r} no es uno de {options}",
@@ -138,6 +152,17 @@ TEXTS = {
     "qa.stopped.before": "; la respuesta anterior también se rechazó: {refusal:.300}",
     "qa.stopped.done": ", de los cuales {stages}",
     "qa.no_folder": "la carpeta {folder} no existe",
+    "qa.needs_speakers": "la transcripción {path} no dice quién habla, y el registro de preguntas y respuestas "
+                         "necesita saber quién preguntó y quién respondió: escribí el resumen en su lugar (formato "
+                         "resumen)",
+
+    # ── Paquetes de Word (meetingtool.word_package) ─────────────────────────
+    "package.too_many_entries": "el archivo trae {count} partes, y uno de Word puede traer {limit} como máximo",
+    "package.part_too_big": "la parte {part} ocupa más de {limit} MB una vez expandida, el máximo para una parte",
+    "package.total_too_big": "las partes juntas ocupan más de {limit} MB una vez expandidas, el máximo para un "
+                             "archivo de Word (se pasó en {part})",
+    "package.unreadable_part": "la parte {part} está comprimida de una manera que los archivos de Word no usan, o "
+                               "está cifrada, y el programa no la lee",
 
     # ── El informe en Word (meetingtool.report) ─────────────────────────────
     "layout.marker_not_alone": "{{informe}} tiene que estar solo en su línea, sin nada más",
@@ -149,19 +174,32 @@ TEXTS = {
                              "{{proyecto}} {{reunion}} {{fecha}} {{tipo}} (o {{client}} {{project}} {{meeting}} "
                              "{{date}} {{type}})",
     "layout.toc_no_result": "el índice no se puede leer: su campo no tiene resultado",
-    "report.active.unreadable": "{part}: relaciones que no se pueden leer[[ ({detail})]]",
+    "report.active.unreadable": "{part}: no es XML legible, así que no se sabe qué contiene[[ ({detail})]]",
     "report.active.external": "{part}: un {kind} externo ({target})",
     "report.active.embedded": "{part}: un {kind} ({target})",
     "report.active.field": "{part}: un campo {field}",
+    "report.active.unnamed_field": "{part}: un campo cuyo nombre no está escrito completo en el archivo (lo arma otro campo), así que no se sabe qué es",
+    "report.active.compat_unknown": "{part}: {name}, que no es una parte conocida de Markup Compatibility, así que no se sabe qué leería Word",
+    "report.active.compat_structure": "{part}: {name} no está armado como Markup Compatibility lo define (una lista de alternativas, cada una con los espacios de nombres que requiere, y un solo respaldo al final), así que no se sabe qué leería Word",
+    "report.active.compat_prefix": "{part}: Markup Compatibility nombra {name}, que no es un prefijo declarado en el archivo o es uno que Word entiende, así que no se sabe qué leería Word",
+    "report.active.hyperlink": "{part}: un hipervínculo a {target}, que no es una página web (http, https), una dirección de correo ni un lugar del documento",
+    "report.active.macros": "un tipo de contenido con macros, o un proyecto de macros",
     "report.macro_extension": "la plantilla {name} puede llevar macros ({suffix}); guardala en Word como .docx o .dotx",
     "report.not_word": "la plantilla {name} no es un documento ni una plantilla de Word (.docx o .dotx)",
     "report.cannot_open": "la plantilla {name} no se puede abrir: fijate que sea un archivo de Word[[: {detail}]]",
     "report.macros": "la plantilla {name} lleva macros; guardala en Word como .docx o .dotx",
     "report.active": "la plantilla {name} tiene contenido que Word cargaría o ejecutaría desde afuera al abrir un "
-                     "informe, y cada informe se lo llevaría al cliente:\n  {items}\nSacalo en Word y guardá la "
-                     "plantilla de nuevo (adjuntá la plantilla Normal, insertá las imágenes en vez de vincularlas, "
-                     "borrá los campos vinculados y los objetos incrustados).",
+                     "informe, o un campo que una plantilla no puede tener, y cada informe se lo llevaría al "
+                     "cliente:\n  {items}\nSacalo en Word y guardá la plantilla de nuevo (adjuntá la plantilla "
+                     "Normal, insertá las imágenes en vez de vincularlas, borrá los campos vinculados y los objetos "
+                     "incrustados). Los únicos campos que una plantilla puede tener son {allowed}.",
+    "report.active_in_report": "no se escribió el informe: llevaría contenido que Word cargaría o ejecutaría desde "
+                               "afuera cuando el cliente lo abra, o un campo que una plantilla no puede tener:\n"
+                               "  {items}\nHay que corregir la plantilla que lo dio. Los únicos campos que una "
+                               "plantilla puede tener son {allowed}.",
     "report.not_a_document": "la plantilla {name} no se puede abrir como documento de Word[[: {detail}]]",
+    "report.template_too_big": "la plantilla {name} no se puede usar: {reason}",
+    "report.too_big": "no se escribió el informe: {reason}",
     "report.template_unusable": "la plantilla {name} no se puede usar: {error}",
     "report.problem.range": "línea {line}: un rango de imágenes; nombrá cada imagen por separado: {text}",
     "report.problem.missing": "línea {line}: {name} no está en {folder}",
@@ -205,6 +243,7 @@ TEXTS = {
     "app.col.stage": "Etapa",
     "app.col.state": "Estado",
     "app.col.time": "Tiempo",
+    "app.col.paid": "Pagado",
     "app.projects.title": "Proyectos",
     "app.projects.none": "Todavía no hay proyectos.",
     "app.projects.new": "Proyecto nuevo",
@@ -220,6 +259,12 @@ TEXTS = {
     "app.project.no_meetings": "Todavía no hay reuniones.",
     "app.project.knowledge": "Lo que el proyecto ya sabe",
     "app.project.knowledge_hint": "Lo que cada reunión deja y la próxima lee.",
+    "app.kept.title": "Guardado de corridas que fallaron",
+    "app.kept.hint": "Lo que se pagó en una corrida que falló queda acá, para que procesar de nuevo la misma "
+                     "reunión (la misma transcripción y el mismo formato) no lo vuelva a pagar. Descartarlo no "
+                     "se puede deshacer.",
+    "app.kept.discard": "Descartar",
+    "app.kept.confirm": "¿Descartar lo guardado de «{title}»? Procesarla de nuevo lo volvería a pagar.",
     "app.type.presale": "Preventa",
     "app.type.negotiation": "Venta o negociación",
     "app.type.requirements": "Relevamiento",
@@ -245,7 +290,8 @@ TEXTS = {
     "app.state.skipped": "no hace falta",
     "app.state.failed": "falló",
     "app.cost.title": "Lo que costó",
-    "app.cost.total_html": "<strong>{spent}</strong> de un techo de {ceiling}, en {seconds} s.",
+    "app.cost.total_html": "<strong>{spent}</strong> de un techo estimado de {ceiling} (con precios de lista; un pedido "
+                           "ya mandado se paga aunque se rechace su respuesta), en {seconds} s.",
     "app.frame.mention": "imagen {clock}",
     "app.frame.caption": "Minuto {clock}",
     "app.result.open_word": "Abrir el Word",
@@ -267,8 +313,9 @@ TEXTS = {
     "app.new.language": "Idioma del resultado",
     "app.new.meeting_language": "El de la reunión",
     "app.new.qa_hint": "(cada pregunta con su respuesta completa)",
-    "app.new.ceiling": "Techo de gasto en dólares",
-    "app.new.ceiling_hint": "(si una etapa pudiera pasarlo, no se manda)",
+    "app.new.ceiling": "Techo de gasto estimado en dólares",
+    "app.new.ceiling_hint": "(es una estimación con precios de lista: un pedido ya mandado se paga aunque se rechace "
+                            "su respuesta, y la corrida se frena si una respuesta costó más de lo estimado)",
     "app.new.process": "Procesar",
     "app.job.title": "Procesando",
     "app.job.loading": "Cargando…",
@@ -367,6 +414,9 @@ TEXTS = {
     "app.request.no_format": "no hay un formato {value!r}",
     "app.request.no_transcript": "falta la transcripción (un .docx de Teams o un .txt con líneas [HH:MM:SS])",
     "app.request.video_gone": "el video subido ya no está: subilo de nuevo",
+    "app.request.qa_needs_speakers": "el registro de preguntas y respuestas necesita saber quién preguntó y quién "
+                                     "respondió, y esta transcripción no dice quién habla (cada hora está sola en "
+                                     "su renglón): elegí el formato resumen",
     "app.request.summary_needs_video": "el resumen necesita el video, para leer lo que se mostró; sin video, elegí el "
                                        "formato preguntas y respuestas",
     "app.request.bad_ceiling": "el techo de gasto tiene que ser un número de dólares mayor que 0 y hasta 5",
@@ -394,8 +444,9 @@ TEXTS = {
                         "Ctrl+C.",
     "app.console.error": "error: {error}",
     "app.window.closing_title": "Cerrar MeetingTool",
-    "app.window.closing_running": "Hay una reunión procesándose. Si cerrás ahora, se descarta y no queda nada de "
-                                  "ella (si justo se estaba guardando, se guarda entera). ¿Cerrar igual?",
+    "app.window.closing_running": "Hay una reunión procesándose. Si cerrás ahora, no se agrega al proyecto, y lo que "
+                                  "ya se pagó queda guardado para no pagarlo de nuevo (después podés "
+                                  "descartarlo). Si justo se estaba guardando, se guarda entera. ¿Cerrar igual?",
     "app.window.no_webview2": "Falta el componente de Windows que muestra las pantallas de MeetingTool "
                               "(Microsoft Edge WebView2). Instalalo desde la página de Microsoft y volvé a abrir "
                               "MeetingTool.",
@@ -432,11 +483,16 @@ TEXTS = {
     "js.state.done": "listo",
     "js.state.skipped": "no hace falta",
     "js.state.failed": "falló",
-    "js.spent": "Gastado: {spent} de un techo de {ceiling} · {seconds} s",
+    "js.spent": "Gastado: {spent} de un techo estimado de {ceiling} · {seconds} s",
     "js.see_meeting": "Ver la reunión",
     "js.failed_at": "Falló en «{stage}»: {error}. La reunión no se agregó al proyecto y no quedó nada a medias.",
     "js.detail": "Detalle: {detail}",
     "js.retry": "Volver a intentar",
     "js.connection_job": "Se cortó la conexión con MeetingTool: fijate que su ventana siga abierta.",
     "js.running": "Se está procesando «{title}»: ver el avance",
+    "js.kept": "Lo que Gemini ya respondió para esta reunión quedó guardado (lleva pagado {paid}): procesarla "
+               "de nuevo con la misma transcripción no lo vuelve a pagar. Hasta entonces, figura en el proyecto.",
+    "js.discard": "Descartar lo guardado",
+    "js.discard_confirm": "¿Descartar lo guardado? Procesar de nuevo esta reunión lo volvería a pagar.",
+    "js.discarded": "Descartado.",
 }

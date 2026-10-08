@@ -525,7 +525,7 @@ def wi03_p3_4(args, root):
         return False, "ProjectError"
     except FileNotFoundError:
         return True, "a missing knowledge.md raises FileNotFoundError, not ProjectError"
-    return False, "no error"
+    return False, "no error: the knowledge is made from the records (ef0abc5)"
 
 
 @entry("WI03-P3-5")
@@ -725,7 +725,7 @@ def wi05_p3_2(args, root):
         except transcript_module.TranscriptError:
             refused = True
     return len(blocks) == 1 and refused, (f"a UTF-8 file with a BOM and two timed lines reads {len(blocks)} block(s); "
-                                          f"with one timed line it is refused as having none: {refused}")
+                                          f"with one timed line it is {'refused as having none' if refused else 'read'}")
 
 
 @entry("WI05-P3-3")
@@ -806,9 +806,756 @@ def wi05_p3_8(args, root):
         with zipfile.ZipFile(docx, "w", zipfile.ZIP_DEFLATED) as archive:
             archive.writestr("word/document.xml", document)
         compressed = docx.stat().st_size
-        blocks = transcript_module.read_blocks(docx)
+        try:
+            blocks = transcript_module.read_blocks(docx)
+        except transcript_module.TranscriptError as error:
+            return False, f"a {compressed // 1024} KB .docx of {size // (1024 * 1024)} MB of text is refused: {error}"
     return (len(blocks) == 1 and len(blocks[0][1]) >= size,
             f"a {compressed // 1024} KB .docx is read whole: {len(blocks[0][1]) // (1024 * 1024)} MB of text, no limit")
+
+
+# --- WI20: the project's data and what was paid ----------------------------------------------
+
+def _wi20_folder(tmp):
+    from tests.test_frames import write_teams_docx
+    from tests import test_qa
+    frames = tmp / "frames"
+    frames.mkdir()
+    write_teams_docx(tmp / "t.docx", test_qa.SPANISH)
+    return frames
+
+
+@entry("WI20-P3-1")
+def wi20_p3_1(args, root):
+    from meetingtool.summary import qa
+    from tests import test_qa
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        frames = _wi20_folder(tmp)
+        paid = []
+        for model in ("gemini-flash-latest", "gemini-pro-latest"):
+            with FakeGemini([test_qa.json_answer(test_qa.verbal())]) as fake:
+                qa.write_register(frames, tmp / "t.docx", KEY, date="2026-09-25", language="es", model=model,
+                                  endpoint=fake.endpoint, sleep=lambda s: None, retry_delays=())
+                paid.append(len(fake.requests))
+    return paid == [1, 0], f"the register's parts paid with one model, then with another: requests {paid}"
+
+
+@entry("WI20-P3-2")
+def wi20_p3_2(args, root):
+    from unittest import mock
+    from meetingtool import disk
+    from meetingtool.report import document
+    from tests import test_report
+    with workspace() as tmp:
+        data = tmp / "data"
+        document.set_template(test_report.company_template(tmp / "a.docx"), data, name="la-de-antes.docx")
+        real = disk.write_text
+
+        def cut(path, *a, **k):
+            if Path(path).name == document.TEMPLATE_RECORD:
+                raise OSError(28, "No space left on device")
+            return real(path, *a, **k)
+
+        with mock.patch.object(disk, "write_text", cut):
+            try:
+                document.set_template(test_report.fields_template(tmp / "b.docx", ["{reunion}"]), data,
+                                      name="la-nueva.docx")
+            except OSError:
+                pass
+        info = document.template_info(data)
+    new_template = bool(info.fields)  # the old template has no field, the new one has one
+    return new_template and info.name == "la-de-antes.docx", (
+        f"after a cut between the two files: the new template in place {new_template}, its name said {info.name!r}")
+
+
+@entry("WI20-P3-3")
+def wi20_p3_3(args, root):
+    from unittest import mock
+    from meetingtool.app import jobs
+    with workspace() as tmp:
+        data = tmp / "data"
+        store.create_project(data, "Planta Demo", "c")
+        with mock.patch.object(store, "rebuild_knowledge"):  # the process died before rewriting the copy
+            store.add_meeting(data, "planta-demo", "Cierre", "2026-09-25", summary="La que no llego a la copia.")
+        before = "La que no llego" in store.knowledge_context(data, "planta-demo")
+        jobs.clear_leftovers(data)
+        after = "La que no llego" in store.knowledge_context(data, "planta-demo")
+    return not before and after, (f"knowledge read before the application starts again holds the meeting: {before}; "
+                                  f"after it starts: {after}")
+
+
+@entry("WI20-P3-4")
+def wi20_p3_4(args, root):
+    from meetingtool.summary import qa
+    from tests import test_qa
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        frames = _wi20_folder(tmp)
+        data = tmp / "data"
+        store.create_project(data, "Planta Demo", "c")
+        store.add_meeting(data, "planta-demo", "Relevamiento", "2026-09-10", summary="Antes.")
+        record = next((data / "planta-demo" / "meetings").glob("*/meeting.json"))
+        record.write_bytes(record.read_bytes()[:40])  # broken by hand
+        with FakeGemini([test_qa.json_answer(test_qa.verbal())]) as fake:
+            try:
+                qa.write_register(frames, tmp / "t.docx", KEY, data_dir=data, project="planta-demo", title="Dudas",
+                                  date="2026-09-25", language="es", endpoint=fake.endpoint, sleep=lambda s: None,
+                                  retry_delays=())
+                said = "saved"
+            except qa.QAError as error:
+                said = error.message.key
+            paid = len(fake.requests)
+    return paid == 1 and said == "summary.not_added", (
+        f"with a record broken by hand: {paid} request(s) paid, then the meeting {said}")
+
+
+@entry("WI20-P3-5")
+def wi20_p3_5(args, root):
+    from meetingtool.reading import gemini
+    from meetingtool.summary import writer
+    from tests import test_summary
+    from tests.test_frames import write_teams_docx
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        frames = tmp / "frames"
+        frames.mkdir()
+        (frames / gemini.OUTPUT_NAME).write_text("# What each frame shows\n\n", encoding="utf-8")
+        write_teams_docx(tmp / "t.docx", test_summary.SPANISH)
+        text = test_summary.summary_text("es")
+        with FakeGemini([test_summary.returning(text)] * 2) as fake:
+            for _ in range(2):
+                writer.write_summary(frames, tmp / "t.docx", KEY, language="es", endpoint=fake.endpoint,
+                                     sleep=lambda s: None, retry_delays=())
+            paid = len(fake.requests)
+    return paid == 1, f"the same summary asked twice in one folder: {paid} request(s) paid"
+
+
+@entry("WI20-P3-6")
+def wi20_p3_6(args, root):
+    env = {k: v for k, v in os.environ.items() if k != "PYTHONPATH"}
+    env["PYTHONDONTWRITEBYTECODE"] = "1"
+    result = subprocess.run([sys.executable, "-m", "unittest", "discover", "-s", "tests", "-p", "test_d1_*"],
+                            cwd=REPO, capture_output=True, text=True, env=env, timeout=600)
+    # six files: three need the kits and are skipped; WI21's (R05), WI22's (R02) and WI25's (R04) need none and run
+    skipped = re.search(r"OK \(skipped=3\)", result.stderr)
+    return bool(skipped) and "Ran 8 tests" in result.stderr, (
+        f"without the kits: {result.stderr.strip().splitlines()[-1] if result.stderr.strip() else '?'}"
+        f" ({result.stderr.count('Ran ')} run line)")
+
+
+@entry("WI20-P3-7")
+def wi20_p3_7(args, root):
+    with workspace() as tmp:
+        from tests.test_data_integrity import KeptRunTest
+        import unittest
+        test = KeptRunTest("test_a_report_that_fails_keeps_the_reading_and_the_summary_and_the_next_run_pays_nothing")
+        kept = {}
+        real = test.process
+
+        def first_only(**fields):
+            job = real(**fields)
+            if not kept:
+                folder = test.data / test.project / "processing" / job["kept"]["run"]
+                kept["files"] = sorted(p.name for p in folder.iterdir())
+            return job
+
+        test.process = first_only
+        result = unittest.TestResult()
+        test.run(result)
+    files = kept.get("files", [])
+    return "transcript.docx" in files and any(n.startswith("frame_") for n in files), (
+        f"a failed run that paid keeps, until it is processed again or discarded: {files}")
+
+
+# --- WI21: reading to the end ------------------------------------------------------------------
+
+OLD_TAIL = 120.0  # what WI10 added to the last line's start; the constant is gone, the number is the history
+
+
+def _wi21_meeting(tmp, lines):
+    """A 140 s synthetic recording (slide A to 10 s, B to 130 s, C after) and a transcript of `lines`."""
+    video, transcript = tmp / "meeting.mp4", tmp / "meeting.txt"
+    frames_fixture.write_video(video, [(frames_fixture.SLIDE_A, 10, False), (frames_fixture.SLIDE_B, 120, False),
+                                       (frames_fixture.SLIDE_C, 10, False)])
+    transcript.write_text(lines, encoding="utf-8")
+    return video, transcript
+
+
+@entry("WI21-P3-1")
+def wi21_p3_1(args, root):
+    with workspace() as tmp:
+        video, transcript = _wi21_meeting(tmp, "[00:00:01] Ana:\nhola\n")
+        result = extract_frames(video, tmp / "out", transcript=transcript)
+    old_stop = 1 + OLD_TAIL
+    would_have_read = int(old_stop * 2) + 1
+    return result.samples > would_have_read, (
+        f"a {result.duration:.0f} s recording whose transcript ends at 1 s: {result.samples} samples read, "
+        f"about {would_have_read} if reading still stopped {OLD_TAIL:.0f} s after the last line")
+
+
+@entry("WI21-P3-2")
+def wi21_p3_2(args, root):
+    with workspace() as tmp:
+        video, transcript = _wi21_meeting(tmp, "[00:00:01] Ana:\nhola\n")
+        result = extract_frames(video, tmp / "out", transcript=transcript)
+        slides = kept_slides(result, tmp / "out")
+    after = [(time, slide) for time, slide in zip(result.kept_times, slides) if time > 1 + OLD_TAIL]
+    return bool(after), (f"the slide shown after the transcript's last line and the old stop time is kept: "
+                         f"{[(round(time), slide) for time, slide in after]}")
+
+
+@entry("WI21-P3-3")
+def wi21_p3_3(args, root):
+    with workspace() as tmp:
+        video, transcript = _wi21_meeting(tmp, "[00:00:01] Ana:\nhola\n[00:10:00] Luis:\nchau\n")
+        shown = run_python(["-m", "meetingtool.frames", "--video", str(video), "--out", str(tmp / "out"),
+                            "--transcript", str(transcript)], cwd=REPO)
+        usage = run_python(["-m", "meetingtool.frames", "--help"], cwd=REPO).stdout
+    said = [line for line in shown.stdout.splitlines()
+            if not line.startswith(("duration ", "discarded ", "candidates raised by the transcript"))]
+    options = re.findall(r"^\s+(--[a-z-]+)", usage, flags=re.MULTILINE)
+    return shown.returncode == 0 and not said and not {"--end", "--until", "--stop"} & set(options), (
+        f"a transcript with a line at 10 min on a 140 s recording: exit {shown.returncode}, "
+        f"{len(said)} lines about it; options {options}")
+
+
+@entry("WI21-P3-4")
+def wi21_p3_4(args, root):
+    from meetingtool.summary import qa
+    # An answer whose last turn begins at 0:20 and goes on explaining; a slide shown at 5:00 of that
+    # explanation was extracted (WI21) but is not among the frames the register reads for the answer.
+    frames = [Path(f"frame_001_t00-00-15.jpg"), Path(f"frame_002_t00-05-00.jpg")]
+    span = [path.name for path in qa.span_frames(frames, 10, 20)]
+    return "frame_002_t00-05-00.jpg" not in span, (
+        f"an answer from 0:10 whose last turn begins at 0:20: the register reads {span}, not the slide at 5:00")
+
+
+# --- WI22: the Word template's filter ---------------------------------------------------------
+
+def _wi22_template(tmp, **edit):
+    from tests import test_report
+    return test_report.edit_package(test_report.company_template(tmp / "clean.docx"), tmp / "variant.docx", **edit)
+
+
+def _wi22_accepted(path, tmp):
+    """(whether the template is accepted, what is said: "accepted", or the refusal's items)."""
+    from meetingtool.report import document
+    try:
+        document.set_template(path, tmp / "data")
+    except document.ReportError as error:
+        return False, " ".join(str(error).replace("\n  ", " | ").splitlines()[:1])
+    return True, "accepted"
+
+
+@entry("WI22-P3-1")
+def wi22_p3_1(args, root):
+    return None, ("needs Word: there is none here, as in the external review (contract WI22, not done). The forms "
+                  "the filter refuses are shown to be real fields by a second reader of the XML "
+                  "(tests/test_template_filter.py), not by Word")
+
+
+@entry("WI22-P3-2")
+def wi22_p3_2(args, root):
+    with workspace() as tmp:
+        part = b'<?xml version="1.0"?><a>' + b"x" * (40 * 1024 * 1024) + b"</a>"
+        path = _wi22_template(tmp, add={"customXml/item2.xml": part})
+        stored = path.stat().st_size
+        accepted, said = _wi22_accepted(path, tmp)
+    return accepted and stored < 1_000_000, (
+        f"a package of {stored / 1024:.0f} KB holding one part of {len(part) / 2 ** 20:.0f} MB: {said}")
+
+
+@entry("WI22-P3-3")
+def wi22_p3_3(args, root):
+    from meetingtool.report import document
+    from tests import test_report, test_template_filter as forms
+    first, second = b' QUOTE "INCLUDETE" ', b' QUOTE "XT" '
+    built = forms.paragraph(forms.mark(b"begin"), forms.mark(b"begin"), forms.instruction(first), forms.mark(b"end"),
+                            forms.mark(b"begin"), forms.instruction(second), forms.mark(b"end"),
+                            forms.instruction(forms.TARGET), forms.mark(b"end"))
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", built)})
+        accepted, said = _wi22_accepted(path, tmp)
+        found = document.active_content(test_report.package_parts(path))
+    return accepted and not found, (
+        f"a field whose name is the result of two QUOTE fields (INCLUDETE + XT): {said}; the filter found {found}")
+
+
+@entry("WI22-P3-4")
+def wi22_p3_4(args, root):
+    from tests import test_report
+    from tests import test_template_filter as forms
+    address = "file://inventado.invalid/share/x.docm"
+    field = forms.complex_field(b' HYPERLINK "' + address.encode() + b'" ')
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={
+            "word/_rels/document.xml.rels": (b"</Relationships>", test_report.relationship("hyperlink", address)),
+            "word/document.xml": (b"<w:sectPr", field)})
+        accepted, said = _wi22_accepted(path, tmp)
+    return accepted, f"a hyperlink (relationship and field) to {address}: {said}"
+
+
+@entry("WI22-P3-5")
+def wi22_p3_5(args, root):
+    from tests import test_template_filter as forms
+    field = forms.complex_field(b' FETCHREMOTE "https://example.invalid/x.png" ')
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", field)})
+        accepted, said = _wi22_accepted(path, tmp)
+    return accepted, f"a field named FETCHREMOTE (invented) with an address: {said}"
+
+
+# --- WI23: the fields a template may hold -----------------------------------------------------
+
+@entry("WI23-P3-1")
+def wi23_p3_1(args, root):
+    from tests import test_template_filter as forms
+    field = forms.complex_field(b' ADDIN ZOTERO_ITEM CSL_CITATION {"citationID":"x"} ')
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", field)})
+        accepted, said = _wi22_accepted(path, tmp)
+        from meetingtool.report import document
+        stored = document.stored_template(tmp / "data")
+    return not accepted and "a ADDIN field" in said and stored is None, (
+        f"a template with an ADDIN field (a citation manager's, made-up item): {said}; stored: {stored is not None}")
+
+
+@entry("WI22-P3-6")
+def wi22_p3_6(args, root):
+    from meetingtool.report import document
+    from tests import test_report
+    font = b"\x00" * 32
+    with workspace() as tmp:
+        path = _wi22_template(tmp, add={
+            "word/fonts/font1.odttf": font,
+            "word/_rels/fontTable.xml.rels": test_report.RELATIONSHIPS % test_report.relationship(
+                "font", "fonts/font1.odttf", external=False)},
+            insert={"[Content_Types].xml": (b"</Types>", b'<Default Extension="odttf" ContentType="application/'
+                                            b'vnd.openxmlformats-officedocument.obfuscatedFont"/>')})
+        accepted, said = _wi22_accepted(path, tmp)
+        frames = tmp / "frames"
+        frames.mkdir()
+        (frames / document.SUMMARY_NAME).write_text(test_report.summary_text(screen="Nada en pantalla."),
+                                                    encoding="utf-8")
+        document.build_report(frames, data_dir=tmp / "data")
+        with zipfile.ZipFile(frames / document.OUTPUT_NAME) as report:
+            arrived = "word/fonts/font1.odttf" in report.namelist()
+    return accepted and arrived, f"a template with an embedded font part: {said}; the font is in the report: {arrived}"
+
+
+@entry("WI22-P3-7")
+def wi22_p3_7(args, root):
+    part = '<?xml version="1.0" encoding="Shift_JIS"?><a>\u65e5\u672c\u8a9e</a>'.encode("shift_jis")
+    with workspace() as tmp:
+        path = _wi22_template(tmp, add={"customXml/item2.xml": part})
+        accepted, said = _wi22_accepted(path, tmp)
+    return not accepted and "customXml/item2.xml: is not readable XML" in said, (
+        f"a customXml part in Shift_JIS: {said}")
+
+
+@entry("WI23-P3-2")
+def wi23_p3_2(args, root):
+    from tests import test_markup_compatibility as compat
+    from tests import test_template_filter as forms
+    # Word reads one branch: with the Choice's namespace understood, only PAGE; the filter reads both.
+    inside = compat.alternate(forms.complex_field(b" PAGE "), forms.complex_field(b" ADDIN x "))
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", inside)})
+        accepted, said = _wi22_accepted(path, tmp)
+    return not accepted and "a ADDIN field" in said, (
+        f"an alternative with PAGE in its Choice and a whole ADDIN field in its Fallback: {said}")
+
+
+@entry("WI23-P3-3")
+def wi23_p3_3(args, root):
+    from meetingtool.report import document
+    from tests import test_markup_compatibility as compat
+    from tests import test_template_filter as forms
+    # The begin is in a branch of an alternative; the instruction, outside, is loose text joined with the one
+    # before it, so only its first word (an allowed one) is read.
+    arranged = (compat.alternate(forms.mark(b"begin"), forms.run(b"<w:t>y</w:t>"))
+                + forms.paragraph(forms.instruction(b" PAGE "), forms.instruction(b" ADDIN x "), forms.mark(b"end")))
+    with workspace() as tmp:
+        path = _wi22_template(tmp, insert={"word/document.xml": (b"<w:sectPr", arranged)})
+        accepted, said = _wi22_accepted(path, tmp)
+        try:
+            document.check_active_content(path)
+            checked = True
+        except document.ReportError:
+            checked = False
+    return accepted and checked, (
+        f"a field whose begin is in a branch of an alternative and whose instruction is outside, an ADDIN field with "
+        f"no address: the template is {said}; the report's last check lets it through: {checked}")
+
+
+def _wi24_timed(tmp):
+    """A transcript in the shape of the first real meeting, made up: a title, then each time alone on
+    its line and the words after it."""
+    path = tmp / "timed.docx"
+    frames_fixture.write_timed_docx(path, frames_fixture.TIMED)
+    return path
+
+
+@entry("WI24-P3-1")
+def wi24_p3_1(args, root):
+    from meetingtool.summary import qa, writer
+    from tests.test_reading import KEY, FakeGemini
+    with workspace() as tmp:
+        path = _wi24_timed(tmp)
+        turns = transcript_module.read_turns(path)
+        prompt = writer.build_prompt(turns, "", "es")
+        folder = tmp / "frames"
+        folder.mkdir()
+        with FakeGemini() as fake:
+            try:
+                qa.write_register(folder, path, KEY, language="es", endpoint=fake.endpoint, sleep=lambda s: None)
+                refused = ""
+            except qa.QAError as error:
+                refused = error.message.key
+            sent = len(fake.requests)
+    named = [speaker for _, speaker, _ in turns if speaker]
+    return not named and refused == "qa.needs_speakers" and sent == 0 and "] Buen día" in prompt, (
+        f"{len(turns)} turns, speakers named: {named}; the summary's request has the turns with no name; "
+        f"the register: {refused or 'written'} after {sent} request(s)")
+
+
+@entry("WI24-P3-2")
+def wi24_p3_2(args, root):
+    return None, ("needs the real Gemini and the owner's meeting: the tests here are synthetic (a reading of 141 "
+                  "frames with Gemini faked), which show what the request says and what the check lets through, not "
+                  "whether the real model now copies the names right. The owner's own run will show it")
+
+
+@entry("WI24-P3-3")
+def wi24_p3_3(args, root):
+    with workspace() as tmp:
+        spoken = tmp / "spoken.txt"
+        spoken.write_text("Ana Pérez   0:04\nEl cierre es a las\n10:30\nsegún dijeron.\n", encoding="utf-8")
+        turns = transcript_module.read_turns(spoken)
+    split = [(start, speaker) for start, speaker, _ in turns]
+    return split == [(4, "Ana Pérez"), (630, "")], (
+        f"a line of someone's words that is only a time, in a transcript with speakers: blocks {split} (it "
+        f"reproduces if the second block starts at 630 s with no speaker)")
+
+
+@entry("WI24-P3-4")
+def wi24_p3_4(args, root):
+    from meetingtool.app import jobs
+    from meetingtool.summary import writer
+    with workspace() as tmp:
+        data = tmp / "data"
+        store.create_project(data, "Planta Demo", "c")
+        uploads = jobs.Uploads(data)
+        path = uploads.new_path(".docx")
+        frames_fixture.write_timed_docx(path, frames_fixture.TIMED)
+        try:
+            request = jobs.check_request({"project": "planta-demo", "title": "Dudas", "date": "2026-10-06",
+                                          "format": "qa", "transcript": path.name}, data, uploads,
+                                         writer.MEETING_TYPES, ("es", "en"))
+            said = f"accepted as a {request['format']} request"
+        except jobs.JobError as error:
+            request, said = None, f"refused: {error.message.key}"
+    return request is not None, (
+        f"the application's request for a register with a transcript that names no one: {said}")
+
+
+def _wi25_register(tmp, said, data, date):
+    """None if the register `data` is accepted over the Spanish test transcript with these lines more
+    (said by Juan Gómez, after minute 2:30) and a meeting of `date`; otherwise the refusal's text."""
+    from meetingtool.summary import qa
+    from tests import test_qa
+    from tests.test_reading import KEY, FakeGemini
+    path = tmp / "t.docx"
+    frames_fixture.write_teams_docx(path, test_qa.SPANISH[:4] + [("Juan Gómez", f"3:{10 + number}", line)
+                                                                 for number, line in enumerate(said)]
+                                    + test_qa.SPANISH[4:])
+    folder = tmp / "frames"
+    folder.mkdir()
+    with FakeGemini([test_qa.json_answer(data)] * 2) as fake:
+        try:
+            qa.write_register(folder, path, KEY, date=date, language="es", endpoint=fake.endpoint,
+                              sleep=lambda s: None, retry_delays=())
+            return None
+        except qa.QAError as error:
+            return str(error)
+
+
+def _wi25_shown(refusal):
+    """What a refusal of the register says: the piece that names the date or the figure."""
+    if refusal is None:
+        return "accepted"
+    found = re.search(r"writes a (?:date|figure|year)[^()]*\([^)]*\)", refusal)
+    return f"refused ({found.group() if found else refusal[-80:]})"
+
+
+@entry("WI25-P3-1")
+def wi25_p3_1(args, root):
+    from meetingtool.summary import writer
+    from tests import test_summary
+    headings = writer.required_headings("es")
+    text = test_summary.summary_text("es", empty=headings[2], emptied="Se entrega el 25 de septiembre de 2030 por "
+                                                                       "US$ 48.000.")
+    try:
+        writer.check_summary(test_summary.answer(text), headings, "es")
+        said = "returned the summary"
+    except writer.SummaryError as error:
+        said = f"refused: {error.message.key}"
+    return said == "returned the summary", (
+        f"a summary that writes 25 de septiembre de 2030 and US$ 48.000, which no transcript said, in its "
+        f"decisions: check_summary {said} (it has no transcript to compare with)")
+
+
+@entry("WI25-P3-2")
+def wi25_p3_2(args, root):
+    from tests import test_qa
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Lo mandamos el 15 de enero."],
+                                 test_qa.changed(test_qa.verbal(), 2, deadline="el 15 de enero de 2027"), "2026-12-10")
+    return refusal is not None and "15/1/2027" in refusal, (
+        f"a meeting of 2026-12-10, a transcript that says 'el 15 de enero' and a deadline 'el 15 de enero de 2027': "
+        f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-3")
+def wi25_p3_3(args, root):
+    from tests import test_qa
+    figures = ["Se trabaja en 3 turnos."]
+    data = test_qa.changed(test_qa.verbal(), knowledge=dict(test_qa.REGISTER["knowledge"], figures=figures))
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Trabajamos en tres turnos."], data, "2026-09-25")
+    return refusal is not None and "(3)" in refusal, (
+        f"the transcript says 'tres turnos' and the figure is 'Se trabaja en 3 turnos.': {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-4")
+def wi25_p3_4(args, root):
+    from meetingtool.summary import writer
+    from tests import test_summary
+    headings = writer.required_headings("es")
+    text = test_summary.summary_text("es", empty=headings[2], emptied="| Decisión | Responsable |\n|---|---|")
+    try:
+        writer.check_summary(test_summary.answer(text), headings, "es")
+        said = "accepted"
+    except writer.SummaryError as error:
+        said = f"refused: {error.message.key}"
+    return said == "accepted", f"the decisions are a table with its header row and no rows: the summary is {said}"
+
+
+@entry("WI25-P3-5")
+def wi25_p3_5(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, deadline="el 25 de septiembre de 2030")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Son 2030 cajas."], data, "2026-09-25")
+    return refusal is None, (
+        f"the transcript says '2030 cajas' and 'el 25 de septiembre', a meeting of 2026, and the deadline is 'el 25 "
+        f"de septiembre de 2030': {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-6")
+def wi25_p3_6(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), knowledge=dict(test_qa.REGISTER["knowledge"],
+                                                           figures=["Pesa 1,25 kilos."]))
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["La pieza pesa 1,250 kilos."], data, "2026-09-25")
+    return refusal is not None and "(1,25)" in refusal, (
+        f"the transcript says '1,250 kilos' (read as 1250) and the figure is 'Pesa 1,25 kilos': "
+        f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-7")
+def wi25_p3_7(args, root):
+    from tests import test_qa
+    answers = [{"speaker": "Juan Gómez", "text": "Se procesan 52.000 kilos por mes."}]
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, [], test_qa.changed(test_qa.verbal(), 2, answers=answers), "2026-09-25")
+    return refusal is None, (
+        f"an answer that says 'Se procesan 52.000 kilos por mes.', which the transcript does not: "
+        f"{_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-8")
+def wi25_p3_8(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, deadline="el 15 de enero de 2027")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Lo mandamos el 15 de enero del 27."], data, "2026-12-10")
+    return refusal is not None and "15/1/2027" in refusal, (
+        f"the transcript says 'el 15 de enero del 27', the deadline is 'el 15 de enero de 2027', a meeting of "
+        f"2026-12-10: {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-9")
+def wi25_p3_9(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), knowledge=dict(test_qa.REGISTER["knowledge"],
+                                                           figures=["Hay 1.000 kilos."]))
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, ["Hay mil kilos."], data, "2026-09-25")
+    return refusal is not None and "(1.000)" in refusal, (
+        f"the transcript says 'Hay mil kilos.' and the figure is 'Hay 1.000 kilos.': {_wi25_shown(refusal)}")
+
+
+@entry("WI25-P3-10")
+def wi25_p3_10(args, root):
+    from tests import test_qa
+    data = test_qa.changed(test_qa.verbal(), 2, pending="Se mandan 2000 cajas.")
+    with workspace() as tmp:
+        refusal = _wi25_register(tmp, [], data, "2026-09-25")
+    return refusal is not None and "(2000)" in refusal, (
+        f"a pending item 'Se mandan 2000 cajas.' over a transcript that says no 2000: {_wi25_shown(refusal)}")
+
+
+# --- WI26: text transcripts in any Windows encoding -------------------------------------------
+
+@entry("WI26-P3-1")
+def wi26_p3_1(args, root):
+    said = "mañana, ¿cómo estás?"
+    with workspace() as tmp:
+        path = tmp / "dos.txt"
+        path.write_bytes(f"[00:00:04] {said}".encode("cp850"))  # the old DOS code page of a Spanish Windows console
+        (_, _, read), = transcript_module.read_turns(path)
+    return read != said, f"a file saved in cp850 (no mark, not UTF-8) is read as cp1252: {said!r} reads {read!r}"
+
+
+@entry("WI26-P3-2")
+def wi26_p3_2(args, root):
+    with workspace() as tmp:
+        path = tmp / "utf32.txt"
+        path.write_bytes("[00:00:04] Hola, ¿cómo están?\n".encode("utf-32"))
+        try:
+            transcript_module.read_turns(path)
+            said = "read"
+        except transcript_module.TranscriptError as error:
+            said = error.message.key
+    return said == "transcript.no_timed_line", f"a transcript saved as UTF-32: {said}"
+
+
+@entry("WI27-P3-1")
+def wi27_p3_1(args, root):
+    from meetingtool.summary import writer
+    a, b = "frame_029_t00-23-24.jpg", "frame_037_t00-31-24.jpg"
+    text = writer.separate_frames(f"between [{a}, and {b}]")
+    try:
+        writer.check_frames(text, {a, b})
+        said = "accepted"
+    except writer.SummaryError as error:
+        said = f"refused: {error.message.key}"
+    return said == "accepted", f"'between [a, and b]', rewritten as {text!r}: {said}"
+
+
+@entry("WI28-P3-1")
+def wi28_p3_1(args, root):
+    from meetingtool.reading import gemini
+    from tests import test_summary
+    from tests.test_reading import FakeGemini
+    # The provider charges twice the prices written in the code for the same tokens. Google's answer holds token
+    # counts, never a price, and the run counts what an answer cost with the code's own prices, so nothing differs
+    # from the estimate and nothing is noticed: the run does not stop, and what it records is half the bill.
+    answer = test_summary.answer("Uno.")
+    answer["usageMetadata"] = {"promptTokenCount": 120000, "candidatesTokenCount": 3000, "thoughtsTokenCount": 2000}
+    worst = 0.15  # what the request was estimated to cost at the most; the answer costs less at the code's prices
+    with FakeGemini([lambda first, count: answer, lambda first, count: answer]) as fake:
+        counters = gemini.new_counters()
+        url = gemini.model_url(fake.endpoint, gemini.MODEL)
+        for text in ("x", "y"):
+            payload = {"contents": [{"role": "user", "parts": [{"text": text}]}]}
+            gemini.call_checked(url, "k" * 39, payload, lambda reply: "ok", worst, "x", (), lambda s: None, counters, 5.0)
+        recorded = counters["spent"] / 2
+        with mock.patch.object(gemini, "PRICE_INPUT_PER_MILLION", 2 * gemini.PRICE_INPUT_PER_MILLION), \
+                mock.patch.object(gemini, "PRICE_OUTPUT_PER_MILLION", 2 * gemini.PRICE_OUTPUT_PER_MILLION):
+            billed = gemini.token_cost(120000, 5000)
+        sent, overrun = len(fake.requests), counters["overrun"]
+    return (gemini.MODEL == "gemini-flash-latest" and sent == 2 and overrun is None and billed > worst > recorded,
+            f"model {gemini.MODEL!r}; each request recorded as US${recorded:.4f}, estimated at most US${worst:.2f}; at "
+            f"twice the prices it would be billed US${billed:.4f}: {sent} requests sent, overrun {overrun}")
+
+
+@entry("WI28-P3-2")
+def wi28_p3_2(args, root):
+    from meetingtool.reading import gemini
+    from tests import test_summary
+    from tests.test_reading import FakeGemini
+    # A run that stopped for an overrun and is processed again starts with new counters: the answers it kept cost
+    # nothing, but a request it has to pay for goes out, and can overrun again with the same estimate.
+    answer = test_summary.answer("Uno.")
+    answer["usageMetadata"] = {"promptTokenCount": 800000, "candidatesTokenCount": 1, "thoughtsTokenCount": 0}
+    with FakeGemini([lambda first, count: answer, lambda first, count: answer]) as fake:
+        url = gemini.model_url(fake.endpoint, gemini.MODEL)
+        overruns = []
+        for text in ("x", "y"):  # the second run needs an answer the first did not keep
+            counters = gemini.new_counters()
+            payload = {"contents": [{"role": "user", "parts": [{"text": text}]}]}
+            gemini.call_checked(url, "k" * 39, payload, lambda reply: "ok", 0.10, "x", (), lambda s: None, counters, 5.0)
+            overruns.append(counters["overrun"] is not None)
+        sent = len(fake.requests)
+    return sent == 2 and all(overruns), f"two runs, each with its own counters: {sent} requests sent, overruns {overruns}"
+
+
+@entry("WI29-P3-1")
+def wi29_p3_1(args, root):
+    import tracemalloc
+    from xml.etree import ElementTree
+    size = 2 * 1024 * 1024  # a thirty-second part of the limit: the reproduction does not take the memory it shows
+    unit = b"<w:t>a</w:t>"
+    data = (b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">'
+            + unit * (size // len(unit)) + b"</w:document>")
+    tracemalloc.start()
+    try:
+        ElementTree.fromstring(data)
+        peak = tracemalloc.get_traced_memory()[1]
+    finally:
+        tracemalloc.stop()
+    return peak > 5 * len(data), (f"a part of {len(data) / 2 ** 20:.0f} MB of small elements: parsing takes "
+                                  f"{peak / len(data):.1f} times its size ({peak / 2 ** 20:.0f} MB)")
+
+
+@entry("WI29-P3-2")
+def wi29_p3_2(args, root):
+    import tracemalloc
+    from meetingtool import word_package
+    entries = 60_000
+    with tempfile.TemporaryDirectory() as folder:
+        path = Path(folder) / "many.docx"
+        with zipfile.ZipFile(path, "w", zipfile.ZIP_STORED) as archive:
+            for number in range(entries):
+                archive.writestr(f"customXml/{number}.xml", b"")
+        size = path.stat().st_size
+        tracemalloc.start()
+        try:
+            try:
+                word_package.read_parts(path)
+                said = "read"
+            except word_package.PackageError as error:
+                said = f"refused: {error.message.key}"
+            peak = tracemalloc.get_traced_memory()[1]
+        finally:
+            tracemalloc.stop()
+    return said == "refused: package.too_many_entries" and peak > 3 * size, (
+        f"a package of {entries} empty parts ({size / 2 ** 20:.1f} MB): {said}, with a peak of "
+        f"{peak / 2 ** 20:.0f} MB ({peak / size:.1f} times its size)")
+
+
+@entry("WI31-P3-1")
+def wi31_p3_1(args, root):
+    import tomllib
+    declared = tomllib.loads((REPO / "pyproject.toml").read_text(encoding="utf-8"))["project"]["dependencies"]
+    pins = dict(re.findall(r"(?m)^([A-Za-z0-9_.-]+)==(\S+)", (REPO / "constraints.txt").read_text(encoding="utf-8")))
+    pins = {re.sub(r"[-_.]+", "-", name).lower(): version for name, version in pins.items()}
+    workflow = (REPO / ".github" / "workflows" / "tests.yml").read_text(encoding="utf-8")
+    installs = [line.strip() for line in workflow.splitlines() if "pip install" in line]
+    above = []
+    for dependency in declared:
+        name, minimum = re.match(r"([A-Za-z0-9_.-]+)>=(\S+)", dependency).groups()
+        name = re.sub(r"[-_.]+", "-", name).lower()
+        if pins.get(name) != minimum:
+            above.append(f"{name} minimum {minimum}, run at {pins.get(name)}")
+    only_pinned = len(installs) == 1 and "constraints.txt" in installs[0]
+    reproduces = only_pinned and len(above) == len(declared)
+    return reproduces, (f"the CI has {len(installs)} install step(s), {'with' if only_pinned else 'not only with'} the "
+                        f"constraints; every library runs above its minimum: {'; '.join(above)}")
 
 
 # --- Running ---------------------------------------------------------------------------------

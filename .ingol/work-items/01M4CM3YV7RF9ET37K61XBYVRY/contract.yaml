@@ -1,0 +1,69 @@
+schema_version: "1"
+id: 01M4CM3YV7RF9ET37K61XBYVRY
+objective: >
+  WI29. What a Word package expands to is bounded before it is read
+  (finding R08, P2, of the external review of 2026-10-02: "El límite de
+  carga no limita el tamaño descomprimido de los Word"; already in the
+  limitations register as WI22-P3-2). Second work item of the second batch.
+  The owner asked on 2026-10-07 to finish all of R07 to R11 overnight,
+  without seeing each contract: this contract is approved by that
+  instruction, and what it decides without the owner is listed below.
+  Starts from main (1a78ce4, after WI27); does not touch the installer's
+  branch.
+
+  Today a Word transcript, a report template and the report's own last
+  check read the parts of the package (a ZIP) whole into memory: the upload
+  limit counts the compressed bytes, so a package of a few kilobytes can
+  expand to tens of megabytes or more. After this work item one function
+  opens every Word package the program reads, and refuses it, before
+  parsing anything, with a message that says which limit and which part,
+  when it holds more entries than allowed, when a part expands to more than
+  allowed, or when all of them together do. The limits are enforced while
+  reading (the bytes actually decompressed are counted), not taken from
+  what the package's directory says.
+
+  Decided without the owner: the limits are 4,000 entries, 32 MB for one
+  part and 256 MB for the whole package; the owner's template (1.1 MB) and
+  the report of a meeting of 146 frames are far below them.
+
+  Built by a construction-role agent (Sonnet), gated by the criterion; one
+  independent review through INGOL's mailbox.
+
+  Not done: the memory the XML parser takes for a part within the limit;
+  the recording (read by PyAV, which streams it).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4CM3YV7RF9ET37K61XBYVRY/**
+  - docs/evidence/01M4CM3YV7RF9ET37K61XBYVRY/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI29-AC01
+    description: >
+      A transcript, a template and a report whose package has more than
+      4,000 entries, one part over 32 MB expanded, or more than 256 MB
+      expanded in all, are refused before any part is parsed, naming the
+      limit and the part, in English and Spanish; the review's own case (a
+      DOCX of about 5 KB expanding to 5,000,000 characters) is read, as it is
+      within the limits, and a part of 40 MB from a few KB (WI22-P3-2's
+      reproduction) is refused. Memory use while refusing stays within the
+      limit (the reading stops at the limit, it does not decompress the rest).
+  - id: WI29-AC02
+    description: >
+      A package whose directory states a size smaller than what the part
+      really expands to is refused all the same (the count is of the bytes
+      decompressed). Every Word package the existing tests read (the
+      example template, the owner-shaped template, reports, transcripts)
+      reads as before.
+  - id: WI29-AC03
+    description: >
+      Mutations (the limit per part removed; the total not counted; the
+      size taken from the directory instead of counted; one of the three
+      readers left on zipfile directly) each make a test fail; the script and
+      its output in the evidence. WI22-P3-2 becomes "fixed". An independent
+      review through INGOL's mailbox before the pull request; the whole
+      suite passes in a fresh clone of the tested commit with INGOL's kits,
+      output committed under docs/evidence/01M4CM3YV7RF9ET37K61XBYVRY/;
+      tests changed named with why; known limitations reproduced.

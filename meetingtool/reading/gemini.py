@@ -10,21 +10,30 @@ busy or rate-limited service is retried twice and then the run fails (the
 original fell back to local OCR). The key travels in a header, never in the
 URL, so no error message can carry it.
 
-Every run has a spend budget (INGOL D-173 set US$0.50 for the real run):
-before each attempt, the most that attempt could cost, its estimated input
-plus the whole output cap at output prices, is added to what was already
-spent, and the attempt is not sent if that could go over the budget. An
-attempt that got no answer is counted at its maximum, since it may have
-been billed. Prices are the list prices read for D-169; the model that
-answered is recorded, so the estimate can be checked against its price.
+Every run has an estimated spending ceiling (INGOL D-173 set US$0.50 for
+the real run): before each attempt, the most that attempt could cost, its
+estimated input plus the whole output cap at output prices, is added to what
+was already spent, and the attempt is not sent if that could go over the
+ceiling. It is an estimate, not a guarantee: it rests on list prices written
+in this file, and a request already sent is paid even if its answer is
+refused. An attempt that got no answer is counted at its maximum, since it
+may have been billed. The model that answered is recorded, so the estimate
+can be checked against its price. If an answer cost more than the most its
+request was estimated to cost, which with the prices in this file means it
+used more tokens than estimated, the answer is kept (it was paid) and the run
+sends nothing more, and does not end as done (WI28). A change of price is
+not noticed: the cost is counted with the same prices as the estimate.
 
-Only the standard library is used. Nothing is written unless every request
-succeeded, and the frames folder must be outside any git work tree: frames
-and what they show are client data.
+Only the standard library is used. The reading is written only once every
+request succeeded, but each accepted answer is kept as it arrives, in
+KEPT_DIR of the frames folder, so that reading again after a failure pays
+only what is missing (WI20). The frames folder must be outside any git work
+tree: frames and what they show are client data.
 """
 
 import base64
 import dataclasses
+import hashlib
 import http.client
 import json
 import re
@@ -33,7 +42,7 @@ import urllib.error
 import urllib.request
 from pathlib import Path
 
-from meetingtool import texts
+from meetingtool import disk, texts
 from meetingtool.frames.extract import enclosing_git_work_tree
 
 ENDPOINT = "https://generativelanguage.googleapis.com/v1beta/models"
@@ -54,6 +63,8 @@ RETRY_DELAYS = (30.0, 60.0)
 RETRYABLE_STATUS = frozenset({429, 500, 503})
 TIMEOUT = 300
 OUTPUT_NAME = "frames_read.md"
+# Where the accepted answers of paid requests are kept, by fingerprint (see call_checked).
+KEPT_DIR = "paid-answers"
 
 PROMPT = """You are analysing screenshots from a business meeting recording.
 For each image, in order, extract all visible structured information.
@@ -182,21 +193,77 @@ def post_generate(url, key, payload):
 
 
 def new_counters():
-    return {"attempts": 0, "input": 0, "output": 0, "thinking": 0, "spent": 0.0, "models": set()}
+    """What a run has done, shared by its stages; "overrun" is None until an
+    answer cost more than its estimate (see call_checked)."""
+    return {"attempts": 0, "input": 0, "output": 0, "thinking": 0, "spent": 0.0, "models": set(), "overrun": None}
 
 
-def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd, revise=None):
+def stop_for_estimate(counters, unsent, refused=""):
+    """Fail a run in which an answer used more tokens than its request was
+    estimated to use (the price is the one in the code, so more tokens is what
+    makes it cost more); `unsent` says where the run stopped."""
+    overrun = counters["overrun"]
+    raise ReadingError("gemini.estimate_short", unsent=unsent, after=overrun["what"], estimated=overrun["estimated"],
+                       cost=overrun["cost"], refused=refused)
+
+
+def check_estimate(counters):
+    """At the end of a stage that pays, before it writes anything: a run in
+    which an answer cost more than estimated is not done, even when no request
+    came after to be refused (WI28's review, P1-2). What was paid is kept."""
+    if counters["overrun"] is not None:
+        stop_for_estimate(counters, texts.Message("gemini.estimate_short.end"))
+
+
+def fingerprint(url, payload):
+    """What identifies a request: the model it goes to and everything it
+    sends (text, images, settings); not the key, nor the service's address."""
+    model = url.rstrip("/").rsplit("/", 1)[-1]
+    sent = json.dumps(payload, sort_keys=True, ensure_ascii=False, separators=(",", ":"))
+    return hashlib.sha256(f"{model}\n{sent}".encode("utf-8")).hexdigest()
+
+
+def _kept_answer(path, check):
+    """check() of the answer kept at path, or None if there is none or it no
+    longer passes the check."""
+    try:
+        record = json.loads(path.read_text(encoding="utf-8"))
+        answer = {"candidates": [{"content": {"parts": [{"text": record["answer"]}]}, "finishReason": "STOP"}]}
+        return check(answer)
+    except (OSError, ValueError, KeyError, TypeError, AttributeError, texts.Failure):
+        return None
+
+
+def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd, revise=None,
+                 keep=None):
     """Send one request and return check(answer), within the budget and after
     the allowed retries: an answer check refuses is retried once; a busy,
     rate-limited or unanswered request twice, after the given pauses; any
-    other error ends at once. `worst` is the most one attempt can cost.
+    other error ends at once. `worst` is the most one attempt can cost. An
+    answer that cost more than `worst` is still checked and, if accepted,
+    returned and kept, but marks counters["overrun"]: it used more tokens than
+    estimated, so this run, in this stage or a later one, sends nothing more.
     With `revise`, the retry of a refused answer sends revise(payload, error)
-    instead, so the request can say what was refused; `worst` must cover it."""
+    instead, so the request can say what was refused; `worst` must cover it.
+
+    With `keep`, a folder, an accepted answer is kept there under the
+    request's fingerprint, and the same request made again (the same model,
+    exactly the same content) takes it from there, checked again, without
+    paying (WI20: what was paid is never thrown away). Any other request,
+    even one differing in a single character, pays."""
+    kept = Path(keep) / f"{fingerprint(url, payload)}.json" if keep is not None else None
+    if kept is not None:
+        found = _kept_answer(kept, check)
+        if found is not None:
+            return found
+    spent_before = counters["spent"]
     incomplete_retried = False
     refused = ""  # why the answer before was refused, so a stop by the budget says it (INGOL D-181's run)
     what = what if isinstance(what, texts.Message) else texts.External(what)
     delays = list(retry_delays)
     while True:
+        if counters["overrun"] is not None:
+            stop_for_estimate(counters, texts.Message("gemini.estimate_short.before", what=what), refused)
         if counters["spent"] + worst > max_cost_usd:
             raise ReadingError("gemini.over_budget", what=what, worst=float(worst), spent=float(counters["spent"]),
                                budget=float(max_cost_usd), refused=refused)
@@ -211,14 +278,19 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                 counters["input"] += usage.get("promptTokenCount", 0)
                 counters["output"] += usage.get("candidatesTokenCount", 0)
                 counters["thinking"] += usage.get("thoughtsTokenCount", 0)
-                counters["spent"] += token_cost(usage.get("promptTokenCount", 0),
-                                                usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0))
+                cost = token_cost(usage.get("promptTokenCount", 0),
+                                  usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0))
+                counters["spent"] += cost
+                # No tolerance: `worst` and the cost come from the same formula, so an answer that reached
+                # its estimate exactly is not an overrun, and one token more is.
+                if cost > worst and counters["overrun"] is None:
+                    counters["overrun"] = {"what": what, "estimated": float(worst), "cost": float(cost)}
             else:
                 counters["spent"] += worst  # an answer with no usage is counted at its maximum
             if isinstance(answer, dict) and answer.get("modelVersion"):
                 counters["models"].add(str(answer["modelVersion"]))
             try:
-                return check(answer)
+                value = check(answer)
             except ReadingError as error:
                 if incomplete_retried:
                     raise
@@ -227,6 +299,13 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                 if revise is not None:
                     payload = revise(payload, error)
                 continue
+            if kept is not None:
+                text = "".join(part.get("text", "") for part in answer["candidates"][0]["content"]["parts"])
+                # With what it cost (its retries too): a run cut short still says what it paid (WI20's review, P2-2).
+                disk.write_text(kept, json.dumps({"answer": text, "model": answer.get("modelVersion", ""),
+                                                  "cost_usd": round(counters["spent"] - spent_before, 6)},
+                                                 ensure_ascii=False) + "\n")
+            return value
         if status is not None and status not in RETRYABLE_STATUS:
             raise ReadingError("gemini.refused", status=status, reason=reason)
         if not delays:
@@ -251,16 +330,16 @@ def model_url(endpoint, model):
 
 
 def _read_chunk(url, key, frames, first, retry_delays, sleep, counters, max_cost_usd,
-                max_output_tokens=MAX_OUTPUT_TOKENS):
+                max_output_tokens=MAX_OUTPUT_TOKENS, keep=None):
     """The checked text for one chunk, after the allowed retries and within the budget."""
     return call_checked(url, key, _payload(frames, first, max_output_tokens),
                         lambda answer: check_answer(answer, first, len(frames)),
                         worst_attempt_cost(len(frames), max_output_tokens),
                         texts.Message("gemini.what.frames", first=first, last=first + len(frames) - 1),
-                        retry_delays, sleep, counters, max_cost_usd)
+                        retry_delays, sleep, counters, max_cost_usd, keep=keep)
 
 
-def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, chunk_size=CHUNK_SIZE):
+def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, chunk_size=CHUNK_SIZE, keep=None):
     """What each of `frames` shows, as {name: its [FRAME n] block}, reading
     only those frames, each chunk checked and within the budget as
     read_frames does (the question-and-answer register reads only the frames
@@ -269,7 +348,7 @@ def read_listed(url, key, frames, retry_delays, sleep, counters, max_cost_usd, c
     for start in range(0, len(frames), chunk_size):
         chunk = frames[start:start + chunk_size]
         text = _read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd,
-                           listed_output_tokens(len(chunk)))
+                           listed_output_tokens(len(chunk)), keep=keep)
         found = list(_BLOCK.finditer(text))
         ends = [match.start() for match in found[1:]] + [len(text)]
         blocks = {int(match.group(1)): text[match.start():end].strip() for match, end in zip(found, ends)}
@@ -298,14 +377,14 @@ def read_frames(frames_dir, key, endpoint=ENDPOINT, model=MODEL, chunk_size=CHUN
     answers = []
     for start in range(0, len(frames), chunk_size):
         chunk = frames[start:start + chunk_size]
-        answers.append(_read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd))
+        answers.append(_read_chunk(url, key, chunk, start + 1, retry_delays, sleep, counters, max_cost_usd,
+                                   keep=frames_dir / KEPT_DIR))
+    check_estimate(counters)
     header = ["# What each frame shows (read by Gemini)", "",
               f"{len(frames)} frames, {len(answers)} request(s), model {model}.", ""]
     header += [f"- FRAME {n}: {path.name}" for n, path in enumerate(frames, start=1)] + [""]
     output = frames_dir / OUTPUT_NAME
-    partial = frames_dir / (OUTPUT_NAME + ".partial")
-    partial.write_text("\n".join(header) + "\n" + "\n\n".join(a.strip() for a in answers) + "\n", encoding="utf-8")
-    partial.replace(output)
+    disk.write_text(output, "\n".join(header) + "\n" + "\n\n".join(a.strip() for a in answers) + "\n")
     return ReadingResult(len(frames), len(answers), counters["attempts"], time.monotonic() - started,
                          counters["input"], counters["output"], counters["thinking"], output,
                          counters["spent"], tuple(sorted(counters["models"])))

@@ -514,6 +514,12 @@ def package_parts(path):
         return {name: archive.read(name) for name in archive.namelist()}
 
 
+def word_part(fragment):
+    """A Word part holding the fragment: the filter reads each part as XML (WI22), so the prefix w is bound."""
+    return (b'<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">' + fragment +
+            b"</w:document>")
+
+
 class ReviewCorrectionsTest(Workspace):
     """The independent review's findings on 3385859: P1-1 (content loaded
     from outside the template), P2-1, P2-2, P3-1, P3-3 and P3-4."""
@@ -550,11 +556,13 @@ class ReviewCorrectionsTest(Workspace):
         # Checked in memory: a file with a DDE field may be locked by the antivirus.
         split = (b'<w:r><w:instrText xml:space="preserve"> DD</w:instrText></w:r>'
                  b'<w:r><w:instrText>EAUTO x y</w:instrText></w:r>')
-        self.assertEqual(document.active_content({"word/document.xml": split}), ["word/document.xml: a DDEAUTO field"])
+        self.assertEqual(document.active_content({"word/document.xml": word_part(split)}),
+                         ["word/document.xml: a DDEAUTO field"])
         simple = b'<w:fldSimple w:instr=" DDE x y"/>'
-        self.assertEqual(document.active_content({"word/header1.xml": simple}), ["word/header1.xml: a DDE field"])
-        harmless = b'<w:instrText> PAGE </w:instrText><w:fldSimple w:instr=" HYPERLINK &quot;x&quot;"/>'
-        self.assertEqual(document.active_content({"word/footer1.xml": harmless}), [])
+        self.assertEqual(document.active_content({"word/header1.xml": word_part(simple)}),
+                         ["word/header1.xml: a DDE field"])
+        harmless = b'<w:instrText> PAGE </w:instrText><w:fldSimple w:instr=" HYPERLINK &quot;https://example.invalid/x&quot;"/>'
+        self.assertEqual(document.active_content({"word/footer1.xml": word_part(harmless)}), [])
 
     def test_p1_1_a_hyperlink_and_a_template_saved_normally_are_accepted(self):
         linked = self.variant("hyperlink.docx", insert={"word/_rels/document.xml.rels": (
@@ -1000,7 +1008,8 @@ class TemplateInfoTest(Workspace):
         document.set_template(owner_shaped(self.tmp / "duena.docx"), self.data)
         self.assertTrue((self.data / document.TEMPLATE_RECORD).is_file())
         document.remove_template(self.data)
-        self.assertEqual(list(self.data.iterdir()), [])
+        # What is left is only the data folder's lock (WI20), never the template or its record.
+        self.assertEqual([p.name for p in self.data.iterdir()], [".meetingtool-write.lock"])
 
 
 class ExampleTemplateTest(Workspace):

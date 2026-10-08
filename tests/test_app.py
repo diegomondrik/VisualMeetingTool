@@ -31,7 +31,7 @@ from meetingtool.report import document
 from meetingtool.summary import qa, writer
 from meetingtool.summary.__main__ import main as summary_main
 from tests import test_qa, test_report, test_summary
-from tests.test_frames import SLIDES, write_teams_docx, write_video
+from tests.test_frames import SLIDES, TIMED, write_teams_docx, write_timed_docx, write_video
 from tests.test_reading import KEY, FakeGemini, answer_for
 
 REPOSITORY = Path(__file__).resolve().parent.parent
@@ -733,13 +733,23 @@ class Processing(Running):
     def states(self, job):
         return [(stage["name"], stage["state"]) for stage in job["stages"]]
 
-    def assertNothingLeft(self, job):
+    def assertNothingLeft(self, job, kept=False):
+        """A failed run added no meeting and left no result and no upload.
+        What it paid for stays in its working folder when `kept` (WI20: the
+        rule "if a stage fails, nothing is left of the run" became "the
+        meeting is not added; what was paid stays")."""
         self.assertEqual(job["state"], "failed")
         self.assertEqual(job["meeting"], "")
         self.assertEqual(store.list_meetings(self.data, self.project), [])
-        for folder in (library.PROCESSING_DIR, library.RESULTS_DIR):
-            leftover = self.data / self.project / folder
-            self.assertTrue(not leftover.exists() or not any(leftover.iterdir()), folder)
+        results = self.data / self.project / library.RESULTS_DIR
+        self.assertTrue(not results.exists() or not any(results.iterdir()), library.RESULTS_DIR)
+        processing = self.data / self.project / library.PROCESSING_DIR
+        left = sorted(p.name for p in processing.iterdir()) if processing.exists() else []
+        if kept:
+            self.assertEqual(left, [job["kept"]["run"]])
+            self.assertTrue(jobs.holds_paid(processing / left[0]))
+        else:
+            self.assertEqual((left, job["kept"]), ([], None))
         self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
         self.assertIn("Todavía no hay reuniones", self.page(f"/p/{self.project}"))
 
@@ -799,6 +809,7 @@ class ProcessTest(Processing):
         shutil.copytree(self.data / self.project / record["folder"], copy)
         for name in (writer.OUTPUT_NAME, library.REPORT_NAME, library.RUN_NAME):
             (copy / name).unlink()
+        shutil.rmtree(copy / gemini.KEPT_DIR)  # kept, the same request would not be sent again (WI20)
         with FakeGemini([test_summary.returning(test_summary.summary_text("es", "requirements"))]) as command:
             with contextlib.redirect_stdout(io.StringIO()):
                 code = summary_main(["--frames", str(copy), "--transcript", str(copy / "transcript.docx"),
@@ -936,7 +947,7 @@ class FailureTest(Processing):
         self.assertGreater(job["spent_usd"], 0)
         self.assertAlmostEqual(job["spent_usd"], sum(s["cost_usd"] for s in job["stages"]), places=3)
         self.assertEqual(len(self.summary_requests()), 2)
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)  # the reading
         self.assertIn(f'data-job="{job["id"]}"', self.page(f"/job/{job['id']}"))
 
     def test_a_report_that_cannot_be_built_stops_at_the_report(self):
@@ -948,7 +959,7 @@ class FailureTest(Processing):
         self.assertEqual(job["failed_stage_name"], "report")
         self.assertIn("could not be opened again", job["error"])
         self.assertGreater(job["spent_usd"], 0)
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)
 
     def test_a_meeting_that_cannot_be_recorded_leaves_no_folder(self):
         self.fake.script[:] = [lambda first, count: answer_for(first, count),
@@ -956,7 +967,7 @@ class FailureTest(Processing):
         with mock.patch.object(store, "add_meeting", side_effect=store.ProjectError("the disk is full")):
             job = self.process(meeting_type="")
         self.assertEqual(job["failed_stage_name"], "saving")
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)
 
     def test_one_ceiling_covers_every_stage(self):
         # A reading answered with no usage is counted at its most (about
@@ -970,7 +981,7 @@ class FailureTest(Processing):
         self.assertIn("se frenó antes de mandar el resumen", job["error"])  # the application speaks Spanish (WI17)
         self.assertEqual(self.summary_requests(), [])
         self.assertLessEqual(job["spent_usd"], ceiling)
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)  # the reading
 
 
 class ReviewFixesTest(Processing):
@@ -985,7 +996,7 @@ class ReviewFixesTest(Processing):
             job = self.process(meeting_type="")
         self.assertEqual(job["failed_stage_name"], "saving")
         self.assertEqual(list((self.data / self.project / "meetings").glob("*/meeting.json")), [])
-        self.assertNothingLeft(job)
+        self.assertNothingLeft(job, kept=True)
         self.assertNotIn("Sesión de dudas", (self.data / self.project / "knowledge.md").read_text(encoding="utf-8"))
 
     def test_a_name_taken_by_another_meeting_is_not_removed(self):
@@ -998,7 +1009,9 @@ class ReviewFixesTest(Processing):
         self.assertEqual(job["state"], "failed")
         self.assertIn("ya hay una carpeta", job["error"])
         self.assertEqual((taken / "summary.md").read_text(encoding="utf-8"), "otra reunión")
-        self.assertFalse((self.data / self.project / library.PROCESSING_DIR).exists())
+        # What the run paid for stays where it was worked on (WI20), never in the other meeting's folder.
+        self.assertEqual(sorted(p.name for p in (self.data / self.project / library.PROCESSING_DIR).iterdir()),
+                         [job["kept"]["run"]])
 
     def test_a_refused_request_leaves_no_upload(self):
         self.process(expect=400, date="mal")
@@ -1060,6 +1073,93 @@ class ReviewFixesTest(Processing):
 
 
 # ── The command ───────────────────────────────────────────────────────────────
+
+class RunningStageTest(Processing):
+    """WI24-AC04: the page showed 0 s for a stage until it ended; now a stage
+    that runs reports the time since it began, and the final seconds once it
+    ends."""
+
+    def script(self):
+        self.reading_began, self.release = threading.Event(), threading.Event()
+
+        def held(first, count):
+            self.reading_began.set()
+            self.release.wait(60)
+            return answer_for(first, count)
+        return [held, test_summary.returning(test_summary.summary_text("es", "requirements"))]
+
+    def stage(self, job_id, name):
+        status, _, body = self.request("GET", f"/api/jobs/{job_id}")
+        self.assertEqual(status, 200)
+        return next(stage for stage in json.loads(body)["stages"] if stage["name"] == name)
+
+    def wait(self, job_id):
+        try:
+            self.assertTrue(self.reading_began.wait(120), "the reading never began")
+            self.during = [self.stage(job_id, name) for name in ("frames", "reading", "summary")]
+            time.sleep(0.8)
+            self.later = [self.stage(job_id, name) for name in ("frames", "reading", "summary")]
+        finally:
+            self.release.set()
+        return super().wait(job_id)
+
+    def test_a_stage_that_runs_reports_its_seconds_going_up_and_its_final_seconds_when_it_ends(self):
+        job = self.process()
+        self.assertEqual(job["state"], "done", job["error"])
+        (frames, reading, summary), (frames_later, reading_later, summary_later) = self.during, self.later
+        self.assertEqual((reading["state"], reading_later["state"]), ("running", "running"))
+        self.assertGreaterEqual(reading_later["seconds"] - reading["seconds"], 0.6)  # held in its request, going up
+        self.assertGreaterEqual(reading_later["seconds"], 0.7)
+        # A stage that ended keeps its final seconds; one that has not begun has none.
+        self.assertEqual((frames["state"], frames_later["state"]), ("done", "done"))
+        self.assertEqual(frames["seconds"], frames_later["seconds"])
+        self.assertEqual((summary["state"], summary["seconds"], summary_later["seconds"]), ("pending", 0.0, 0.0))
+        ended = job["stages"][1]
+        self.assertEqual(ended["state"], "done")
+        self.assertGreaterEqual(ended["seconds"], reading_later["seconds"])
+        self.assertEqual(ended["seconds"], round(ended["seconds"], 1))
+
+    def test_the_seconds_of_a_stage_follow_its_state(self):
+        stage = jobs.Stage("reading")
+        self.assertEqual(stage.as_dict()["seconds"], 0.0)
+        stage.state = "running"
+        self.assertEqual(stage.as_dict()["seconds"], 0.0)  # running, with no start yet: nothing to count
+        stage.started = time.monotonic() - 5
+        self.assertGreaterEqual(stage.as_dict()["seconds"], 5.0)
+        self.assertLess(stage.as_dict()["seconds"], 8.0)
+        stage.state, stage.seconds = "done", 7.0
+        self.assertEqual(stage.as_dict()["seconds"], 7.0)
+        stage.state = "failed"
+        self.assertEqual(stage.as_dict()["seconds"], 7.0)
+
+
+class NoSpeakerRequestTest(Processing):
+    """WI24's review, P3-2: a register asked for with a transcript that names no one is refused when it is
+    asked for, not after the frames were extracted."""
+
+    def script(self):
+        return [lambda first, count: answer_for(first, count),
+                test_summary.returning(test_summary.summary_text("es", "requirements"))]
+
+    def test_a_register_of_a_transcript_with_no_speaker_is_refused_at_the_request_and_nothing_runs(self):
+        self.transcript = self.tmp / "solo horas.docx"
+        write_timed_docx(self.transcript, TIMED)
+        refused = self.process(with_recording=True, expect=400, format="qa")
+        self.assertIn("el registro de preguntas y respuestas necesita saber quién preguntó", refused["error"])
+        self.assertEqual(self.app.runner.jobs, {})
+        self.assertEqual(self.fake.requests, [])
+        self.assertEqual(list((self.data / ".meetingtool-uploads").iterdir()), [])
+        self.assertEqual(store.list_meetings(self.data, self.project), [])
+        said = jobs.JobError("app.request.qa_needs_speakers")
+        self.assertIn("names no speaker", said.text("en"))
+        self.assertIn("choose the summary format", said.text("en"))
+
+    def test_the_same_transcript_is_accepted_for_the_summary(self):
+        self.transcript = self.tmp / "solo horas.docx"
+        write_timed_docx(self.transcript, TIMED)
+        job = self.process(format="summary")
+        self.assertEqual(job["state"], "done", job["error"])
+
 
 class CommandTest(unittest.TestCase):
     def test_meetingtool_app_serves_its_page_on_this_machine(self):

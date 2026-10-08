@@ -1,0 +1,62 @@
+schema_version: "1"
+id: 01M4CM3YV88S4K9B9SR5ANTNVZ
+objective: >
+  WI30. Showing one meeting, or one file of it, reads that meeting only
+  (finding R09, P2, of the external review of 2026-10-02: "Servir un
+  archivo relee los resúmenes de todas las reuniones del proyecto"). Third
+  work item of the second batch. The owner asked on 2026-10-07 to finish
+  all of R07 to R11 overnight, without seeing each contract: this contract
+  is approved by that instruction. Starts from main (1a78ce4, after WI27);
+  does not touch the installer's branch.
+
+  Today meeting_file finds the meeting through meeting(), which builds the
+  whole list of the project's meetings with the result of each one: serving
+  one image or the Word report reads every summary.md of the project and
+  walks every result folder, and a page with many images repeats it per
+  image; a broken record or result of another meeting can stop a sound one
+  from being served. A loose result's file goes through the list of every
+  loose result the same way. After this work item: a meeting is looked up by
+  its identifier (a slug, checked) in its own folder, its record read and
+  its result loaded only when the page needs it; a file of a meeting needs
+  its record only, not its summary; a loose result is looked up by its own
+  folder name. The project page still lists every meeting with its result,
+  as today.
+
+  Built by a construction-role agent (Sonnet), gated by the criterion; one
+  independent review through INGOL's mailbox.
+
+  Not done: an index of meetings; the project page's own cost (it lists
+  every meeting, which is what it shows).
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4CM3YV88S4K9B9SR5ANTNVZ/**
+  - docs/evidence/01M4CM3YV88S4K9B9SR5ANTNVZ/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+acceptance:
+  - id: WI30-AC01
+    description: >
+      With 12 meetings in a project (the review's own case), serving the
+      report or an image of one of them reads no summary.md (counted by
+      instrumenting the reads, as the review did); the meeting page reads
+      only its own; the reads do not grow with the number of meetings (12
+      and 30 read the same). The same for a loose result's file.
+  - id: WI30-AC02
+    description: >
+      A broken record or result folder of another meeting (an unreadable
+      meeting.json, a summary.md that is not text) does not stop serving a
+      sound meeting's page or file; an unknown or ill-formed identifier is
+      still "not found"; the paths served are the same as today (a frame or
+      the report of the meeting's own results folder, nothing else); the
+      project page lists the same as today.
+  - id: WI30-AC03
+    description: >
+      Mutations (meeting_file back on the whole list; the meeting page
+      loading every result; the loose file back on the list of loose
+      results; the identifier not checked as a slug) each make a test fail;
+      the script and its output in the evidence. An independent review
+      through INGOL's mailbox before the pull request; the whole suite
+      passes in a fresh clone of the tested commit with INGOL's kits, output
+      committed under docs/evidence/01M4CM3YV88S4K9B9SR5ANTNVZ/; tests
+      changed named with why; known limitations reproduced.

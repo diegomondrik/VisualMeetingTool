@@ -19,9 +19,11 @@ writes the Markdown the Word report reads, so what is checked is what is
 delivered. Every answer carries a verbatim fragment that must be in the
 transcript; its speakers must have spoken; its minutes must fall within the
 meeting; its status must be one of four; a written date must be one the
-transcript says; an answer on screen must carry the words that show it; and a
-frame goes only to an answer on screen, within its span. Refused like an
-incomplete summary: retried once, then nothing is delivered.
+transcript says, with a year only if the transcript or the meeting's date says
+it, and every figure of the knowledge's "figures" one that was said; an answer
+on screen must carry the words that show it; and a frame goes only to an answer
+on screen, within its span. Refused like an incomplete summary: retried once,
+then nothing is delivered.
 """
 
 import dataclasses
@@ -32,10 +34,11 @@ import math
 import re
 import time
 import unicodedata
+from decimal import Decimal
 from pathlib import Path
 
-from meetingtool import texts
-from meetingtool.frames.transcript import TranscriptError, read_text, read_turns
+from meetingtool import disk, texts
+from meetingtool.frames.transcript import TranscriptError, names_no_one, read_text, read_turns
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.summary import writer
@@ -136,16 +139,17 @@ FIELDS = """For each question:
   questions or a document merely being on screen while people talk does not count. Otherwise false.
 - "screen_quote": if "screen" is true, the words of the transcript that show it, copied word for word; else "".
 
-Never write a date that was not said in the transcript, and never turn relative words ("next week") into a date.
+Never write a date that was not said in the transcript, and never turn relative words ("next week") into a date;
+write a year only if it was said.
 Never state a person's job title, role or company unless it was said in the transcript. Never mention frames or
 images. Stop at the meeting's farewell: the recording may go on after people say goodbye, with private comments,
 and nothing said after the farewell goes into the register."""
 
 KNOWLEDGE_RULE = """Also fill "knowledge" for the whole meeting, one short item per string, as it was said:
 "rules": business rules and criteria that were agreed; "owners": who owns and who loads or sends each piece of
-data; "figures": figures and parameters that were said, each with what it measures; "glossary": terms and codes
-with what they mean ("term: meaning"); "scope": what is in and what is out of the project. An empty list where
-nothing was said."""
+data; "figures": figures and parameters that were said, each with what it measures, never a figure nobody said;
+"glossary": terms and codes with what they mean ("term: meaning"); "scope": what is in and what is out of the
+project. An empty list where nothing was said."""
 
 SHAPE = """Answer only with JSON of this shape:
 {"questions": [{"question": "", "asked_by": "", "start": "H:MM:SS", "end": "H:MM:SS", "answers": [{"speaker": "",
@@ -177,21 +181,34 @@ DAY_WORDS = {word: day for day, word in enumerate(
     "dieciocho diecinueve veinte veintiuno veintidós veintitrés veinticuatro veinticinco veintiséis veintisiete "
     "veintiocho veintinueve treinta".split(), start=1)} | {"primero": 1, "treinta y uno": 31}
 _DAY_WORD = "|".join(sorted(DAY_WORDS, key=len, reverse=True))
-# A written date: a day with its month. "abril", "next week" or "Friday" are
-# not dates the code can check (the request asks to keep them as said). A
-# day/month without a year counts only after a word that introduces a date,
-# so that "1/2 de la producción" or "24/7" is not one (WI14's review).
+# A written date: a day with its month, and its year when it is written (WI25:
+# "25 de septiembre de 2027", "September 25, 2027", "25/09/2027", "2027-09-25").
+# "abril", "next week" or "Friday" are not dates the code can check (the request
+# asks to keep them as said). A day/month without a year counts only after a
+# word that introduces a date, so that "1/2 de la producción" or "24/7" is not
+# one (WI14's review). Each pattern gives (day, month, year or None).
+_YEAR = r"(?:19|20)\d{2}"
+# The year after a day and a month: "de 2027", "of 2027", ", 2027" or a space.
+_YEAR_AFTER = rf"(?:(?:,\s*|\s+de(?:l)?\s+|\s+of\s+|\s+)({_YEAR})(?!\d)(?![.,]\d))?"
 _DATES = (
-    (re.compile(r"\b\d{4}-(\d{1,2})-(\d{1,2})\b"), lambda m: (m.group(2), m.group(1))),
-    (re.compile(r"\b(\d{1,2})/(\d{1,2})/(?:\d{4}|\d{2})\b"), lambda m: (m.group(1), m.group(2))),
+    (re.compile(rf"\b({_YEAR})-(\d{{1,2}})-(\d{{1,2}})\b"), lambda m: (m.group(3), m.group(2), m.group(1))),
+    (re.compile(r"\b(\d{1,2})/(\d{1,2})/(\d{4}|\d{2})\b"),
+     lambda m: (m.group(1), m.group(2), m.group(3) if len(m.group(3)) == 4 else "20" + m.group(3))),
+    (re.compile(rf"\b(\d{{1,2}})([.-])(\d{{1,2}})\2({_YEAR})\b"), lambda m: (m.group(1), m.group(3), m.group(4))),
     (re.compile(r"\b(?:el|al|del|hasta el|desde el|para el|antes del|después del|on|by|until|before|after|from)"
-                r"\s+(\d{1,2})/(\d{1,2})\b"), lambda m: (m.group(1), m.group(2))),
-    (re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th|º|°)?\s+(?:de\s+|of\s+)?({_MONTH_AFTER_DAY})\b"),
-     lambda m: (m.group(1), m.group(2))),
-    (re.compile(r"\b(\d{1,2})(?:st|nd|rd|th)?\s+of\s+(may)\b"), lambda m: (m.group(1), m.group(2))),
-    (re.compile(rf"\b({_MONTH})\s+(\d{{1,2}})(?:st|nd|rd|th)?\b"), lambda m: (m.group(2), m.group(1))),
-    (re.compile(rf"\b({_DAY_WORD})\s+de\s+({_MONTH})\b"), lambda m: (DAY_WORDS[m.group(1)], m.group(2))),
+                r"\s+(\d{1,2})/(\d{1,2})\b"), lambda m: (m.group(1), m.group(2), None)),
+    (re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th|º|°)?\s+(?:de\s+|of\s+)?({_MONTH_AFTER_DAY})\b{_YEAR_AFTER}"),
+     lambda m: (m.group(1), m.group(2), m.group(3))),
+    (re.compile(rf"\b(\d{{1,2}})(?:st|nd|rd|th)?\s+of\s+(may)\b{_YEAR_AFTER}"),
+     lambda m: (m.group(1), m.group(2), m.group(3))),
+    (re.compile(rf"\b({_MONTH})\s+(\d{{1,2}})(?:st|nd|rd|th)?\b{_YEAR_AFTER}"),
+     lambda m: (m.group(2), m.group(1), m.group(3))),
+    (re.compile(rf"\b({_DAY_WORD})\s+de\s+({_MONTH})\b{_YEAR_AFTER}"),
+     lambda m: (DAY_WORDS[m.group(1)], m.group(2), m.group(3))),
 )
+# A year written on its own, in a transcript ("para 2027"): not part of a number
+# with a separator ("2.500", "2,40") or of a date.
+_YEARS = re.compile(rf"(?<![\d.,/-])({_YEAR})(?!\d)(?![.,]\d)(?![/-]\d)")
 _CLOCK = re.compile(r"(?:(\d{1,2}):)?(\d{1,3}):(\d{2})")
 _FRAME_TIME = re.compile(r"_t(\d{2})-(\d{2})-(\d{2})\.jpg$")
 
@@ -250,17 +267,95 @@ def plain_words(text):
     return re.findall(r"\w+", text.casefold())
 
 
-def written_dates(text):
-    """{(day, month)} of every date written with its day and month."""
-    found = set()
-    lowered = text.casefold()
+def _dates_in(lowered):
+    """[(start, end, (day, month, year or None))] of the dates in the text
+    (lower case), none inside another: a day and a month written with their
+    year are one date, not also the same day and month without it."""
+    found = []
     for pattern, parts in _DATES:
         for match in pattern.finditer(lowered):
-            day, month = parts(match)
+            day, month, year = parts(match)
             month = MONTHS[month] if month in MONTHS else int(month)
             if 1 <= int(day) <= 31 and 1 <= month <= 12:
-                found.add((int(day), month))
-    return found
+                found.append((match.start(), match.end(), (int(day), month, int(year) if year else None)))
+    taken = []
+    for start, end, date in sorted(found, key=lambda item: (item[2][2] is None, item[0])):
+        if not any(start < other_end and other_start < end for other_start, other_end, _ in taken):
+            taken.append((start, end, date))
+    return taken
+
+
+def written_dates(text):
+    """{(day, month, year)} of every date written with its day and month; the
+    year is None when it is not written."""
+    return {date for _, _, date in _dates_in(text.casefold())}
+
+
+def written_years(text):
+    """{year} of every year the text says: those of its dates and those
+    written on their own."""
+    return {year for _, _, (_, _, year) in _dates_in(text.casefold()) if year} | {
+        int(year) for year in _YEARS.findall(text)}
+
+
+# A number as a figure writes it: with thousands separators (48.000, 48,000, 48 000) or decimals (1,5, 1.5). Not one
+# inside a code ("A12", "T3"); a unit may follow it ("10kg").
+_NUMBER = r"(?<![\w.,])(\d{1,3}(?:[ \xa0]\d{3})+(?:[.,]\d+)?|\d+(?:[.,]\d+)*)(?!\d)"
+_NUMBERS = re.compile(_NUMBER)
+# A number said with its scale ("48 mil", "1,5 millones", "3 million", "48k"): the figure written out is its
+# value multiplied (WI25).
+SCALES = {"mil": 1000, "thousand": 1000, "k": 1000, "millon": 10 ** 6, "millones": 10 ** 6, "million": 10 ** 6}
+_SCALED = re.compile(_NUMBER + r"[ \xa0]?(mil|thousand|k|mill[oó]n(?:es)?|million)\b")
+_TIMES = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
+
+
+def number(token):
+    """The Decimal a number is written as, whichever separators it uses (a
+    percent sign is not part of it): 48.000, 48,000 and 48 000 are 48000; 1,5
+    and 1.5 are 1.5; 1.250,75 and 1,250.75 are 1250.75. One separator alone,
+    followed by exactly three digits ("48.000"), is a thousands separator, as
+    in the figures this program reads; "0,125" and "1,5" are decimals."""
+    token = re.sub(r"[ \xa0]", "", token)
+    marks = [char for char in token if char in ".,"]
+    if len(set(marks)) == 2:
+        thousands = "," if marks[-1] == "." else "."
+        token = token.replace(thousands, "").replace(",", ".")
+    elif len(marks) > 1 or re.fullmatch(r"[1-9]\d{0,2}[.,]\d{3}", token):
+        token = token.replace(".", "").replace(",", "")
+    else:
+        token = token.replace(",", ".")
+    return Decimal(token)
+
+
+def scaled(text):
+    """[(start, end, value)] of the numbers of `text` (lower case) said with
+    their scale ("48 mil" is 48000)."""
+    return [(match.start(), match.end(), number(match.group(1)) * SCALES[match.group(2).replace("ó", "o")])
+            for match in _SCALED.finditer(text)]
+
+
+def _values(token):
+    """The numbers a token of the transcript may have been said as: itself and,
+    when its thousands are spaced ("5 100"), also its parts, which may be two
+    figures."""
+    values = {number(token)}
+    if re.search(r"[ \xa0]", token):
+        values |= {number(part) for part in re.split(r"[ \xa0]", token)}
+    return values
+
+
+def figures_in(text, said):
+    """The numbers of `text`, as written, that are not among `said` (the
+    transcript's numbers, and its years). A date and a clock time are not
+    figures: a date is checked as a date."""
+    lowered = text.casefold()
+    for start, end, _ in reversed(_dates_in(lowered)):
+        lowered = lowered[:start] + " " + lowered[end:]
+    lowered = _TIMES.sub(" ", lowered)
+    # A number written with its scale is the scaled value, whichever way the transcript said it.
+    values = {start: value for start, end, value in scaled(lowered)}
+    return [token.group() for token in _NUMBERS.finditer(lowered)
+            if values.get(token.start(), number(token.group())) not in said]
 
 
 def parse_clock(value):
@@ -321,17 +416,27 @@ class Transcript:
     speakers: tuple
     last: int
     dates: frozenset
+    years: frozenset = frozenset()
+    figures: frozenset = frozenset()
 
     @classmethod
     def read(cls, turns, text, date=None):
         words = tuple((start, " ".join(plain_words(said))) for start, _, said in turns)
         speakers = tuple(sorted({frozenset(plain_words(speaker)) for _, speaker, _ in turns if speaker.strip()},
                                 key=sorted))
-        dates = set(written_dates(text))
+        spoken = " ".join(said for _, _, said in turns)
+        dates = {(day, month) for day, month, _ in written_dates(f"{text}\n{spoken}")}
+        # A date written with a year needs that year said in the transcript, or the meeting's own (WI25).
+        years = written_years(f"{text}\n{spoken}")
         if date:
             day = datetime.date.fromisoformat(date)
             dates.add((day.day, day.month))
-        return cls(words, speakers, max(start for start, _, _ in turns), frozenset(dates))
+            years.add(day.year)
+        clockless = _TIMES.sub(" ", spoken.casefold())
+        figures = {value for token in _NUMBERS.finditer(clockless) for value in _values(token.group())}
+        figures |= {value for _, _, value in scaled(clockless)}
+        return cls(words, speakers, max(start for start, _, _ in turns), frozenset(dates), frozenset(years),
+                   frozenset(figures))
 
     def says(self, fragment, start, end, exact=False):
         """True if fragment was said in the turns that began between start and
@@ -393,10 +498,17 @@ def _string(item, key, where):
 def _check_text(text, where, transcript):
     if writer.FRAME_LIKE.search(text):
         raise QAError("qa.mentions_frame", where=where)
-    invented = sorted(written_dates(text) - transcript.dates)
+    invented = sorted((date for date in written_dates(text)
+                       if date[:2] not in transcript.dates or (date[2] and date[2] not in transcript.years)),
+                      key=lambda date: (date[1], date[0], date[2] or 0))
     if invented:
-        dates = ", ".join(f"{day}/{month}" for day, month in invented)
+        dates = ", ".join("/".join(str(part) for part in date if part) for date in invented)
         raise QAError("qa.invented_date", where=where, dates=dates)
+    # A year written however it is written ("del año 2030", "Q3 de 2030", "(2030)") is a year, with or without a
+    # date next to it (WI25's review).
+    years = sorted(written_years(text) - transcript.years)
+    if years:
+        raise QAError("qa.invented_year", where=where, years=", ".join(str(year) for year in years))
 
 
 def _check_language(text, what, language):
@@ -505,7 +617,14 @@ def check_register(data, transcript, window, language, with_knowledge):
                 raise QAError("qa.knowledge_not_list", group=group)
             knowledge[group] = [" ".join(entry.split()) for entry in items if entry.strip()]
             for entry in knowledge[group]:
-                _check_text(entry, texts.Message("qa.where.knowledge", group=group), transcript)
+                where = texts.Message("qa.where.knowledge", group=group)
+                _check_text(entry, where, transcript)
+                if group == "figures":
+                    # The group holds, by its title, figures that were said (WI25); the figures of any other
+                    # place may be derived (a sum, a percentage) and are not checked.
+                    invented = figures_in(entry, transcript.figures | {Decimal(year) for year in transcript.years})
+                    if invented:
+                        raise QAError("qa.invented_figure", where=where, figures=", ".join(invented))
     said = [q.question for q in found] + [text for q in found for _, text in q.answers]
     said += [text for q in found for text in (q.agreement, q.pending, q.deadline) if text]
     said += [entry for items in (knowledge or {}).values() for entry in items]
@@ -729,9 +848,7 @@ def _kept_part(path, digest, check):
 
 
 def _write(path, text):
-    partial = path.with_name(path.name + ".partial")
-    partial.write_text(text, encoding="utf-8")
-    partial.replace(path)
+    disk.write_text(path, text)
 
 
 def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, title=None, date=None,
@@ -763,8 +880,14 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     try:
         turns = read_turns(transcript)
         text = read_text(transcript)
+        nobody = names_no_one(transcript)
     except TranscriptError as error:
         raise QAError(error.message) from error
+    if nobody:
+        # A transcript with only times alone on their lines (WI24): the register says who asked and who
+        # answered, and checks it by who spoke; nothing can be, so it is refused before any request is paid.
+        # One with "[HH:MM:SS] Name: text" lines is not: it names them, and no name is checked.
+        raise QAError("qa.needs_speakers", path=str(transcript))
     knowledge = ""
     if project:
         if not title or not title.strip() or not date:
@@ -818,7 +941,7 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
             found = _stage(stages, counters, name, lambda: gemini.call_checked(
                 url, key, payload, check, worst, texts.Message("qa.what.register_part", part=part, parts=len(windows)),
                 retry_delays,
-                sleep, counters, max_cost_usd, revising), refusals)
+                sleep, counters, max_cost_usd, revising, keep=frames_dir / gemini.KEPT_DIR), refusals)
         found, found_knowledge = found
         questions += found
         if last:
@@ -832,7 +955,8 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
     readings = {}
     if wanted:
         readings = _stage(stages, counters, texts.Message("qa.stage.frames"), lambda: gemini.read_listed(
-            url, key, wanted, retry_delays, sleep, counters, max_cost_usd), refusals)
+            url, key, wanted, retry_delays, sleep, counters, max_cost_usd, keep=frames_dir / gemini.KEPT_DIR),
+                          refusals)
     needing = {identifier: [path.name for path in paths] for identifier, paths in spans.items() if paths}
     seen = {}
     if needing:
@@ -844,13 +968,15 @@ def write_register(frames_dir, transcript, key, *, data_dir=None, project=None, 
         seen = _stage(stages, counters, texts.Message("qa.stage.seen"), lambda: gemini.call_checked(
             url, key, payload, lambda answer: check_seen(parse_json(answer, texts.Message("qa.what.screen_reading")),
                                                         needing, language),
-            worst, texts.Message("qa.where.seen"), retry_delays, sleep, counters, max_cost_usd, revising), refusals)
+            worst, texts.Message("qa.where.seen"), retry_delays, sleep, counters, max_cost_usd, revising,
+            keep=frames_dir / gemini.KEPT_DIR), refusals)
 
     markdown = render(questions, grouped, seen, language)
     writer.check_frames(markdown, {path.name for path in frames})
     record = {"language": language, "meeting_type": meeting_type or "", "knowledge": grouped,
               "questions": [dict(dataclasses.asdict(q), answers=[{"speaker": s, "text": t} for s, t in q.answers],
                                  seen=seen.get(q.id), span=needing.get(q.id, [])) for q in questions]}
+    gemini.check_estimate(counters)
     if readings:
         header = ["# What each frame read for the register shows (read by Gemini)", "",
                   f"{len(readings)} of {len(frames)} frames, model {model}.", ""]

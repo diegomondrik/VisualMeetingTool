@@ -1,0 +1,21 @@
+schema_version: "1"
+work_item: 01M4BGTP1940T4ASG54GC323WT
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M4BGTP1940T4ASG54GC323WT-text-encodings
+steps:
+  - the-pilot-test-of-r06-wi26-ac01
+  - every-encoding-and-line-ending-alike-wi26-ac02
+  - mutations-review-suite-register-wi26-ac03
+evaluations:
+  - criterion: WI26-AC01
+    method: deterministic
+    control: TranscripcionDeTexto, compared with INGOL's by a script, with the kits.
+  - criterion: WI26-AC02
+    method: adversarial
+    control: one transcript in five encodings, two line endings, three shapes; the long run of spaces.
+  - criterion: WI26-AC03
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py.

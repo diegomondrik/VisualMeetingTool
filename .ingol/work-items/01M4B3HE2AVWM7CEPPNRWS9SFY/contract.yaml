@@ -1,0 +1,96 @@
+schema_version: "1"
+id: 01M4B3HE2AVWM7CEPPNRWS9SFY
+objective: >
+  WI25. A summary is accepted only if every section says something, and
+  the register's dates and figures are checked against what was said
+  (finding R04, P1, of the external review of 2026-10-02, at 03b8573: "Se
+  acepta como completo un resumen con todas sus secciones vacías"). Approved by
+  the owner on 2026-10-07; starts from main (eff7ef7, after WI23); does not touch the installer's branch.
+
+  The summary. Today check_summary requires every heading once and in order
+  and one key point, but accepts a section with nothing under its heading:
+  the review had a STOP answer with the nine headings and eight empty
+  sections accepted and turned into a Word. After this work item every
+  section must have content, or a line saying plainly that there was none
+  (a meeting with no decisions is a real meeting); the summary's request
+  tells Gemini so; an empty section refuses the answer naming the section,
+  and the retry says which sections were empty (as WI24 does for frame
+  names), so a second attempt can fix it.
+
+  The register's dates. Today written_dates keeps (day, month) and drops the
+  year, so a date with a year that the transcript does not say (2025
+  written as 2030) passes. After this work item a date written with a year
+  must have that year in the transcript, or be the meeting's own year; a
+  date written without a year is checked by day and month as today.
+
+  The register's figures. The knowledge group "Cifras dichas" / "Figures
+  said" holds, by its title, figures that were said; today no figure is
+  checked. After this work item each number of that group must appear in
+  the transcript (compared as numbers, so 48.000, 48,000 and 48000 match);
+  the figures of other places are not checked (a derived sum is not
+  invented).
+
+  The tests that show the defect come from INGOL's pilot package, failing
+  on 03b8573: AR06ResumenVacio (copied unchanged into a file the CI runs, it
+  needs no kits) and TrazabilidadDelRegistro (copied unchanged into
+  tests/test_d1_barrido.py, it needs the kits). Beside them, controls that
+  must stay accepted: a section that says there was nothing, a meeting
+  without decisions, a register with a date without a year, a figure
+  written another way.
+
+  Built by a construction-role agent (Sonnet), gated by the criterion; one
+  independent review through INGOL's mailbox.
+
+  Not done: checking the summary's figures and dates against the
+  transcript (the pilot's TrazabilidadDelResumen, whose reviewer warned it
+  would refuse derived figures); R06 and the second batch.
+
+  Corrected after the independent review of d19f8a6
+  (docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/independent-review.md): a year
+  is checked on its own, however it is written (P2-1); a figure said with
+  its scale ("48 mil") is read as its value (P2-2); the summary's retry
+  names every reason it was refused for (P3-a).
+
+  Known limitations (docs/limitations/REGISTER.md, WI25-P3-1 to WI25-P3-10),
+  among them: the summary's own figures and dates, and the figures of the
+  register's answers, are not checked; a legitimate date whose year nobody
+  said, or a year said short, is refused for the register; a four-digit
+  number from 1900 to 2099 that nobody said is refused as a year.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4B3HE2AVWM7CEPPNRWS9SFY/**
+  - docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI25-AC01
+    description: >
+      AR06ResumenVacio and TrazabilidadDelRegistro from INGOL's pilot
+      package are in tests/, their code unchanged (checked by a script in
+      the evidence), and pass (TrazabilidadDelRegistro with the kits).
+  - id: WI25-AC02
+    description: >
+      The summary: each section left empty in turn, in Spanish and in
+      English and with a meeting type's sections, refuses the answer naming
+      it; a section that says there was nothing is accepted; with Gemini
+      faked, a first answer with an empty section and a second complete one
+      is accepted, and the second request names the empty section.
+  - id: WI25-AC03
+    description: >
+      The register: a date with a year the transcript does not say and that
+      is not the meeting's year is refused; the same date with the year the
+      transcript says, the meeting's year, or no year is accepted; a figure
+      in "figures said" that nobody said is refused; one said, written in
+      another form (thousands separator, decimal comma) is accepted.
+  - id: WI25-AC04
+    description: >
+      Mutations (empty sections accepted; the retry without the empty
+      section; the year dropped again; the figures not checked; figures
+      compared as text) each make a test fail; the script and its output in
+      the evidence. An independent review through INGOL's mailbox before
+      the pull request; the whole suite passes in a fresh clone of the
+      tested commit with INGOL's kits, output committed under
+      docs/evidence/01M4B3HE2AVWM7CEPPNRWS9SFY/; tests changed named with
+      why; the register's known limitations reproduced.

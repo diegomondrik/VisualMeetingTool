@@ -1,0 +1,29 @@
+schema_version: "1"
+work_item: 01M495140RMJM90PFDGBN7XZMF
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M495140RMJM90PFDGBN7XZMF-first-real-meeting
+steps:
+  - a-transcript-with-times-alone-on-their-line-wi24-ac01
+  - the-register-stops-before-paying-without-speakers-wi24-ac02
+  - frames-labelled-by-name-and-the-retry-says-what-was-wrong-wi24-ac03
+  - the-running-stage-time-wi24-ac04
+  - mutations-review-suite-register-wi24-ac05
+evaluations:
+  - criterion: WI24-AC01
+    method: adversarial
+    control: synthetic transcripts in the owner's shape, .docx and .txt, both readers.
+  - criterion: WI24-AC02
+    method: deterministic
+    control: the register with a transcript with no speaker sends no request.
+  - criterion: WI24-AC03
+    method: adversarial
+    control: a 141-frame reading; the retry's request; Gemini faked.
+  - criterion: WI24-AC04
+    method: deterministic
+    control: the job's JSON while a stage runs.
+  - criterion: WI24-AC05
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py.

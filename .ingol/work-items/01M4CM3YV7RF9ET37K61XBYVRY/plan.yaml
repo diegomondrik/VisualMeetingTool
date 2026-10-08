@@ -1,0 +1,21 @@
+schema_version: "1"
+work_item: 01M4CM3YV7RF9ET37K61XBYVRY
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M4CM3YV7RF9ET37K61XBYVRY-word-package-limits
+steps:
+  - one-reader-with-limits-for-every-word-package-wi29-ac01
+  - counted-not-trusted-and-nothing-else-changes-wi29-ac02
+  - mutations-review-suite-register-wi29-ac03
+evaluations:
+  - criterion: WI29-AC01
+    method: adversarial
+    control: synthetic packages over each limit, through the transcript, the template and the report check.
+  - criterion: WI29-AC02
+    method: adversarial
+    control: a package whose directory lies about a part's size; every package the existing tests read.
+  - criterion: WI29-AC03
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py.

@@ -213,11 +213,42 @@ function drawJob(place, job) {
       said.textContent = text("js.detail", { detail: detail });
       place.appendChild(said);
     }
+    if (job.kept) keptNotice(place, job);
     const back = document.createElement("a");
     back.href = "/p/" + encodeURIComponent(job.project) + "/new";
     back.textContent = text("js.retry");
     place.appendChild(back);
   }
+}
+
+// A failed run that kept what was paid (WI20): what was kept, and a button to discard it.
+function keptNotice(place, job) {
+  const notice = document.createElement("p");
+  notice.className = "hint kept";
+  notice.textContent = text("js.kept", { paid: money(job.kept.paid_usd) });
+  place.appendChild(notice);
+  const form = document.createElement("p");
+  const button = document.createElement("button");
+  button.type = "button";
+  button.textContent = text("js.discard");
+  const message = document.createElement("span");
+  message.className = "message";
+  message.setAttribute("role", "status");
+  button.addEventListener("click", async () => {
+    if (!window.confirm(text("js.discard_confirm"))) return;
+    try {
+      await send("/api/kept/discard", { project: job.project, run: job.kept.run });
+      notice.remove();
+      button.remove();
+      message.textContent = text("js.discarded");
+    } catch (error) {
+      message.textContent = error.message;
+      message.classList.add("bad");
+    }
+  });
+  form.appendChild(button);
+  form.appendChild(message);
+  place.appendChild(form);
 }
 
 function jobPage() {

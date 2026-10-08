@@ -1,0 +1,169 @@
+schema_version: "1"
+id: 01M46KHBYCXMGM0K6N2RM651PE
+objective: >
+  WI20 (WI19 stays the guide, as WI17 planned). The project's data is
+  never lost, never left half written, and what was paid is never thrown
+  away (findings R01, P0, and R03, P1, of the external
+  review of 2026-10-02, at 03b8573). First work item of the correction of
+  that review, and the pilot of INGOL's stage D1 (its package:
+  docs/work-items/dev-capabilities/d1-piloto-vmt.md of INGOL). It starts from
+  main (03b8573) and does not touch the installer's branch (WI18, PR #19).
+
+  One rule for every write to the data folder. Today each part writes in its
+  own way: records are written in place, so a cut while closing one leaves a
+  half record that then stops the whole project from being listed; the next
+  meeting or project id is chosen by looking at which exist, so two saves at
+  once get the same id, both say "saved" and one is lost; settings are read,
+  changed and written with nothing in between, so two changes at once keep
+  one. After this work item, every write of the data folder (projects,
+  meetings, knowledge, settings, logo, template, a run's record) goes through
+  one small layer that: writes to a temporary file of a unique name and
+  replaces the final one at once, so a reader sees the record before or after,
+  never half of it; holds a lock that lives on the disk, in the data folder,
+  around every read-change-write and every choice of an id, so it holds
+  between the application, the terminal commands, and two of either; and
+  reserves an id by creating its folder exclusively. Plain files are kept (no
+  database): the data stays readable, nothing has to be migrated, and the
+  guarantee is the same.
+
+  A record that cannot be read (written by hand, or by a version before this
+  one) is not skipped: skipping hides the damage. Listing the project says
+  which file is unreadable, in the application's language, and a run whose
+  save meets it ends "failed" with that reason instead of staying "running"
+  forever.
+
+  What was paid is kept. Today, when any stage fails, the application removes
+  the run's whole folder, including the answers Gemini was already paid for,
+  and processing the same meeting again pays them again. After this work
+  item: every accepted answer of a paid request (each batch of the reading of
+  frames, the summary, each part of the questions-and-answers register) is
+  kept next to the run with the fingerprint of exactly what was sent, and is
+  used instead of paying again when the same request is made. In the
+  application, a failed run that holds something paid keeps its folder in
+  <project>/processing/; processing the same meeting again (the same
+  transcript, the same format, in the same project) continues in it and pays
+  only what is missing; the failed job says what was kept and lets the person
+  discard it. Nothing is added to the project until the report is built, as
+  today. This changes a documented rule ("if a stage fails, nothing is left of
+  the run", README and meetingtool/app/jobs.py) to: "if a stage fails, the
+  meeting is not added; what was paid stays until the meeting is processed
+  again or the person discards it" (approved by the owner on 2026-10-05,
+  with this contract). The existing tests that pin the old rule
+  change with it, each named in the evidence.
+
+  The tests that reproduce these findings come from INGOL's pilot package,
+  already written and failing on 03b8573: AR01TrabajoColgado,
+  AR02EscrituraNoAtomica, AR03LoPagadoSeTira, AR05AltasSimultaneas,
+  AR10AjustesSimultaneos, ConocimientoAMedioEscribir, LecturaEnTandas,
+  ProyectosConElMismoNombre. They are copied with their code unchanged except
+  one thing: the project name of the copied tests is a neutral one instead of
+  a client's. They need INGOL's kits (ingol_kits), which are not in this
+  public repository nor in its CI; on GitHub they are skipped saying so, and
+  the evidence runs them on the owner's machine with the kits. So that the CI
+  still guards each fix, this work item adds tests of its own, without the
+  kits, that pin the core of each one.
+
+  Not done: the other findings of the review (R02, R04, R05, R06: their own
+  work items; R07 to R11, the second batch); a button that retries a failed
+  run without uploading the files again (processing the same files again
+  already pays nothing again); a database; the installer (WI18).
+
+  Corrected after the independent and the security reviews of 860751c
+  (docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/independent-review.md): a
+  folder holding anything but what a cut leaves is not taken over by a new
+  project or meeting (P2-1); each kept answer says what it cost, so a run cut
+  by closing the application still says what it paid (P2-2); the lock knows
+  a folder by its real path (P3-1); a kept run is discarded under the lock
+  that starts a run (P3-2, and the security review's P3); a resumed run
+  keeps only what was paid of the attempt before (P3-4); a run's record says
+  what earlier attempts paid (P3-5).
+
+  Known limitations (docs/limitations/REGISTER.md, WI20-P3-1 to WI20-P3-7):
+  the register's kept parts do not tell one model from another; the
+  template and its record are two files; a process that dies between a
+  meeting's record and the knowledge's copy leaves the copy one meeting
+  behind until the application starts again; a record broken by hand is
+  found when the meeting is saved, after paying; the same request is never
+  paid twice in one folder, so a new answer needs paid-answers/ deleted;
+  INGOL's pilot tests do not run in the CI; a failed run that paid keeps the
+  meeting's files until it is processed again or discarded.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M46KHBYCXMGM0K6N2RM651PE/**
+  - docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI20-AC01
+    description: >
+      The eight tests of INGOL's pilot package named in the objective are in
+      tests/, their code unchanged apart from the project's name (checked by
+      a script in the evidence that compares each class with INGOL's), and
+      they pass with the kits on the import path.
+  - id: WI20-AC02
+    description: >
+      Cut at every write boundary (an error of the disk, and a process that
+      dies) of: creating a project, adding a meeting, each setting (language,
+      company name, logo, template) and the save of a run of the application
+      (moving its folder and adding its meeting). After each cut, every
+      project and meeting lists and opens, what was there before is intact,
+      and the operation either happened entirely or not at all.
+  - id: WI20-AC03
+    description: >
+      Two operations at once, in every order with one and two switches:
+      two new meetings with the same title and date, two new projects with
+      the same name, adding a meeting while the knowledge is read, two
+      settings changed at once. Both results stay, with different ids, or the
+      second is refused saying the project exists; nothing is lost.
+  - id: WI20-AC04
+    description: >
+      Exclusion between processes: while one process holds the data folder's
+      lock, a terminal command (python -m meetingtool.projects add-meeting)
+      started in another process writes nothing until it is released, and
+      then both meetings are there; a command that waits longer than its
+      limit stops with a clear error and writes nothing.
+  - id: WI20-AC05
+    description: >
+      A meeting record that cannot be read makes listing the project fail
+      with an error that names the file, in both languages, never a raw
+      JSON error and never by skipping it; a run whose save meets it ends
+      "failed" with that reason and leaves no results folder that no meeting
+      names.
+  - id: WI20-AC06
+    description: >
+      With Gemini faked: a run that fails at the report (and, separately, at
+      saving) after its paid stages keeps what was paid; processing the same
+      meeting again pays nothing already paid, for both formats (summary:
+      reading and summary; questions and answers: its parts), and a run of
+      the reading of frames cut at its last batch pays only that batch when
+      repeated, in the application and in the terminal. A kept answer is used
+      only for the exact same request: another transcript, another model or
+      another prompt pays again.
+  - id: WI20-AC07
+    description: >
+      A kept failed run survives closing and opening the application; it is
+      removed when the same meeting is processed again successfully or when
+      the person discards it from the failed job; a run that holds nothing
+      paid leaves nothing, as today. The page says, in both languages, what
+      was kept and what it cost.
+  - id: WI20-AC08
+    description: >
+      Mutations of what this work item adds (the temporary name, the replace,
+      the lock, the exclusive reservation, the fingerprint of a kept answer,
+      keeping the failed run, the discard): each one makes at least one test
+      fail with the kits, and the core ones (write in place, no lock, id
+      chosen by looking, folder removed on failure, fingerprint ignored) make
+      a test fail without the kits too, which is what the CI runs. The script
+      and its output are in the evidence.
+  - id: WI20-AC09
+    description: >
+      The whole suite passes with `python -m unittest discover -s tests -v`
+      in a fresh clone of the tested commit on the owner's machine, with the
+      kits on the import path, and its complete output is committed under
+      docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/ before the pull request
+      (INGOL D-163); every test that existed before passes, or is named in
+      the evidence with the rule of this work item that changed it. The
+      limitations register gets this work item's known limitations, each
+      reproduced by docs/limitations/reproduce.py.

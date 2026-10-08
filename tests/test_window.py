@@ -460,7 +460,7 @@ class ClosingTest(Processing):
         self.assertEqual(done["state"], "done", done["error"])
         self.assertEqual(len(store.list_meetings(self.data, self.project)), 1)
 
-    def test_answered_yes_the_meeting_is_dropped_and_nothing_of_it_is_left(self):
+    def test_answered_yes_the_meeting_is_not_added_and_what_was_paid_stays_kept(self):
         job = self.start_a_run()
         self.boxes.answer = True
         self.assertTrue(self.app_window.closing())
@@ -468,7 +468,9 @@ class ClosingTest(Processing):
         self.go_on.set()  # the reading's answer arrives after the window closed
         done = self.wait(job)
         self.assertEqual(done["error"], texts.Message("app.run.closed").text("es"))
-        self.assertNothingLeft(done)
+        # WI20's rule for any failed run: no meeting, no result, and what was paid stays to be reused or discarded.
+        self.assertNothingLeft(done, kept=True)
+        self.assertIsNotNone(done["kept"])
 
     def test_the_question_is_in_the_application_s_language(self):
         company.set_language(self.data, "en")

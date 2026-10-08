@@ -1,0 +1,25 @@
+schema_version: "1"
+work_item: 01M4CB9FV6XGEYENDJYAEQZWQX
+status: approved
+next_gate: implement-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent on Sonnet, gated by the criterion role)
+branch: work-item/01M4CB9FV6XGEYENDJYAEQZWQX-frame-lists
+steps:
+  - a-list-in-one-pair-of-brackets-is-separated-wi27-ac01
+  - what-was-refused-stays-refused-wi27-ac02
+  - the-retry-says-why-wi27-ac03
+  - mutations-review-suite-wi27-ac04
+evaluations:
+  - criterion: WI27-AC01
+    method: deterministic
+    control: the owner's line and its variants through check_summary, write_summary and the report.
+  - criterion: WI27-AC02
+    method: adversarial
+    control: lists with a bad item, ranges inside a pair, unbracketed names; today's accepted summaries unchanged.
+  - criterion: WI27-AC03
+    method: deterministic
+    control: revise() on each refusal, alone and with another; the note's length.
+  - criterion: WI27-AC04
+    method: adversarial
+    control: mutations.py and mutations.txt; the review; local-test-run.txt; reproduce.py.

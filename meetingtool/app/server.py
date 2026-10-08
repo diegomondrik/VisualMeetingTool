@@ -300,7 +300,8 @@ class Handler(http.server.BaseHTTPRequestHandler):
             project = library.project(data_dir, project_id)
             if len(parts) == 2:
                 return self._html(pages.project_page(view, project, library.meetings(data_dir, project_id),
-                                                     library.knowledge(data_dir, project_id)))
+                                                     library.knowledge(data_dir, project_id),
+                                                     jobs.kept_runs(data_dir, project_id)))
             if parts[2:] == ["new"]:
                 return self._html(pages.new_meeting_page(view, project, pages.meeting_types(), pages.languages(),
                                                          jobs.DEFAULT_MAX_COST_USD))
@@ -349,6 +350,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
         if path == "/api/language":
             company.set_language(data_dir, data.get("language"))
             return self._json({"language": data["language"]})
+        if path == "/api/kept/discard":
+            app.runner.discard(data.get("project"), data.get("run"))
+            return self._json({"discarded": True})
         if path == "/api/process":
             try:
                 request = jobs.check_request(data, data_dir, app.uploads, pages.meeting_types(), pages.languages())

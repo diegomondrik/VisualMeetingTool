@@ -1,0 +1,42 @@
+mutation run for 01M46KHBYCXMGM0K6N2RM651PE: each mutation is applied alone to a copy of the working
+tree; `python -m unittest tests.test_data_integrity` (no kits, what the CI runs) must fail; with the kits (C:\Users\Diego\.claude\ingol-kits\python), the INGOL tests named for it are run and recorded
+
+Recorded in two runs of `mutations.py ... --kits C:/Users/Diego/.claude/ingol-kits/python`, on 2026-10-05,
+both on a copy of the WI20 working tree at 7252f74 (b63eac4 changes only tests/test_qa.py, this evidence and
+the approval record: none of it is code a mutation touches or a test listed here runs). The first run stopped
+at the fourth mutation, whose text the correction of the review's P2-1 had changed; the script's text was
+fixed and the second run (`--from "identifier chosen by looking"`) went on from there. The first three lines
+come from the first run, the rest from the second.
+
+What the INGOL tests do not catch, and why:
+- "a lock held in memory, inside one process only": AR05 runs its two saves in two threads of one process,
+  where a lock in memory holds (the note of INGOL's test reviewer on AR05). The test without the kits that
+  starts the terminal command in another process catches it.
+- "a meeting's identifier chosen by looking at which exist": with the lock in place, looking and then
+  making the folder cannot be interleaved by two writers that take the lock. It matters against a writer
+  that does not take it (a version before WI20), which the test without the kits plays.
+- "a meeting kept although the knowledge could not take it": AR01 is about the job ending "failed" with
+  no results folder, which holds either way; the tests without the kits check the meeting is not kept.
+
+- a file written in place, not to a temporary file (AC02): without the kits exit 1, Ran 33 tests in 33.535s FAILED (failures=2) -> DETECTED; with the kits (AR02EscrituraNoAtomica, test_d1_wi20_fallas) exit 1, Ran 6 tests in 62.987s FAILED (failures=2) -> caught
+- no lock at all (AC03): without the kits exit 1, Ran 33 tests in 21.098s FAILED (failures=5) -> DETECTED; with the kits (AR05AltasSimultaneas, AR10AjustesSimultaneos, ProyectosConElMismoNombre) exit 1, Ran 3 tests in 141.921s FAILED (failures=3) -> caught
+- a lock held in memory, inside one process only (AC04): without the kits exit 1, Ran 33 tests in 32.043s FAILED (failures=2) -> DETECTED; with the kits (AR05AltasSimultaneas) exit 0, Ran 1 test in 1226.985s OK -> not caught
+- a meeting's identifier chosen by looking at which exist (AC03): without the kits exit 1, Ran 33 tests in 33.945s FAILED (errors=1) -> DETECTED; with the kits (AR05AltasSimultaneas) exit 0, Ran 1 test in 1265.082s OK -> not caught
+- a project's folder taken even if it exists (AC03): without the kits exit 1, Ran 33 tests in 32.873s FAILED (failures=2) -> DETECTED; with the kits (ProyectosConElMismoNombre) exit 1, Ran 1 test in 774.472s FAILED (failures=1) -> caught
+- an unreadable record skipped instead of named (AC05): without the kits exit 1, Ran 33 tests in 35.686s FAILED (failures=3) -> DETECTED; with the kits (AR01TrabajoColgado) exit 1, Ran 1 test in 0.629s FAILED (failures=1) -> caught
+- a meeting kept although the knowledge could not take it (AC02, AC05): without the kits exit 1, Ran 33 tests in 35.072s FAILED (failures=2) -> DETECTED; with the kits (AR01TrabajoColgado) exit 0, Ran 1 test in 0.640s OK -> not caught
+- a kept answer's fingerprint that ignores what is sent (AC06): without the kits exit 1, Ran 33 tests in 34.656s FAILED (failures=6) -> DETECTED; with the kits (LecturaEnTandas) exit 1, Ran 1 test in 1.156s FAILED (failures=1) -> caught
+- kept answers never used (AC06): without the kits exit 1, Ran 33 tests in 34.763s FAILED (failures=5) -> DETECTED; with the kits (LecturaEnTandas, AR03LoPagadoSeTira) exit 1, Ran 2 tests in 1.731s FAILED (failures=1) -> caught
+- a failed run's folder removed although it holds what was paid (AC06, AC07): without the kits exit 1, Ran 33 tests in 33.537s FAILED (failures=3, errors=8) -> DETECTED; with the kits (AR03LoPagadoSeTira, test_d1_wi20_fallas) exit 1, Ran 6 tests in 67.203s FAILED (failures=1) -> caught
+- a kept run not continued by the same meeting (AC06): without the kits exit 1, Ran 33 tests in 35.213s FAILED (failures=4) -> DETECTED; with the kits (AR03LoPagadoSeTira) exit 1, Ran 1 test in 0.698s FAILED (failures=1) -> caught
+- a discard that removes any folder named (AC07): without the kits exit 1, Ran 33 tests in 34.899s FAILED (failures=1) -> DETECTED
+- a discard while a meeting is being processed (AC07): without the kits exit 1, Ran 33 tests in 34.675s FAILED (failures=1) -> DETECTED
+- a folder of the commands taken over by a new project (AC03, review P2-1): without the kits exit 1, Ran 33 tests in 35.082s FAILED (failures=1) -> DETECTED
+- what a cut run paid read only from its record, not from its kept answers (AC07, review P2-2): without the kits exit 1, Ran 33 tests in 35.069s FAILED (failures=1) -> DETECTED
+- a resumed run that keeps the attempt before's other files (AC06, review P3-4): without the kits exit 1, Ran 33 tests in 35.050s FAILED (failures=1) -> DETECTED
+- a save cut half way left as a result no meeting names (AC02, AC07): without the kits exit 1, Ran 33 tests in 34.974s FAILED (failures=1) -> DETECTED; with the kits (test_d1_wi20_fallas) exit 1, Ran 5 tests in 66.609s FAILED (failures=1) -> caught
+- the settings read, changed and written outside the lock (AC03): without the kits exit 1, Ran 33 tests in 33.821s FAILED (failures=1) -> DETECTED; with the kits (AR10AjustesSimultaneos) exit 1, Ran 1 test in 4.314s FAILED (failures=1) -> caught
+- a knowledge file left behind not rewritten at start (AC02): without the kits exit 1, Ran 33 tests in 34.187s FAILED (failures=1) -> DETECTED
+- unmutated, without the kits: exit 0, Ran 33 tests in 34.304s OK
+- unmutated, with the kits: exit 0, Ran 12 tests in 1646.661s OK
+all mutations detected without the kits

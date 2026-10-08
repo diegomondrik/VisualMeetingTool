@@ -1,0 +1,33 @@
+schema_version: "1"
+work_item: 01M47ABNKZF02YZ94YKXMQCPQ1
+status: approved
+next_gate: implement-then-independent-and-security-reviews-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (built by a construction-role agent, gated by the criterion role)
+branch: work-item/01M47ABNKZF02YZ94YKXMQCPQ1-word-template-filter
+steps:
+  - the-pilot-test-ar04-and-a-good-template-wi22-ac01
+  - every-active-field-in-every-equivalent-form-wi22-ac02
+  - content-types-and-unreadable-parts-wi22-ac03
+  - the-report-checked-again-before-delivery-wi22-ac04
+  - mutations-wi22-ac05
+  - reviews-suite-and-register-wi22-ac06
+evaluations:
+  - criterion: WI22-AC01
+    method: adversarial
+    control: AR04FiltroDeCamposEludible (compared with INGOL's by a script) and a good template accepted.
+  - criterion: WI22-AC02
+    method: adversarial
+    control: one test per field and form, and a check that each form decodes to a real field.
+  - criterion: WI22-AC03
+    method: adversarial
+    control: a macro-enabled content type in equivalent forms; a part that is not XML.
+  - criterion: WI22-AC04
+    method: adversarial
+    control: the template's check switched off, the report refuses.
+  - criterion: WI22-AC05
+    method: adversarial
+    control: docs/evidence/01M47ABNKZF02YZ94YKXMQCPQ1/mutations.py and mutations.txt.
+  - criterion: WI22-AC06
+    method: deterministic
+    control: the reviews' transcription, local-test-run.txt from a fresh clone, reproduce.py.

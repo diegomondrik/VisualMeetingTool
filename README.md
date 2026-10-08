@@ -12,9 +12,12 @@ every change is a work item with an approved contract under
 protected review (`.github/workflows/ingol-bootstrap.yml`), which the change
 itself cannot alter.
 
-A governed project can carry no other workflow, so the test suite does not
-run on GitHub. It runs on the developer's machine before each integration,
-and its output is committed under `docs/evidence/<work item>/`.
+The test suite runs on every pull request to `main` on GitHub
+(`.github/workflows/tests.yml`: Windows, Python 3.12, the libraries at the
+exact versions of `constraints.txt`, which are the ones the installer packs).
+It also runs on the developer's machine before each integration, and its
+output is committed under `docs/evidence/<work item>/`. How the program is
+tested, built and kept is in [`docs/MAINTAINING.md`](docs/MAINTAINING.md).
 
 ## Client data never enters this repository
 
@@ -24,9 +27,18 @@ anyway.
 
 ## Reading the frames with Gemini
 
-The frames of a meeting (`python -m meetingtool.frames`) are read with
-Gemini's paid tier, using your own key. Save it once in the Windows
-Credential Manager; it is never shown or written anywhere:
+The command that selects the frames of a meeting
+(`python -m meetingtool.frames`) reads the recording to its end, with a
+transcript or without one: a transcript says when each line starts, not when
+the meeting ends, so it never shortens the reading. With `--transcript`, the
+samples near a phrase that points at the screen score higher, and the
+command says how many candidates that raised. A recording that runs on after
+the meeting is read to its end too, and a slide shown there can reach the
+report.
+
+The frames are read with Gemini's paid tier, using your own key. Save it
+once in the Windows Credential Manager; it is never shown or written
+anywhere:
 
 ```
 python -m meetingtool.reading key set
@@ -40,6 +52,25 @@ frames are client data. What each frame shows is written to
 repository. A run that cannot be completed writes nothing and says why;
 there is no lower-quality fallback. `key status` shows only whether a key
 is saved and its length, and `key delete` removes it.
+
+**The spending ceiling is an estimate, not a guarantee.** Every run has a
+ceiling (US$0.50 for the commands, US$1.00 by default in the application).
+Before each request the program adds the most it could cost, its input
+estimated from the characters or the frames plus the whole output cap, at the
+list prices written in the code (`PRICE_INPUT_PER_MILLION` and
+`PRICE_OUTPUT_PER_MILLION` in `meetingtool/reading/gemini.py`), to what was
+already spent, and does not send it if that could pass the ceiling. So the
+ceiling holds only while those estimates and prices do. A request already sent
+is paid even if its answer is then refused and nothing is written. If an answer
+used more tokens, and so cost more, than its request was estimated to (a longer
+input than estimated, or a version of the model, which is the alias
+`gemini-flash-latest`, that thinks or writes more), the answer is kept, since
+it was paid, and the run sends nothing more: it fails saying what was estimated
+and what it cost, also when that was its last request, and writes nothing. A
+meeting processed again reuses what was kept and pays nothing for it. A change
+of price is not noticed: the cost is counted with the same prices as the
+estimate, and Google's answer holds token counts, not prices (a known limitation,
+`WI28-P3-1`).
 
 ## Writing the meeting summary
 
@@ -61,7 +92,26 @@ meetings, and the meeting is added to the project with its key points, so
 the next summary knows them. The transcript is sent to Gemini's paid tier. A
 summary that is cut short, missing a section, in the wrong language, or
 naming a frame the report could not embed is retried once and never
-delivered.
+delivered; when the refusal is a frame that does not exist, the retry says
+which names do not exist and that names are copied exactly as each block of
+the reading labels them. Every section must say something: one with nothing
+under its heading is refused naming it, and the retry says which sections were
+empty, and an answer refused for several reasons (an empty section, no key
+point, a frame that does not exist) is retried with all of them named; a line
+saying plainly that there was nothing (no decisions, no screen shared) is
+content.
+
+A transcript may be a Teams `.docx` or a `.txt` in any of three forms:
+`Speaker   M:SS` with the words after it, `[HH:MM:SS] Speaker:`, or, when
+Teams names no one, each time alone on its line (`0:02`, `1:02:03`) with the
+words on the lines after it (a time alone counts only in a file with no
+`Speaker   M:SS` or `[HH:MM:SS]` line). The summary of a transcript with no
+speaker names no one; the question-and-answer register needs who asked and who
+answered, so it refuses such a transcript, when it is asked for and before
+sending anything. A `.txt` is read by its byte order mark (UTF-8 or
+UTF-16, what Notepad and Windows PowerShell write); with none, as UTF-8 and,
+when it is not valid UTF-8, as Windows cp1252; Windows and Unix line endings
+alike.
 
 Every frame the summary names goes into the report, so the summary is asked
 to name only the screens that were shared to show content someone would
@@ -110,7 +160,11 @@ only the frames of its own span read, and what they show is written apart
 from what was said. With no answer on screen, no frame is read, and the
 folder may hold no frames at all. Every answer carries a verbatim fragment,
 speakers, minutes, status and written dates that are checked against the
-transcript; a register that fails is asked once more and then not delivered.
+transcript: a date, or any other year, written however it is written needs that year said
+in the transcript (or be the meeting's own year), and every figure of
+"figures said" needs to have been said, whichever way it is written (48.000,
+48,000, 48000 and "48 mil" are the same number; the figures of any other place
+are not checked, so that a sum is not refused). A register that fails is asked once more and then not delivered.
 It is written to `summary.md` (with `qa.json`), and the Word report is built
 from it as from a summary.
 
@@ -146,6 +200,20 @@ python -m meetingtool.report template remove
 python -m meetingtool.report template example <new file.docx>
 ```
 
+A template that would load or run something from outside when a report is opened (a field such as
+`INCLUDEPICTURE` or `DDE`, a linked picture, an attached template, an embedded object) is refused, however
+the field is written in the file, and each report is checked for the same before it is delivered. A field whose
+name another field builds is refused too, and a hyperlink may go only to a web page (`http`, `https`), a mail
+address or a place in the document. A template may hold only these Word fields, whatever their case: `PAGE`,
+`NUMPAGES`, `SECTIONPAGES`, `SECTION`, `TOC`, `PAGEREF`, `REF`, `NOTEREF`, `STYLEREF`, `HYPERLINK`, `DATE`, `TIME`,
+`CREATEDATE`, `SAVEDATE`, `PRINTDATE`, `DOCPROPERTY`, `TITLE`, `SUBJECT`, `AUTHOR`, `IF`, `SEQ` and the formula (`=`);
+any other field (`ADDIN`, `FILLIN`, `MERGEFIELD`...) is refused, naming it, and the company's `{placeholders}` are
+not Word fields, so they are not affected. Every branch of a Markup Compatibility alternative (`mc:AlternateContent`) is judged the same way, and one
+that leaves unknown what Word would read is refused, naming the part.
+A Word file (a template, a Word transcript, a report) is refused, naming the part, when it holds more than 4,000 parts,
+one part that expands to more than 32 MB, or parts that expand to more than 256 MB together; the bytes are counted
+as they are decompressed, whatever the file says it holds.
+
 Where the template has a field name in braces, in its body, header or
 footer, the report puts that meeting's data with the template's format:
 `{cliente}`, `{proyecto}`, `{reunion}`, `{fecha}` (written in the report's
@@ -170,7 +238,7 @@ It opens the browser on a page served by this machine only (127.0.0.1): the
 projects and their meetings with the summary or the register, their frames,
 the Word report to open and what each cost; a form to process a new meeting
 (the transcript, and the recording if there is one, uploaded from the
-browser; type, language, format and spending ceiling); and the settings (the
+browser; type, language, format and estimated spending ceiling); and the settings (the
 application's language, the company's name and logo, the Gemini key, never
 shown back, and the company's Word template). Keep the window it was started
 from open while it is used.
@@ -190,14 +258,27 @@ script. Both are kept in the data folder (`app-settings.json`,
 `company-logo.png` or `.jpg`).
 
 "Procesar" runs the same functions as the commands, in order: frames,
-reading (for the summary), summary or register, Word report. One ceiling
-covers the whole run. The meeting is added to its project only once its Word
-report is built; if a stage fails, nothing is left of the run and the page
-says which stage failed, why and what was spent. Each processed meeting keeps
-its frames, transcript, summary, report and a record of the run in
-`<data>/<project>/results/<run>/`; the recording itself is not copied.
-Folders of the data folder made with the commands outside a project are
-listed read-only.
+reading (for the summary), summary or register, Word report. One estimated
+ceiling (see above: list prices, not a guarantee) covers the whole run, and the
+run stops if an answer cost more than estimated. The meeting is added to its project only once its Word
+report is built; if a stage fails, the meeting is not added and the page says
+which stage failed, why and what was spent. What Gemini already answered is
+not thrown away: a failed run that paid for something keeps its folder in
+`<data>/<project>/processing/<run>/`, listed in the project's page, and
+processing the same meeting again (the same transcript and format) continues
+there and pays only what is missing. It goes when that run succeeds or when
+it is discarded from the page; a run that paid nothing leaves nothing. Each
+processed meeting keeps its frames, transcript, summary, report and a record
+of the run in `<data>/<project>/results/<run>/`; the recording itself is not
+copied. Folders of the data folder made with the commands outside a project
+are listed read-only.
+
+Everything kept in the data folder is written whole or not at all (to a
+temporary file, then put in place at once), and every change to it holds the
+folder's lock (`.meetingtool-write.lock`), which the application and the
+commands share: two saves at once never take the same name, and a save cut
+short leaves every record readable. A record that still cannot be read (one
+edited by hand) is named in an error, not skipped.
 
 Only this machine can use it: the server listens on 127.0.0.1, every request
 needs the session cookie set when the browser opens the launch address (a new
@@ -214,8 +295,9 @@ or English); the installed application starts in that language until one is
 chosen in its settings. The installed program opens the same screens in a
 window of its own, through WebView2, which Windows 11 already has: no browser
 and no console (`meetingtool/app/window.py`). Closed with the X while a meeting
-is being processed, it asks first; confirmed, the meeting is dropped and
-nothing of it is kept. A second start on the same data folder says the
+is being processed, it asks first; confirmed, the meeting is not added to the
+project and what was already paid for stays, as for any failed run, so that processing it
+again does not pay for it twice. A second start on the same data folder says the
 application is already open. The data folder is the user's, outside the
 program: uninstalling, or installing a new version over the old one, keeps it
 and the Gemini key. The program is not signed, so Windows warns the first time
@@ -241,8 +323,19 @@ the commit, the tools, the size and the SHA-256 of `dist\VisualMeetingTool-Setup
 
 ## Running the tests
 
-Python 3.11 or newer, with the libraries in `pyproject.toml` installed:
+Python 3.11 or newer, with the libraries in `pyproject.toml` installed. The
+CI installs them at the versions of `constraints.txt`
+(`python -m pip install -c constraints.txt "av>=14" "numpy>=1.26" "pillow>=10" "python-docx>=1.1"`);
+the minimums of `pyproject.toml` are not tested, only those versions:
 
 ```
 python -m unittest discover -s tests -v
 ```
+
+The `test_d1_*.py` files are INGOL's reproductions of the external review of
+2026-10-02; they need INGOL's test kits, which are not part of this
+repository; the three files that use them (`test_d1_barrido`,
+`test_d1_hallazgos_arquitecto`, `test_d1_wi20_fallas`) are skipped without
+them, and the other three run everywhere. With the kits installed
+(`~/.claude/ingol-kits`), they run with
+`PYTHONPATH=<home>/.claude/ingol-kits/python`.

@@ -1,0 +1,74 @@
+schema_version: "1"
+id: 01M4BGTP1940T4ASG54GC323WT
+objective: >
+  WI26. A text transcript is read the same whatever the encoding Windows
+  saved it in (finding R06, P1, of the external review of 2026-10-02: "Un
+  TXT UTF-8 con BOM pierde la primera intervención sin advertencia"; already
+  in the limitations register as WI05-P3-2). Last work item of the first
+  batch, approved by the owner on 2026-10-07; starts from main (41f6722, after WI25); does not touch the
+  installer's branch.
+
+  Today a .txt transcript is read as UTF-8: a file saved with the byte
+  order mark (BOM) that Notepad and many tools write keeps an invisible
+  character before its first line, so the first timed line is not seen and
+  the first turn disappears without a word (with one turn only, the file is
+  refused as having no timed line). A file saved as UTF-16 (what Windows
+  PowerShell 5.1 writes) or in the Western Windows code page (cp1252) is
+  refused. After this work item: the BOM of UTF-8 and of UTF-16 (both byte
+  orders) says the encoding; a file with no BOM is read as UTF-8, and if it
+  is not valid UTF-8, as cp1252 (the encoding of a Windows in Spanish or
+  English); Windows and Unix line endings alike. A line with a long run of
+  spaces no longer takes seconds to read (the speaker-and-time pattern
+  backtracks: 20,000 spaces took about 6 s).
+
+  The tests that show the defect come from INGOL's pilot package, failing
+  on 03b8573: the class TranscripcionDeTexto of test_d1_barrido.py (the BOM,
+  UTF-16 and cp1252, and the long run of spaces), copied unchanged; it needs
+  the kits.
+
+  Built by a construction-role agent (Sonnet), gated by the criterion; one
+  independent review through INGOL's mailbox.
+
+  Not done: other encodings (a file that is neither UTF-8, UTF-16 nor
+  cp1252 is read as cp1252, which may misread its accents); the second
+  batch.
+
+  Corrected after the independent review of c18ac9b
+  (docs/evidence/01M4BGTP1940T4ASG54GC323WT/independent-review.md): a mark
+  written twice no longer hides the first turn (P3-1). Known limitations
+  (docs/limitations/REGISTER.md, WI26-P3-1 and P3-2): a file in another
+  encoding, or a UTF-8 file with one byte of another, is read as cp1252 and
+  its accents may come out wrong; some files that cannot be a transcript are
+  refused with the wrong message.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4BGTP1940T4ASG54GC323WT/**
+  - docs/evidence/01M4BGTP1940T4ASG54GC323WT/**
+  - docs/limitations/**
+  - meetingtool/**
+  - tests/**
+  - README.md
+acceptance:
+  - id: WI26-AC01
+    description: >
+      TranscripcionDeTexto from INGOL's pilot package is in
+      tests/test_d1_barrido.py, its code unchanged (checked by a script in
+      the evidence), and its three tests pass with the kits.
+  - id: WI26-AC02
+    description: >
+      Without the kits too (what the CI runs): the same transcript saved as
+      UTF-8, UTF-8 with BOM, UTF-16 LE and BE with BOM, and cp1252, each
+      with Windows and Unix line endings, in the three shapes the
+      application reads (Teams with names, [HH:MM:SS], time alone), gives
+      the same turns from both readers, the first turn included; with one
+      timed line only, it is read, not refused; a line of 20,000 spaces is
+      read in under a second.
+  - id: WI26-AC03
+    description: >
+      Mutations (the BOM kept; UTF-16 not detected; no cp1252 fallback; the
+      backtracking pattern back) each make a test fail; the script and its
+      output in the evidence. WI05-P3-2 becomes "fixed". An independent
+      review through INGOL's mailbox before the pull request; the whole
+      suite passes in a fresh clone of the tested commit with INGOL's kits,
+      output committed under docs/evidence/01M4BGTP1940T4ASG54GC323WT/;
+      tests changed named with why; known limitations reproduced.

@@ -12,9 +12,11 @@ TEXTS = {
     "frames.cannot_open": "cannot open recording {path}[[: {detail}]]",
     "frames.cannot_decode": "cannot decode recording {path}[[: {detail}]]",
     "transcript.word_unreadable": "cannot read the Word transcript {path}[[: {detail}]]",
+    "transcript.word_too_big": "cannot read the Word transcript {path}: {reason}",
     "transcript.unreadable": "cannot read the transcript {path}[[: {detail}]]",
     "transcript.not_a_file": "transcript {path} is not a file",
-    "transcript.no_timed_line": "transcript {path} has no timed line (Teams 'Speaker   M:SS' or '[HH:MM:SS]')",
+    "transcript.no_timed_line": "transcript {path} has no timed line (Teams 'Speaker   M:SS', a time alone on its "
+                                "line, or '[HH:MM:SS]')",
 
     # ── Projects (meetingtool.projects) ─────────────────────────────────────
     "projects.inside_repository": "data folder {folder} is inside the git work tree {work_tree}; meeting data must "
@@ -24,6 +26,10 @@ TEXTS = {
     "projects.needs_name": "a project needs a name",
     "projects.exists": "project {project} already exists in {folder}",
     "projects.needs_title": "a meeting needs a title",
+    "projects.unreadable": "the record {file} cannot be read[[: {detail}]]; nothing was changed: fix it or "
+                           "move it out of the project",
+    "projects.busy": "another MeetingTool (the application or a command) has held the data folder {folder} "
+                     "for more than {seconds:.0f} s; nothing was changed: try again when it ends",
     "meeting.bad_date": "meeting date {date!r} is not a valid YYYY-MM-DD date",
 
     # ── The Gemini key and the reading of the frames (meetingtool.reading) ──
@@ -41,6 +47,12 @@ TEXTS = {
     "gemini.over_budget": "stopped before sending {what}: that request could cost up to US${worst:.2f}, and with "
                           "about US${spent:.2f} already spent it could go over the budget of US${budget:.2f}; nothing "
                           "was written{refused}",
+    "gemini.estimate_short": "stopped{unsent}: the answer to {after} used more tokens than its request was estimated "
+                             "to use, and cost US${cost:.4f} against the US${estimated:.4f} estimated, so the "
+                             "estimate cannot be trusted and nothing more is sent in this run. What was already "
+                             "answered is kept{refused}",
+    "gemini.estimate_short.before": " before sending {what}",
+    "gemini.estimate_short.end": " at the end of the run, before writing anything",
     "gemini.before.no_answer": " (the attempt before got no answer[[: {reason}]])",
     "gemini.before.refused": " (the answer before was refused: {error})",
     "gemini.refused": "Gemini refused the request (HTTP {status})[[: {reason}]]",
@@ -70,6 +82,7 @@ TEXTS = {
     "summary.section_count": "the summary has the section '{heading}' {count} times, not once",
     "summary.order": "the summary's sections are not in the required order",
     "summary.no_key_points": "the summary's '{heading}' section has no bullet point",
+    "summary.empty_sections": "the summary has nothing under these section(s): {headings}",
     "summary.not_read": "the frames of {folder} have not been read yet: run python -m meetingtool.reading read "
                         "--frames <folder> first",
     "summary.retired_type": "meeting type {meeting_type!r} is no longer used: it covered {covered}; use {use}",
@@ -93,6 +106,8 @@ TEXTS = {
     "qa.not_text": "{where}: '{key}' is not text",
     "qa.mentions_frame": "{where} mentions a frame",
     "qa.invented_date": "{where} writes a date the transcript does not say ({dates})",
+    "qa.invented_year": "{where} writes a year the transcript does not say ({years})",
+    "qa.invented_figure": "{where} writes a figure nobody said in the meeting ({figures})",
     "qa.question_not_object": "{where} is not a JSON object",
     "qa.no_question": "{where} has no question",
     "qa.bad_status": "{where}: status {status!r} is not one of {options}",
@@ -134,6 +149,16 @@ TEXTS = {
     "qa.stopped.before": "; the answer before was refused too: {refusal:.300}",
     "qa.stopped.done": ", of which {stages}",
     "qa.no_folder": "the folder {folder} does not exist",
+    "qa.needs_speakers": "the transcript {path} names no speaker, and the register of questions and answers needs "
+                         "who asked and who answered: write the summary instead (format summary)",
+
+    # ── Word packages (meetingtool.word_package) ────────────────────────────
+    "package.too_many_entries": "the file holds {count} parts, and a Word file may hold at most {limit}",
+    "package.part_too_big": "the part {part} is larger than {limit} MB once expanded, the most one part may be",
+    "package.total_too_big": "the parts together are larger than {limit} MB once expanded, the most a Word file "
+                             "may be (it went over at {part})",
+    "package.unreadable_part": "the part {part} is compressed in a way Word files do not use, or is encrypted, and "
+                               "the program does not read it",
 
     # ── The Word report (meetingtool.report) ────────────────────────────────
     "layout.marker_not_alone": "{{informe}} must be alone on its line, with nothing else on it",
@@ -144,19 +169,32 @@ TEXTS = {
                              "{{proyecto}} {{reunion}} {{fecha}} {{tipo}} (or {{client}} {{project}} {{meeting}} "
                              "{{date}} {{type}})",
     "layout.toc_no_result": "the table of contents cannot be read: its field has no result part",
-    "report.active.unreadable": "{part}: unreadable relationships[[ ({detail})]]",
+    "report.active.unreadable": "{part}: is not readable XML, so what it holds is not known[[ ({detail})]]",
     "report.active.external": "{part}: an external {kind} ({target})",
     "report.active.embedded": "{part}: a {kind} ({target})",
     "report.active.field": "{part}: a {field} field",
+    "report.active.unnamed_field": "{part}: a field whose name is not written out in the file (another field builds it), so what it is cannot be known",
+    "report.active.compat_unknown": "{part}: {name}, which is not a known part of Markup Compatibility, so what Word would read is not known",
+    "report.active.compat_structure": "{part}: {name} is not formed as Markup Compatibility defines it (a list of alternatives, each with the namespaces it requires, and one fallback last), so what Word would read is not known",
+    "report.active.compat_prefix": "{part}: Markup Compatibility names {name}, which is not a prefix declared in the file or is one that Word understands, so what Word would read is not known",
+    "report.active.hyperlink": "{part}: a hyperlink to {target}, which is not a web page (http, https), a mail address or a place in the document",
+    "report.active.macros": "a macro-enabled content type, or a macro project",
     "report.macro_extension": "the template {name} can carry macros ({suffix}); save it in Word as .docx or .dotx",
     "report.not_word": "the template {name} is not a Word document or template (.docx or .dotx)",
     "report.cannot_open": "the template {name} cannot be opened[[: {detail}]]",
     "report.macros": "the template {name} carries macros; save it in Word as .docx or .dotx",
     "report.active": "the template {name} has content that Word would load or run from outside it when a report is "
-                     "opened, and every report would carry it to the client:\n  {items}\nRemove it in Word and save "
-                     "the template again (attach the Normal template, embed pictures instead of linking them, delete "
-                     "linked fields and embedded objects).",
+                     "opened, or a field a template may not hold, and every report would carry it to the client:\n"
+                     "  {items}\nRemove it in Word and save the template again (attach the Normal template, embed "
+                     "pictures instead of linking them, delete linked fields and embedded objects). The only fields "
+                     "a template may hold are {allowed}.",
+    "report.active_in_report": "the report was not written: it would carry content that Word would load or run from "
+                               "outside it when the client opens it, or a field a template may not hold:\n  {items}\n"
+                               "The template that gave it must be corrected. The only fields a template may hold are "
+                               "{allowed}.",
     "report.not_a_document": "the template {name} cannot be opened as a Word document[[: {detail}]]",
+    "report.template_too_big": "the template {name} cannot be used: {reason}",
+    "report.too_big": "the report was not written: {reason}",
     "report.template_unusable": "the template {name} cannot be used: {error}",
     "report.problem.range": "line {line}: a range of frames; name each frame on its own: {text}",
     "report.problem.missing": "line {line}: {name} is not in {folder}",
@@ -202,6 +240,7 @@ TEXTS = {
     "app.col.stage": "Stage",
     "app.col.state": "State",
     "app.col.time": "Time",
+    "app.col.paid": "Paid",
     "app.projects.title": "Projects",
     "app.projects.none": "There are no projects yet.",
     "app.projects.new": "New project",
@@ -217,6 +256,12 @@ TEXTS = {
     "app.project.no_meetings": "There are no meetings yet.",
     "app.project.knowledge": "What the project already knows",
     "app.project.knowledge_hint": "What each meeting leaves and the next one reads.",
+    "app.kept.title": "Kept from runs that failed",
+    "app.kept.hint": "What was paid in a run that failed stays here, so that processing the same meeting "
+                     "again (the same transcript and format) does not pay it again. Discarding it cannot be "
+                     "undone.",
+    "app.kept.discard": "Discard",
+    "app.kept.confirm": "Discard what was kept of «{title}»? Processing it again would pay it again.",
     "app.type.presale": "Presale",
     "app.type.negotiation": "Sales or negotiation",
     "app.type.requirements": "Requirements gathering",
@@ -242,7 +287,8 @@ TEXTS = {
     "app.state.skipped": "not needed",
     "app.state.failed": "failed",
     "app.cost.title": "What it cost",
-    "app.cost.total_html": "<strong>{spent}</strong> of a ceiling of {ceiling}, in {seconds} s.",
+    "app.cost.total_html": "<strong>{spent}</strong> of an estimated ceiling of {ceiling} (from list prices; a request "
+                           "already sent is paid even if its answer is refused), in {seconds} s.",
     "app.frame.mention": "frame {clock}",
     "app.frame.caption": "Minute {clock}",
     "app.result.open_word": "Open the Word report",
@@ -264,8 +310,9 @@ TEXTS = {
     "app.new.language": "Language of the result",
     "app.new.meeting_language": "The meeting's",
     "app.new.qa_hint": "(each question with its whole answer)",
-    "app.new.ceiling": "Spending ceiling in dollars",
-    "app.new.ceiling_hint": "(if a stage could go over it, it is not sent)",
+    "app.new.ceiling": "Estimated spending ceiling in dollars",
+    "app.new.ceiling_hint": "(an estimate from list prices: a request already sent is paid even if its answer is "
+                            "refused, and the run stops if an answer cost more than estimated)",
     "app.new.process": "Process",
     "app.job.title": "Processing",
     "app.job.loading": "Loading…",
@@ -364,6 +411,9 @@ TEXTS = {
     "app.request.no_format": "there is no format {value!r}",
     "app.request.no_transcript": "the transcript is missing (a Teams .docx or a .txt with [HH:MM:SS] lines)",
     "app.request.video_gone": "the uploaded video is no longer there: upload it again",
+    "app.request.qa_needs_speakers": "the register of questions and answers needs who asked and who answered, and "
+                                     "this transcript names no speaker (each time stands alone on its line): "
+                                     "choose the summary format",
     "app.request.summary_needs_video": "the summary needs the video, to read what was shown; without a video, choose "
                                        "the questions and answers format",
     "app.request.bad_ceiling": "the spending ceiling must be a number of dollars greater than 0 and up to 5",
@@ -390,8 +440,9 @@ TEXTS = {
     "app.console.keep": "Leave this window open while you use it; to close it, close this window or press Ctrl+C.",
     "app.console.error": "error: {error}",
     "app.window.closing_title": "Close MeetingTool",
-    "app.window.closing_running": "A meeting is being processed. If you close now, it is dropped and nothing of it "
-                                  "is kept (if it was just being saved, it is saved whole). Close anyway?",
+    "app.window.closing_running": "A meeting is being processed. If you close now, it is not added to the project, "
+                                  "and what was already paid for stays so that it is not paid again (you can "
+                                  "discard it later). If it was just being saved, it is saved whole. Close anyway?",
     "app.window.no_webview2": "The Windows component that shows the screens of MeetingTool (Microsoft Edge "
                               "WebView2) is missing. Install it from Microsoft's page and open MeetingTool again.",
     "app.window.failed": "MeetingTool could not open[[: {error}]]",
@@ -427,7 +478,7 @@ TEXTS = {
     "js.state.done": "done",
     "js.state.skipped": "not needed",
     "js.state.failed": "failed",
-    "js.spent": "Spent: {spent} of a ceiling of {ceiling} · {seconds} s",
+    "js.spent": "Spent: {spent} of an estimated ceiling of {ceiling} · {seconds} s",
     "js.see_meeting": "See the meeting",
     "js.failed_at": "It failed at «{stage}»: {error}. The meeting was not added to the project and nothing was left "
                     "half done.",
@@ -435,4 +486,9 @@ TEXTS = {
     "js.retry": "Try again",
     "js.connection_job": "The connection with MeetingTool was lost: check that its window is still open.",
     "js.running": "«{title}» is being processed: see the progress",
+    "js.kept": "What Gemini already answered for this meeting was kept ({paid} paid so far): processing it "
+               "again with the same transcript does not pay that again. Until then, it is listed in the project.",
+    "js.discard": "Discard what was kept",
+    "js.discard_confirm": "Discard what was kept? Processing this meeting again would pay it again.",
+    "js.discarded": "Discarded.",
 }
