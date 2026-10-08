@@ -1,0 +1,12 @@
+mutation run for 01M4CM3YV6DMY3QDWAZDMAANW6: each mutation is applied alone to a copy of the working tree;
+`python -m unittest tests.test_spending_estimate` (no kits, what the CI runs) must fail
+commit: fe38a359cc29418deb1d3fa72fadcc607e35f497 (clean working tree)
+- the stop after an overrun removed: a run with an answer that cost more than estimated goes on sending: exit 1, Ran 18 tests in 7.943s FAILED (failures=6) -> DETECTED
+- the overrun compared against the ceiling (max_cost_usd) instead of against the request's estimate: exit 1, Ran 18 tests in 7.877s FAILED (failures=5, errors=1) -> DETECTED
+- the overrun never marked: an answer that cost more than estimated is counted and nothing else: exit 1, Ran 18 tests in 7.856s FAILED (failures=5, errors=2) -> DETECTED
+- the kept answer not written when it overran: exit 1, Ran 18 tests in 7.821s FAILED (failures=3, errors=2) -> DETECTED
+- the retry of a refused answer that overran is sent: the stop is skipped after a refusal: exit 1, Ran 18 tests in 8.304s FAILED (failures=1) -> DETECTED
+- an answer at exactly its estimate counts as an overrun: exit 1, Ran 18 tests in 8.350s FAILED (errors=1) -> DETECTED
+- the counters of a run made without the overrun key: exit 1, Ran 18 tests in 7.694s FAILED (failures=2, errors=11) -> DETECTED
+- unmutated: exit 0, Ran 18 tests in 8.379s OK
+all mutations detected
