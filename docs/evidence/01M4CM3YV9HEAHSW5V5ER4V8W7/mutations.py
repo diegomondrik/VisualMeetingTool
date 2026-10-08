@@ -32,6 +32,8 @@ MUTATIONS = [
     ("a pin below the minimum of pyproject.toml (numpy==1.20.0)", TESTS, CONSTRAINTS, "numpy==2.5.3", "numpy==1.20.0"),
     ("a pin below the minimum, the version read as text (av==9.0.0 against av>=14)", TESTS, CONSTRAINTS,
      "av==19.0.0", "av==9.0.0"),
+    ("a pin with an environment marker (the review's P2-1): pip would ignore it where the marker does not apply",
+     TESTS, CONSTRAINTS, "numpy==2.5.3", 'numpy==2.5.3; python_version < "3"'),
     ("a library pinned twice", TESTS, CONSTRAINTS, "numpy==2.5.3\n", "numpy==2.5.3\nnumpy==2.5.2\n"),
     ("the CI installs without the constraints", TESTS, WORKFLOW, "pip install -c constraints.txt", "pip install"),
     ("the CI no longer shows the versions installed", TESTS, WORKFLOW, "run: python -m pip list", "run: python --version"),

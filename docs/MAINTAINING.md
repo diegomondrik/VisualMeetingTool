@@ -132,8 +132,11 @@ uploads.
   change `constraints.txt` in one work item and read the CI log of its pull
   request. The minimums themselves are not tested (`WI31-P3-1`).
 - The tests named `tests/test_d1_*.py` reproduce the external review of
-  2026-10-02 with INGOL's test kits, which are not in this repository. Without
-  them they skip, so the CI never runs them. With them:
+  2026-10-02. Three of the six files (`test_d1_barrido`,
+  `test_d1_hallazgos_arquitecto` and `test_d1_wi20_fallas`) use INGOL's test
+  kits, which are not in this repository: without them those skip, so the CI
+  does not run them. The other three need no kits and the CI runs them. With
+  the kits:
   `PYTHONPATH=<home>/.claude/ingol-kits/python python -m unittest discover -s tests -p "test_d1_*"`.
   The run of the whole suite with the kits is committed as evidence.
 - The register of known limitations is `docs/limitations/REGISTER.md`; each row

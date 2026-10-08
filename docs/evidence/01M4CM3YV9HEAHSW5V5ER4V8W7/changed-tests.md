@@ -32,3 +32,20 @@ The guide (WI31-AC02) is not checked by a test but by `check_guide.py` in this f
 backticks in `docs/MAINTAINING.md` (134 of 175; the rest are flags, snippets and files a run writes). Run it after
 editing the guide. `mutations.txt` shows twelve mutations (nine of the pins and the workflow, three of the guide);
 each makes its guard fail, and each guard ran to its end (a process that dies is counted "NOT RUN", never detected).
+
+## After the independent review (P1-1, P2-1)
+
+No test that existed before changed. The review found the guide (and the README, before WI31) saying that all
+`tests/test_d1_*.py` skip without INGOL's kits: three of the six files do not use the kits and the CI runs them. Both
+texts now name the three that skip. And a pin with an environment marker (`numpy==2.5.3; python_version < "3"`) passed
+the pin test, though pip ignores such a constraint where the marker does not apply.
+
+- `test_a_pin_with_an_environment_marker_is_not_a_pin` (new): two markers, each found.
+- `WorkflowInstallsWithTheConstraintsTest.install_lines` (helper of the existing tests, no assertion changed) now also
+  finds `pip3 install` and `pip.exe install`, not only the text `pip install` (the review's P3).
+
+Known limits the review named and the work item does not close: the list of libraries the others bring
+(`BROUGHT`) is written by hand, so a new transitive dependency would be unpinned until someone adds it (the log's
+`pip list` would show it); `constraints.txt` and the installer's list are tied by a test that repeats the six
+versions, since WI18 is not integrated; and the installer's build prints the Python version without requiring the
+CI's 3.12.

@@ -68,6 +68,10 @@ def problems(dependencies, constraints_text):
     """What is wrong with the pins, as sentences; empty when they are right."""
     pins = {}
     said = []
+    for line in constraints_text.splitlines():
+        line = line.split("#", 1)[0].strip()
+        if ";" in line:  # pip ignores a constraint whose marker does not apply: the library would run unpinned
+            said.append(f"{normal(re.split(r'[=<>!~ ]', line)[0])} has an environment marker, so the pin may not apply: {line}")
     for name, operator, version in requirements(constraints_text.splitlines()):
         if name in pins:
             said.append(f"{name} is pinned more than once")
@@ -132,6 +136,14 @@ class PinnedVersionsTest(unittest.TestCase):
             text = constraints().replace("numpy==2.5.3", line)
             self.assertTrue(problems(declared(), text), line)
 
+    def test_a_pin_with_an_environment_marker_is_not_a_pin(self):
+        """The review's P2-1: pip ignores a constraint whose marker does not apply, and the line looked exact."""
+        for marker in ('; python_version < "3"', ';sys_platform=="linux"'):
+            text = constraints().replace("numpy==2.5.3", "numpy==2.5.3" + marker)
+            said = problems(declared(), text)
+            self.assertEqual(len(said), 1, said)
+            self.assertIn("numpy has an environment marker", said[0])
+
     def test_a_pin_below_the_minimum_of_pyproject_is_found(self):
         text = constraints().replace("numpy==2.5.3", "numpy==1.20.0")
         said = problems(declared(), text)
@@ -161,7 +173,7 @@ class WorkflowInstallsWithTheConstraintsTest(unittest.TestCase):
     def install_lines(self):
         text = WORKFLOW.read_text(encoding="utf-8")
         return [line.strip() for line in text.splitlines()
-                if "pip install" in line and not line.strip().startswith("#")]
+                if re.search(r"\bpip\d*(\.exe)?\s+install\b", line) and not line.strip().startswith("#")]
 
     def test_the_install_step_uses_the_constraints_file(self):
         lines = self.install_lines()

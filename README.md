@@ -276,6 +276,8 @@ python -m unittest discover -s tests -v
 
 The `test_d1_*.py` files are INGOL's reproductions of the external review of
 2026-10-02; they need INGOL's test kits, which are not part of this
-repository, and are skipped without them. With the kits installed
+repository; the three files that use them (`test_d1_barrido`,
+`test_d1_hallazgos_arquitecto`, `test_d1_wi20_fallas`) are skipped without
+them, and the other three run everywhere. With the kits installed
 (`~/.claude/ingol-kits`), they run with
 `PYTHONPATH=<home>/.claude/ingol-kits/python`.
