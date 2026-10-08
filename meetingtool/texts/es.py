@@ -13,6 +13,7 @@ TEXTS = {
                             "[[: {detail}]]",
     "transcript.word_unreadable": "no se puede leer la transcripción de Word {path}: fijate que sea el .docx que "
                                   "baja Teams[[: {detail}]]",
+    "transcript.word_too_big": "no se puede leer la transcripción de Word {path}: {reason}",
     "transcript.unreadable": "no se puede leer la transcripción {path}: tiene que ser un texto (UTF-8, UTF-16 o el de Windows)[[: {detail}]]",
     "transcript.not_a_file": "la transcripción {path} no es un archivo",
     "transcript.no_timed_line": "la transcripción {path} no tiene ninguna línea con su minuto (la de Teams, «Nombre   "
@@ -48,6 +49,12 @@ TEXTS = {
     "gemini.over_budget": "se frenó antes de mandar {what}: ese pedido podía costar hasta US${worst:.2f}, y con unos "
                           "US${spent:.2f} ya gastados podía pasar el techo de US${budget:.2f}; no se escribió nada"
                           "{refused}",
+    "gemini.estimate_short": "se frenó{unsent}: la respuesta a {after} usó más tokens de los que se estimaba que usaría "
+                             "su pedido, y costó US${cost:.4f} contra los US${estimated:.4f} estimados, así que la "
+                             "estimación no es confiable y en esta corrida no se manda nada más. Lo que ya se "
+                             "respondió queda guardado{refused}",
+    "gemini.estimate_short.before": " antes de mandar {what}",
+    "gemini.estimate_short.end": " al terminar la corrida, antes de escribir nada",
     "gemini.before.no_answer": " (el intento anterior no tuvo respuesta[[: {reason}]])",
     "gemini.before.refused": " (la respuesta anterior se rechazó: {error})",
     "gemini.refused": "Gemini rechazó el pedido (HTTP {status}); si dice que la clave no sirve, guardala de nuevo en "
@@ -149,6 +156,14 @@ TEXTS = {
                          "necesita saber quién preguntó y quién respondió: escribí el resumen en su lugar (formato "
                          "resumen)",
 
+    # ── Paquetes de Word (meetingtool.word_package) ─────────────────────────
+    "package.too_many_entries": "el archivo trae {count} partes, y uno de Word puede traer {limit} como máximo",
+    "package.part_too_big": "la parte {part} ocupa más de {limit} MB una vez expandida, el máximo para una parte",
+    "package.total_too_big": "las partes juntas ocupan más de {limit} MB una vez expandidas, el máximo para un "
+                             "archivo de Word (se pasó en {part})",
+    "package.unreadable_part": "la parte {part} está comprimida de una manera que los archivos de Word no usan, o "
+                               "está cifrada, y el programa no la lee",
+
     # ── El informe en Word (meetingtool.report) ─────────────────────────────
     "layout.marker_not_alone": "{{informe}} tiene que estar solo en su línea, sin nada más",
     "layout.toc_unreadable": "el índice no se puede leer: insertalo de nuevo en Word (Referencias, Tabla de "
@@ -183,6 +198,8 @@ TEXTS = {
                                "  {items}\nHay que corregir la plantilla que lo dio. Los únicos campos que una "
                                "plantilla puede tener son {allowed}.",
     "report.not_a_document": "la plantilla {name} no se puede abrir como documento de Word[[: {detail}]]",
+    "report.template_too_big": "la plantilla {name} no se puede usar: {reason}",
+    "report.too_big": "no se escribió el informe: {reason}",
     "report.template_unusable": "la plantilla {name} no se puede usar: {error}",
     "report.problem.range": "línea {line}: un rango de imágenes; nombrá cada imagen por separado: {text}",
     "report.problem.missing": "línea {line}: {name} no está en {folder}",
@@ -273,7 +290,8 @@ TEXTS = {
     "app.state.skipped": "no hace falta",
     "app.state.failed": "falló",
     "app.cost.title": "Lo que costó",
-    "app.cost.total_html": "<strong>{spent}</strong> de un techo de {ceiling}, en {seconds} s.",
+    "app.cost.total_html": "<strong>{spent}</strong> de un techo estimado de {ceiling} (con precios de lista; un pedido "
+                           "ya mandado se paga aunque se rechace su respuesta), en {seconds} s.",
     "app.frame.mention": "imagen {clock}",
     "app.frame.caption": "Minuto {clock}",
     "app.result.open_word": "Abrir el Word",
@@ -295,8 +313,9 @@ TEXTS = {
     "app.new.language": "Idioma del resultado",
     "app.new.meeting_language": "El de la reunión",
     "app.new.qa_hint": "(cada pregunta con su respuesta completa)",
-    "app.new.ceiling": "Techo de gasto en dólares",
-    "app.new.ceiling_hint": "(si una etapa pudiera pasarlo, no se manda)",
+    "app.new.ceiling": "Techo de gasto estimado en dólares",
+    "app.new.ceiling_hint": "(es una estimación con precios de lista: un pedido ya mandado se paga aunque se rechace "
+                            "su respuesta, y la corrida se frena si una respuesta costó más de lo estimado)",
     "app.new.process": "Procesar",
     "app.job.title": "Procesando",
     "app.job.loading": "Cargando…",
@@ -449,7 +468,7 @@ TEXTS = {
     "js.state.done": "listo",
     "js.state.skipped": "no hace falta",
     "js.state.failed": "falló",
-    "js.spent": "Gastado: {spent} de un techo de {ceiling} · {seconds} s",
+    "js.spent": "Gastado: {spent} de un techo estimado de {ceiling} · {seconds} s",
     "js.see_meeting": "Ver la reunión",
     "js.failed_at": "Falló en «{stage}»: {error}. La reunión no se agregó al proyecto y no quedó nada a medias.",
     "js.detail": "Detalle: {detail}",
