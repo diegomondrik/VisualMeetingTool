@@ -61,3 +61,13 @@ languages). No test that existed before changed. New in `tests/test_word_package
 
 `mutations.txt` now has nine mutations (two new, for this check), all detected with tests that ran and failed.
 P2 (the directory read whole) is `WI29-P3-2` in the register, reproduced.
+
+## After the second review (P3-1, P3-3)
+
+The second review approved. Two small corrections, no test that existed before changed: a part with flag bit 5
+(patched data) or bit 6 (strong encryption) made `zipfile` raise `NotImplementedError`, so the refusal now covers the
+three bits (`ENCRYPTED = 0x1 | 0x20 | 0x40`), with two more cases in
+`test_an_encrypted_part_or_one_of_an_unknown_method_is_refused_not_a_crash`; and the test helper `patch_first_part`
+had raw control bytes where it should have the escapes `\x03\x04` and `\x01\x02` (invisible when read), now written as
+escapes. Not done: `zlib.error` from a corrupt deflate part is still not caught by the three readers (the review's
+P3-2; it was so before WI29 and costs no memory).

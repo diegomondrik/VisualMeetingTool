@@ -30,7 +30,8 @@ MAX_PACKAGE_BYTES = 256 * 1024 * 1024
 MEGABYTE = 1024 * 1024
 CHUNK = 64 * 1024
 READABLE_COMPRESSION = (zipfile.ZIP_STORED, zipfile.ZIP_DEFLATED)
-ENCRYPTED = 0x1  # bit 0 of a part's general purpose flags
+# bits of a part's general purpose flags that zipfile cannot read: 0 encrypted, 5 patched data, 6 strong encryption
+ENCRYPTED = 0x1 | 0x20 | 0x40
 
 
 class PackageError(texts.Failure):

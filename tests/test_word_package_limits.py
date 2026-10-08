@@ -95,7 +95,7 @@ def patch_first_part(path, flags=None, method=None):
     """The package at path (one part) with the general purpose flags or the compression method its headers state
     changed, in the local header and in the central directory."""
     raw = bytearray(Path(path).read_bytes())
-    local, central = raw.index(b"PK"), raw.rindex(b"PK")
+    local, central = raw.index(b"PK\x03\x04"), raw.rindex(b"PK\x01\x02")
     if flags is not None:
         struct.pack_into("<H", raw, local + 6, flags)
         struct.pack_into("<H", raw, central + 8, flags)
@@ -218,7 +218,8 @@ class LimitsTest(Packages):
 
     def test_an_encrypted_part_or_one_of_an_unknown_method_is_refused_not_a_crash(self):
         """Before, deflate64 raised NotImplementedError and an encrypted part RuntimeError, which nothing caught."""
-        for label, change in (("encrypted", {"flags": 0x1}), ("deflate64", {"method": 9})):
+        for label, change in (("encrypted", {"flags": 0x1}), ("strong encryption", {"flags": 0x40}),
+                              ("patched data", {"flags": 0x20}), ("deflate64", {"method": 9})):
             with self.subTest(label):
                 path = patch_first_part(write_package(self.tmp / f"{label}.docx", {"word/document.xml": b"<x/>"}),
                                         **change)
