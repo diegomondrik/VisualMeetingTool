@@ -1556,14 +1556,18 @@ def d1_01(args, root):
     case.setUp()
     try:
         # (a) two reports built in the same folder at once share one temporary file: summary.docx.partial
+        # The order is forced: A saves and waits before checking; B then saves over the same file and waits;
+        # A checks (what it finds is B's document) and moves it in place; only then does B check.
         real_check = document_module.check_report
-        both_saved = threading.Barrier(2)
-        a_done = threading.Event()
+        a_saved, b_saved, a_done = threading.Event(), threading.Event(), threading.Event()
         results = {}
 
         def check(*check_args, **check_kwargs):
-            both_saved.wait(timeout=30)
-            if threading.current_thread().name == "B":
+            if threading.current_thread().name == "A":
+                a_saved.set()
+                b_saved.wait(timeout=30)
+            else:
+                b_saved.set()
                 a_done.wait(timeout=30)
             return real_check(*check_args, **check_kwargs)
 
@@ -1580,8 +1584,9 @@ def d1_01(args, root):
         with mock.patch.object(document_module, "check_report", check):
             threads = [threading.Thread(target=build, args=(name, title), name=name)
                        for name, title in (("A", "Title A"), ("B", "Title B"))]
-            for thread in threads:
-                thread.start()
+            threads[0].start()
+            a_saved.wait(timeout=30)
+            threads[1].start()
             for thread in threads:
                 thread.join(60)
         text = " ".join(paragraph.text for paragraph in docx.Document(str(case.output())).paragraphs)
@@ -1672,7 +1677,8 @@ def d1_05(args, root):
                 "mock.patch.object(store, 'rebuild_knowledge', lambda *a, **k: os._exit(77)).start(); "
                 "store.add_meeting(Path(%r), %r, 'Segunda', '2026-09-11', summary='Despues.', "
                 "key_points=('Acuerdo nuevo',))") % (str(REPO), str(data), project)
-        died = subprocess.run([sys.executable, "-c", code], cwd=str(REPO)).returncode
+        died = subprocess.run([sys.executable, "-B", "-c", code], cwd=str(REPO),
+                              env={**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}).returncode
         titles = [meeting["title"] for meeting in store.list_meetings(data, project)]
         context = store.knowledge_context(data, project)
     return died == 77 and len(titles) == 2 and "Acuerdo nuevo" not in context, (
@@ -1683,17 +1689,26 @@ def d1_05(args, root):
 
 @entry("D1-09")
 def d1_09(args, root):
+    def run_tests(folder):
+        environment = {**os.environ, "PYTHONDONTWRITEBYTECODE": "1"}
+        environment.pop("PYTHONPATH", None)
+        if folder is not None:
+            environment.update({"TMP": str(folder), "TEMP": str(folder), "TMPDIR": str(folder)})
+        return subprocess.run([sys.executable, "-B", "-m", "unittest", "tests.test_texts.StageLanguageTest"],
+                              cwd=str(REPO), env=environment, capture_output=True, text=True, encoding="utf-8",
+                              errors="replace")
+
     with workspace() as tmp:
         folder = tmp / "3-de-codex"
         folder.mkdir()
-        environment = {**os.environ, "TMP": str(folder), "TEMP": str(folder), "TMPDIR": str(folder),
-                       "PYTHONDONTWRITEBYTECODE": "1"}
-        environment.pop("PYTHONPATH", None)
-        run = subprocess.run([sys.executable, "-m", "unittest", "tests.test_texts.StageLanguageTest"], cwd=str(REPO),
-                             env=environment, capture_output=True, text=True, encoding="utf-8", errors="replace")
-    summary = [line for line in run.stderr.strip().splitlines() if line.startswith(("Ran ", "OK", "FAILED"))]
-    return run.returncode != 0 and "FAILED" in run.stderr, (
-        f"StageLanguageTest with the working folder inside a path holding the word 'de': {' '.join(summary[-2:])}")
+        inside = run_tests(folder)
+        control = run_tests(None)  # the normal temporary folder
+    summary = " ".join([line for line in inside.stderr.strip().splitlines()
+                        if line.startswith(("Ran ", "OK", "FAILED"))][-2:])
+    return inside.returncode != 0 and "['de']" in inside.stderr and control.returncode == 0, (
+        f"StageLanguageTest with the working folder inside a path holding the word 'de': {summary}, "
+        f"the word found: {chr(39) + 'de' + chr(39) in inside.stderr}; in the normal folder it passes: "
+        f"{control.returncode == 0}")
 
 
 # --- Running ---------------------------------------------------------------------------------
