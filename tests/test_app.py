@@ -571,7 +571,7 @@ class IsolationTest(Running):
             for path in paths:
                 status, _, data = self.request("GET", path, cookie=cookie)
                 self.assertEqual(status, 403, (cookie, path))
-                self.assertNotIn(b"Cliente Demo", data)
+                self.assertNotIn(b"Demo", data)
                 self.assertNotIn(b"Dato del cliente", data)
 
     def test_without_the_session_cookie_nothing_is_changed(self):
@@ -588,7 +588,7 @@ class IsolationTest(Running):
                      f"127.0.0.1.evil.example:{self.app.port}", ""):
             status, _, data = self.request("GET", f"/p/{self.project}", host=host)
             self.assertEqual(status, 403, host)
-            self.assertNotIn(b"Cliente Demo", data)
+            self.assertNotIn(b"Demo", data)
             status, _, _ = self.request("POST", "/api/projects", {"name": "Intruso"}, JSON, host=host)
             self.assertEqual(status, 403, host)
         self.assertNothingCreated()
@@ -598,13 +598,13 @@ class IsolationTest(Running):
                        f"https://127.0.0.1:{self.app.port}"):
             status, _, data = self.request("GET", f"/p/{self.project}", headers={"Origin": origin})
             self.assertEqual(status, 403, origin)
-            self.assertNotIn(b"Cliente Demo", data)
+            self.assertNotIn(b"Demo", data)
             status, _, _ = self.request("POST", "/api/projects", {"name": "Intruso"}, dict(JSON, Origin=origin))
             self.assertEqual(status, 403, origin)
         for site in ("cross-site", "same-site"):
             status, _, data = self.request("GET", f"/p/{self.project}", headers={"Sec-Fetch-Site": site})
             self.assertEqual(status, 403, site)
-            self.assertNotIn(b"Cliente Demo", data)
+            self.assertNotIn(b"Demo", data)
             status, _, _ = self.request("GET", f"/p/{self.project}/m/x/f/{FRAME}", headers={"Sec-Fetch-Site": site})
             self.assertEqual(status, 403, site)
             status, _, _ = self.request("POST", "/api/projects", {"name": "Intruso"},

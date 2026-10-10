@@ -14,10 +14,11 @@ import sys
 from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[3]
+
+
 # The only change: the project of the tests is not named after a client.
 def names(client):
     return {f'"{client} Sprint 3", "{client}"': '"Planta Demo Sprint 3", "Cliente Demo"'}
-
 
 
 COPIED = {
@@ -56,4 +57,6 @@ def main(ingol, client):
 
 
 if __name__ == "__main__":
+    if len(sys.argv) != 3:
+        sys.exit("usage: compare_pilot_tests.py <INGOL's pruebas folder> <client name in INGOL's tests>")
     sys.exit(main(sys.argv[1], sys.argv[2]))

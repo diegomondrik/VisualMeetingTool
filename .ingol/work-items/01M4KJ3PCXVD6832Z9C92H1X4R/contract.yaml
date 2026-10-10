@@ -12,8 +12,16 @@ objective: >
   meetingtool/summary/qa.py, and in the evidence files of earlier work items
   (test-run logs, the real-run note, the independent review of WI14 and
   compare_pilot_tests.py, which now receives the client's name as an argument
-  instead of carrying it). The program does not change: the only line of
-  meetingtool/ that changes is that comment.
+  instead of carrying it). Where the text is prose (the comment of qa.py, the
+  real-run note, the review) the name becomes "the client"; the test method
+  that carried it becomes "..._like_a_client_...", and the data folder that
+  the real-run note names becomes "wi14-qa-client", which does not exist on
+  the owner's disk. The 19 test-run logs therefore show a method name that did
+  not exist when they were run: they are edited evidence, edited only there.
+  One assertion kind is kept as strong as it was: the isolation tests that
+  looked for the client's name in a refused response now look for "Demo",
+  which is in both the project name and the client name. The program does not
+  change: the only line of meetingtool/ that changes is that comment.
 
   Two files are left as they are on purpose: the contract and the plan of
   WI14 (.ingol/work-items/01M3Q46RMB70H2F5NE56SVQD5M/). The independent-review
@@ -22,9 +30,12 @@ objective: >
   branch that changes a second work item's contract. They carry the name in
   five lines. Nothing in this work item removes those lines.
 
-  Not done: rewriting the history of the repository (27 commits of main and of
-  its branches still carry the name, and so can any fork or copy already made;
-  the owner chose not to rewrite it); the two copies of the project outside
+  Not done: rewriting the history of the repository (27 commits of main added
+  or changed the name, and 227 of the 305 commits that exist before this
+  work item, in all branches, hold it in their files; the commits of this work
+  item hold it only in the five lines of WI14, and their public diff shows the
+  name on the lines they remove; any fork or copy already made
+  keeps it; the owner chose not to rewrite the history); the two copies of the project outside
   this repository; making the repository private; cleaning INGOL's own
   repository, which is a separate change in a separate project.
 lane: standard
