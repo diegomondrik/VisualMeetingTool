@@ -54,7 +54,7 @@ READING_NAME = "frames_read_qa.md"
 MAX_OUTPUT_TOKENS = 32768
 SEEN_OUTPUT_TOKENS = 16384
 # A transcript whose turns hold more characters than this is asked in two
-# batches, so that the register is not cut (the Cermaq meeting of 2026-09-25
+# batches, so that the register is not cut (the client meeting of 2026-09-25
 # holds about 95,000).
 SPLIT_CHARS = 60000
 # The fewest words of a verbatim fragment of an answer, and of the words that

@@ -1,0 +1,25 @@
+schema_version: "1"
+work_item: 01M4KJ3PCXVD6832Z9C92H1X4R
+status: approved
+next_gate: suite-then-independent-review-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (construction role)
+branch: work-item/01M4KJ3PCXVD6832Z9C92H1X4R-remove-client-name
+steps:
+  - the-neutral-names-in-tests-comment-and-evidence-wi34-ac02
+  - the-search-of-the-tree-wi34-ac01
+  - the-suite-in-a-fresh-clone-wi34-ac03
+  - the-independent-review-wi34-ac04
+evaluations:
+  - criterion: WI34-AC01
+    method: deterministic
+    control: git grep -i of the client's name on the final commit lists only the WI14 contract and plan.
+  - criterion: WI34-AC02
+    method: deterministic
+    control: git diff --stat against main lists no file of meetingtool/ except qa.py, and qa.py differs in one comment line.
+  - criterion: WI34-AC03
+    method: deterministic
+    control: python -m unittest discover -s tests in a fresh clone of the final commit; local-test-run.txt.
+  - criterion: WI34-AC04
+    method: adversarial
+    control: the independent review.

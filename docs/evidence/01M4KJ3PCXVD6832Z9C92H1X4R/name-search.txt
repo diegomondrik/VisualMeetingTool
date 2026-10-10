@@ -1,0 +1,7 @@
+WI34-AC01 -- search of the tracked files of commit 4fbed332678fa13588a65be76f7effad791c1026 for the client's name, ignoring case
+command: git grep -i -c <the client's name> 4fbed332678fa13588a65be76f7effad791c1026   (counts per file; the lines are not copied here because they carry the name)
+
+.ingol/work-items/01M3Q46RMB70H2F5NE56SVQD5M/contract.yaml:4
+.ingol/work-items/01M3Q46RMB70H2F5NE56SVQD5M/plan.yaml:1
+
+files with a match: 2

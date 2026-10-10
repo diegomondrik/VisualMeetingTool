@@ -203,7 +203,7 @@ class OpenTest(Folders):
         server.DataFolderLock(self.data).acquire().release()
 
     def test_the_leftovers_of_a_run_cut_short_are_cleared_at_start(self):
-        project = store.create_project(self.data, "Cermaq", "Cermaq")["id"]
+        project = store.create_project(self.data, "Cliente Demo", "Cliente Demo")["id"]
         leftover = self.data / project / library.PROCESSING_DIR / "2026-09-25-cut-abc123"
         leftover.mkdir(parents=True)
         (leftover / "frame_001.jpg").write_bytes(b"x")

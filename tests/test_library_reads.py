@@ -86,7 +86,7 @@ class LibraryReadsTest(unittest.TestCase):
         self.addCleanup(self._tmp.cleanup)
         self.data = Path(self._tmp.name) / "data"
         self.data.mkdir()
-        self.project = store.create_project(self.data, "Cermaq Sprint 3", "Cermaq")["id"]
+        self.project = store.create_project(self.data, "Planta Demo Sprint 3", "Cliente Demo")["id"]
 
     # ── WI30-AC01: what is read ──────────────────────────────────────────────
 
@@ -118,7 +118,7 @@ class LibraryReadsTest(unittest.TestCase):
         for count in (12, 30):
             data = self.data.parent / f"data{count}"
             data.mkdir()
-            project = store.create_project(data, "Cermaq", "Cermaq")["id"]
+            project = store.create_project(data, "Cliente Demo", "Cliente Demo")["id"]
             record = add_meetings(data, project, count)[count // 2]
             with counting_reads() as seen:
                 library.meeting_file(data, project, record["id"], FRAME)
