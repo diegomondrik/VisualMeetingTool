@@ -1,0 +1,62 @@
+schema_version: "1"
+id: 01M4KJ3PCXVD6832Z9C92H1X4R
+objective: >
+  WI34. This repository is public and its tests, one code comment, the
+  evidence of earlier work items and the contract and plan of WI14 carry the
+  name of a real client of the owner's company (found by INGOL's closure
+  reading of this project, point 2.7, and confirmed by a search of the whole
+  tree on 2026-10-10). The owner decided on 2026-10-10 to clean the current
+  state of the repository and not to rewrite its history. This work item
+  replaces the name by the neutral ones the pilot already used ("Planta Demo",
+  "Planta Demo Sprint 3", "Cliente Demo") in the tests, in the comment of
+  meetingtool/summary/qa.py, and in the evidence files of earlier work items
+  (test-run logs, the real-run note, the independent review of WI14 and
+  compare_pilot_tests.py, which now receives the client's name as an argument
+  instead of carrying it). The program does not change: the only line of
+  meetingtool/ that changes is that comment.
+
+  Two files are left as they are on purpose: the contract and the plan of
+  WI14 (.ingol/work-items/01M3Q46RMB70H2F5NE56SVQD5M/). The independent-review
+  record of WI14 binds the digest of that contract, so editing it would leave
+  the record not matching the contract of today; the verifier also refuses a
+  branch that changes a second work item's contract. They carry the name in
+  five lines. Nothing in this work item removes those lines.
+
+  Not done: rewriting the history of the repository (27 commits of main and of
+  its branches still carry the name, and so can any fork or copy already made;
+  the owner chose not to rewrite it); the two copies of the project outside
+  this repository; making the repository private; cleaning INGOL's own
+  repository, which is a separate change in a separate project.
+lane: standard
+affected_surfaces:
+  - .ingol/work-items/01M4KJ3PCXVD6832Z9C92H1X4R/**
+  - docs/evidence/**
+  - tests/**
+  - meetingtool/summary/qa.py
+acceptance:
+  - id: WI34-AC01
+    description: >
+      A search over every file the repository tracks for the client's name,
+      ignoring case, finds it only in the contract and the plan of WI14 (five
+      lines) and nowhere else; the search is run with git grep on the final
+      commit and its output is committed under
+      docs/evidence/01M4KJ3PCXVD6832Z9C92H1X4R/.
+  - id: WI34-AC02
+    description: >
+      The program does not change: the diff against main touches no file of
+      meetingtool/ except qa.py, and in qa.py only the one comment line that
+      named the client; no test changes except the project and client names,
+      the slugs and folder names made from them, and the name of one test
+      method.
+  - id: WI34-AC03
+    description: >
+      The whole suite passes in a fresh clone of the final commit, with the
+      same result as before the change (no test fails; the three tests that
+      need INGOL's kits are skipped there as they are on GitHub), output
+      committed under docs/evidence/01M4KJ3PCXVD6832Z9C92H1X4R/.
+  - id: WI34-AC04
+    description: >
+      An independent review before the pull request checks that every
+      replacement is the neutral name and nothing else changed in meaning,
+      that the two WI14 files are untouched, and that this contract says what
+      is and is not cleaned.
