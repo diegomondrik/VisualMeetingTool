@@ -1,5 +1,5 @@
 WI34-AC03 -- python -m unittest discover -s tests, in a fresh clone (git clone --no-hardlinks) of commit 4fbed332678fa13588a65be76f7effad791c1026, on the executor's Windows machine, 2026-10-10. The three skipped tests are the ones that need INGOL's kits, skipped as on GitHub.
-The executor could not read its own output file in that session; the owner opened the file and pasted its content, copied below unchanged.
+The executor could not read its own output file in that session; the owner opened the file and pasted its content, copied below; the long line of progress dots is shortened.
 
 ..................................................s.s....s..........  (progress dots, shortened here: 765 tests, 3 skipped)
 ----------------------------------------------------------------------
