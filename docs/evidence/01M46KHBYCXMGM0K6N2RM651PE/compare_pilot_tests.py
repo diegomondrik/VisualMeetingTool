@@ -1,10 +1,12 @@
 """WI20-AC01: each class of INGOL's pilot tests that WI20 copied into tests/
 is INGOL's class, the client's name apart.
 
-    python docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/compare_pilot_tests.py <INGOL's pruebas folder>
+    python docs/evidence/01M46KHBYCXMGM0K6N2RM651PE/compare_pilot_tests.py <INGOL's pruebas folder> <client name in INGOL's tests>
 
 The folder is docs/work-items/dev-capabilities/evidence/d1/ac05-base-revisada/
-pruebas/ of INGOL's repository. Exit 0 when every class matches.
+pruebas/ of INGOL's repository. The client's name is not written here because
+this repository is public: whoever runs the script types it. Exit 0 when every
+class matches.
 """
 
 import ast
@@ -13,7 +15,11 @@ from pathlib import Path
 
 REPOSITORY = Path(__file__).resolve().parents[3]
 # The only change: the project of the tests is not named after a client.
-NAMES = {'"Cermaq Sprint 3", "Cermaq"': '"Planta Demo Sprint 3", "Cliente Demo"'}
+def names(client):
+    return {f'"{client} Sprint 3", "{client}"': '"Planta Demo Sprint 3", "Cliente Demo"'}
+
+
+
 COPIED = {
     "test_d1_hallazgos_arquitecto.py": ["Carpeta", "AR01TrabajoColgado", "AR02EscrituraNoAtomica",
                                         "AR03LoPagadoSeTira", "AR05AltasSimultaneas", "AR10AjustesSimultaneos"],
@@ -28,8 +34,9 @@ def classes(path):
             for node in ast.parse(text).body if isinstance(node, ast.ClassDef)}
 
 
-def main(ingol):
+def main(ingol, client):
     ingol = Path(ingol)
+    NAMES = names(client)
     differ = 0
     for name, wanted in COPIED.items():
         theirs, ours = classes(ingol / name), classes(REPOSITORY / "tests" / name)
@@ -49,4 +56,4 @@ def main(ingol):
 
 
 if __name__ == "__main__":
-    sys.exit(main(sys.argv[1]))
+    sys.exit(main(sys.argv[1], sys.argv[2]))

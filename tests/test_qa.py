@@ -724,7 +724,7 @@ class DatesTest(unittest.TestCase):
 
 
 class BudgetTest(unittest.TestCase):
-    def test_the_whole_run_on_a_meeting_like_cermaq_fits_the_ceiling_at_its_worst_without_retries(self):
+    def test_the_whole_run_on_a_meeting_like_a_client_fits_the_ceiling_at_its_worst_without_retries(self):
         # About 115,000 characters of request per batch (the transcript whole
         # in both), 20 frames read, and about 20,000 characters of what they
         # show: every attempt reserved at its worst must fit US$0.50 together.

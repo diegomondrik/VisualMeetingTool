@@ -1,8 +1,8 @@
-WI14-AC07 / WI14-AC08 — real runs on the Cermaq meeting of 2026-09-25 (session of doubts)
+WI14-AC07 / WI14-AC08 — real runs on the client meeting of 2026-09-25 (session of doubts)
 Owner's paid key, gemini-flash-latest (answered as gemini-3.8-flash), --format qa --type requirements
 --language es --max-cost 0.50 (INGOL D-182), transcript in Teams text format (1 h 46 min recorded; the
 conversation ends at about 1:39), frames: a copy of the meeting's 75 frames in a new folder of the owner's
-data folder (wi14-qa-cermaq). Only numbers, question ids and minutes are recorded here: what was said is
+data folder (wi14-qa-client). Only numbers, question ids and minutes are recorded here: what was said is
 client data and stays in the data folder.
 
 Run 1 (code c74f2ff) — refused, nothing delivered

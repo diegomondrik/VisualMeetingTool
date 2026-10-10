@@ -118,7 +118,7 @@ class Running(unittest.TestCase):
         self.assertEqual(status, 200, body)
         return json.loads(body)["upload"]
 
-    def new_project(self, name="Cermaq Sprint 3", client="Cermaq"):
+    def new_project(self, name="Planta Demo Sprint 3", client="Cliente Demo"):
         return self.api("/api/projects", {"name": name, "client": client})["id"]
 
 
@@ -149,16 +149,16 @@ class ScreensTest(Running):
         loose.mkdir()
         (loose / writer.OUTPUT_NAME).write_text(f"## Resumen\n\nUna reunión suelta [{FRAME}].\n", encoding="utf-8")
         Image.new("RGB", (64, 36), (10, 10, 10)).save(loose / FRAME)
-        (self.data / "reunion2-cermaq").mkdir()  # no summary: not a result
-        (self.data / "reunion2-cermaq" / "transcript.txt").write_text("[00:00:01] hola", encoding="utf-8")
+        (self.data / "reunion2-demo").mkdir()  # no summary: not a result
+        (self.data / "reunion2-demo" / "transcript.txt").write_text("[00:00:01] hola", encoding="utf-8")
 
     def test_the_projects_screen_lists_projects_and_loose_results(self):
         text = self.page("/")
-        self.assertIn('href="/p/cermaq-sprint-3"', text)
-        self.assertIn("Cermaq Sprint 3", text)
-        self.assertIn("<td>Cermaq</td>", text)
+        self.assertIn('href="/p/planta-demo-sprint-3"', text)
+        self.assertIn("Planta Demo Sprint 3", text)
+        self.assertIn("<td>Cliente Demo</td>", text)
         self.assertIn('href="/r/d181-relevamiento"', text)
-        self.assertNotIn("reunion2-cermaq", text)
+        self.assertNotIn("reunion2-demo", text)
         self.assertIn('data-api="/api/projects"', text)
 
     def test_a_project_is_created_from_the_page(self):
@@ -233,8 +233,8 @@ class ScreensTest(Running):
         self.assertIn(f'src="/r/d181-relevamiento/f/{FRAME}"', text)
         self.assertNotIn("data-open", text)  # it has no report
         self.assertEqual(self.request("GET", f"/r/d181-relevamiento/f/{FRAME}")[0], 200)
-        self.assertEqual(self.request("GET", "/r/reunion2-cermaq")[0], 404)
-        self.assertEqual(self.request("GET", "/r/reunion2-cermaq/f/transcript.txt")[0], 404)
+        self.assertEqual(self.request("GET", "/r/reunion2-demo")[0], 404)
+        self.assertEqual(self.request("GET", "/r/reunion2-demo/f/transcript.txt")[0], 404)
 
     def test_the_word_report_is_opened_on_the_machine(self):
         self.api("/api/open", {"target": f"{self.project}/{self.processed['id']}"})
@@ -251,7 +251,7 @@ class ScreensTest(Running):
             self.assertIn(field, text)
         for meeting_type in writer.MEETING_TYPES:
             self.assertIn(f'value="{meeting_type}"', text)
-        self.assertIn('data-project="cermaq-sprint-3"', text)
+        self.assertIn('data-project="planta-demo-sprint-3"', text)
         self.assertEqual(self.request("GET", "/p/no-existe/new")[0], 404)
 
 
@@ -571,7 +571,7 @@ class IsolationTest(Running):
             for path in paths:
                 status, _, data = self.request("GET", path, cookie=cookie)
                 self.assertEqual(status, 403, (cookie, path))
-                self.assertNotIn(b"Cermaq", data)
+                self.assertNotIn(b"Cliente Demo", data)
                 self.assertNotIn(b"Dato del cliente", data)
 
     def test_without_the_session_cookie_nothing_is_changed(self):
@@ -588,7 +588,7 @@ class IsolationTest(Running):
                      f"127.0.0.1.evil.example:{self.app.port}", ""):
             status, _, data = self.request("GET", f"/p/{self.project}", host=host)
             self.assertEqual(status, 403, host)
-            self.assertNotIn(b"Cermaq", data)
+            self.assertNotIn(b"Cliente Demo", data)
             status, _, _ = self.request("POST", "/api/projects", {"name": "Intruso"}, JSON, host=host)
             self.assertEqual(status, 403, host)
         self.assertNothingCreated()
@@ -598,13 +598,13 @@ class IsolationTest(Running):
                        f"https://127.0.0.1:{self.app.port}"):
             status, _, data = self.request("GET", f"/p/{self.project}", headers={"Origin": origin})
             self.assertEqual(status, 403, origin)
-            self.assertNotIn(b"Cermaq", data)
+            self.assertNotIn(b"Cliente Demo", data)
             status, _, _ = self.request("POST", "/api/projects", {"name": "Intruso"}, dict(JSON, Origin=origin))
             self.assertEqual(status, 403, origin)
         for site in ("cross-site", "same-site"):
             status, _, data = self.request("GET", f"/p/{self.project}", headers={"Sec-Fetch-Site": site})
             self.assertEqual(status, 403, site)
-            self.assertNotIn(b"Cermaq", data)
+            self.assertNotIn(b"Cliente Demo", data)
             status, _, _ = self.request("GET", f"/p/{self.project}/m/x/f/{FRAME}", headers={"Sec-Fetch-Site": site})
             self.assertEqual(status, 403, site)
             status, _, _ = self.request("POST", "/api/projects", {"name": "Intruso"},
@@ -801,7 +801,7 @@ class ProcessTest(Processing):
 
     def test_the_summary_request_is_the_one_the_command_sends(self):
         twin = self.tmp / "twin-data"
-        store.create_project(twin, "Cermaq Sprint 3", "Cermaq")
+        store.create_project(twin, "Planta Demo Sprint 3", "Cliente Demo")
         job = self.process()
         self.assertEqual(job["state"], "done", job["error"])
         record = store.list_meetings(self.data, self.project)[0]
@@ -813,13 +813,13 @@ class ProcessTest(Processing):
         with FakeGemini([test_summary.returning(test_summary.summary_text("es", "requirements"))]) as command:
             with contextlib.redirect_stdout(io.StringIO()):
                 code = summary_main(["--frames", str(copy), "--transcript", str(copy / "transcript.docx"),
-                                     "--project", "cermaq-sprint-3", "--title", "Sesión de dudas", "--date",
+                                     "--project", "planta-demo-sprint-3", "--title", "Sesión de dudas", "--date",
                                      "2026-09-25", "--type", "requirements", "--data-dir", str(twin)],
                                     read_key=lambda: KEY, endpoint=command.endpoint, sleep=lambda s: None)
             self.assertEqual(code, 0)
             self.assertEqual(self.summary_requests(command)[0]["body"], self.summary_requests()[-1]["body"])
-        self.assertEqual(store.list_meetings(twin, "cermaq-sprint-3")[0]["summary"], record["summary"])
-        self.assertEqual(store.list_meetings(twin, "cermaq-sprint-3")[0]["key_points"], record["key_points"])
+        self.assertEqual(store.list_meetings(twin, "planta-demo-sprint-3")[0]["summary"], record["summary"])
+        self.assertEqual(store.list_meetings(twin, "planta-demo-sprint-3")[0]["key_points"], record["key_points"])
 
     def test_the_report_cover_gets_the_projects_client_and_the_meetings_type(self):
         """WI16-AC01, from the application."""
@@ -830,7 +830,7 @@ class ProcessTest(Processing):
         (record,) = store.list_meetings(self.data, self.project)
         report = docx.Document(str(self.data / self.project / record["folder"] / library.REPORT_NAME))
         self.assertEqual([p.text for p in report.paragraphs[:2]],
-                         ["Cermaq · Cermaq Sprint 3", "Sesión de dudas · Relevamiento · 25 de septiembre de 2026"])
+                         ["Cliente Demo · Planta Demo Sprint 3", "Sesión de dudas · Relevamiento · 25 de septiembre de 2026"])
 
     def test_the_summary_needs_the_recording(self):
         answer = self.process(with_recording=False, expect=400)
@@ -903,7 +903,7 @@ class QAProcessTest(Processing):
 
     def test_the_register_request_is_the_one_the_command_sends(self):
         twin = self.tmp / "twin-data"
-        store.create_project(twin, "Cermaq Sprint 3", "Cermaq")
+        store.create_project(twin, "Planta Demo Sprint 3", "Cliente Demo")
         job = self.process(with_recording=False, format="qa", language="es")
         self.assertEqual(job["state"], "done", job["error"])
         record = store.list_meetings(self.data, self.project)[0]
@@ -913,13 +913,13 @@ class QAProcessTest(Processing):
         with FakeGemini([test_qa.json_answer(test_qa.verbal())]) as command:
             with contextlib.redirect_stdout(io.StringIO()):
                 code = summary_main(["--frames", str(copy), "--transcript", str(copy / "transcript.docx"),
-                                     "--project", "cermaq-sprint-3", "--title", "Sesión de dudas", "--date",
+                                     "--project", "planta-demo-sprint-3", "--title", "Sesión de dudas", "--date",
                                      "2026-09-25", "--type", "requirements", "--language", "es", "--format", "qa",
                                      "--data-dir", str(twin)],
                                     read_key=lambda: KEY, endpoint=command.endpoint, sleep=lambda s: None)
             self.assertEqual(code, 0)
             self.assertEqual(command.requests[0]["body"], self.fake.requests[0]["body"])
-        self.assertEqual(store.list_meetings(twin, "cermaq-sprint-3")[0]["key_points"], record["key_points"])
+        self.assertEqual(store.list_meetings(twin, "planta-demo-sprint-3")[0]["key_points"], record["key_points"])
 
 
 class FailureTest(Processing):
