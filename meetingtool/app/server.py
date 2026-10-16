@@ -43,14 +43,19 @@ from meetingtool.reading import gemini
 
 
 # Characters Windows does not allow in a file name, and the names it reserves.
-_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
-_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"{name}{number}" for name in ("COM", "LPT") for number in range(1, 10))}
+# Also DEL and the marks that reverse the direction of the text, which could disguise the extension.
+_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f\x7f‪-‮⁦-⁩]')
+_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"{name}{number}" for name in ("COM", "LPT") for number in "123456789¹²³")}
 
 
 def report_name(title):
     """The Word report's name for the person: the meeting's title, as a file name."""
-    name = " ".join(_UNSAFE.sub(" ", title or "").split()).strip(" .")[:120]
-    if not name or name.upper() in _RESERVED:
+    name = " ".join(_UNSAFE.sub(" ", title or "").split()).strip(" .")
+    if name.lower().endswith(".docx"):
+        name = name[:-5]
+    name = name[:120].strip(" .")
+    # Windows reserves the base name even with an extension after it ("CON.report").
+    if not name or name.split(".")[0].strip().upper() in _RESERVED:
         name = "summary"
     return f"{name}.docx"
 
@@ -340,7 +345,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._html(pages.result_page(view, parts[1], pages.loose_crumbs(view), None, entry["result"],
                                                     f"/r/{quote(parts[1])}/f/", parts[1]))
             if len(parts) == 4 and parts[2] == "f":
-                return self._file(library.loose_file(data_dir, parts[1], parts[3]))
+                # A result outside a project is named after its folder, as a meeting is after its title.
+                name = report_name(parts[1]) if parts[3] == library.REPORT_NAME else None
+                return self._file(library.loose_file(data_dir, parts[1], parts[3]), name)
         raise library.NotFound(path)
 
     # ── POST ─────────────────────────────────────────────────────────────────

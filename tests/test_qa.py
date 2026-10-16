@@ -743,6 +743,21 @@ class DatesTest(unittest.TestCase):
         self.assertEqual(qa.figures_in("Hay 50 de repuestos.", transcript.figures), ["50"])
         self.assertEqual(qa.words_numbers("twenty three and thirty"), {qa.Decimal("23"), qa.Decimal("30")})
 
+    def test_the_pronoun_one_is_not_a_figure_said(self):
+        # The independent review of 1.0.0: "no one" and "one of the issues" made every figure 1 look said.
+        transcript = qa.Transcript.read([(0, "", "One of the issues is that no one knows. Pay twenty-one.")], "")
+        self.assertEqual(qa.figures_in("Un 1 problema.", transcript.figures), ["1"])
+        self.assertEqual(qa.words_numbers("no one knows, one of the issues"), set())
+        self.assertEqual(qa.words_numbers("twenty-one"), {qa.Decimal("21")})
+        self.assertEqual(qa.words_numbers("one and a half"), {qa.Decimal("1"), qa.Decimal("1.5")})
+        self.assertEqual(qa.words_numbers("one percent, one million"), {qa.Decimal("1")})
+
+    def test_an_ordinal_that_is_no_fraction_is_not_a_figure_said(self):
+        for said in ("a 3rd party", "a 2nd time", "a 5th of july", "a 5th de julio"):
+            with self.subTest(said=said):
+                self.assertEqual(qa.fractions(said), set())
+        self.assertEqual(qa.fractions("a 5th of the budget"), {qa.Decimal("0.2")})
+
 
 class BudgetTest(unittest.TestCase):
     def test_the_whole_run_on_a_meeting_like_a_client_fits_the_ceiling_at_its_worst_without_retries(self):
@@ -903,6 +918,20 @@ class YearsAndFiguresTest(Workspace):
         with FakeGemini([json_answer(self.figures(figure))]) as fake:
             self.register(fake, transcript, language="es")
         self.assertIn("Merma: [VERIFICAR: «La merma es de 22 %.»]", self.text())
+
+    def test_a_number_nobody_said_in_what_the_figure_measures_is_marked(self):
+        transcript = self.said(self.FIGURES)
+        figure = {"measures": "Descuento de 99 % sobre", "figure": "48.000", "said": "Procesamos 48.000 kilos por mes"}
+        with FakeGemini([json_answer(self.figures(figure))]) as fake:
+            self.register(fake, transcript, language="es")
+        self.assertIn("[VERIFICAR: «Descuento de 99 % sobre: Procesamos 48.000 kilos por mes»]", self.text())
+
+    def test_the_delimiters_of_the_mark_are_not_written_inside_it(self):
+        transcript = self.said(self.FIGURES)
+        figure = {"measures": "Merma", "figure": "a ] b » c [VERIFICAR: «x»]", "said": ""}
+        with FakeGemini([json_answer(self.figures(figure))]) as fake:
+            self.register(fake, transcript, language="es")
+        self.assertIn("Merma: [VERIFICAR: «a b c VERIFICAR: x»]", self.text())
 
     def test_the_dates_the_times_the_codes_and_the_years_of_a_figure_are_not_figures_to_find(self):
         transcript = self.said(self.FIGURES)

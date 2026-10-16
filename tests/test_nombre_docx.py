@@ -16,6 +16,18 @@ class ReportNameTest(unittest.TestCase):
         self.assertEqual(server.report_name("CON"), "summary.docx")
         self.assertEqual(server.report_name("  "), "summary.docx")
 
+    def test_a_reserved_name_with_an_extension_or_a_superscript_gets_a_plain_name(self):
+        for title in ("CON.report", "nul.x", "COM¹", "LPT³.txt", "com1 . "):
+            with self.subTest(title=title):
+                self.assertEqual(server.report_name(title), "summary.docx")
+        self.assertEqual(server.report_name("Console notes"), "Console notes.docx")
+
+    def test_the_marks_that_reverse_the_text_and_delete_are_removed(self):
+        self.assertEqual(server.report_name("a‮cod.exe\x7f"), "a cod.exe.docx")
+
+    def test_a_title_that_already_ends_in_docx_is_not_doubled(self):
+        self.assertEqual(server.report_name("Notes.docx"), "Notes.docx")
+
     def test_the_download_header_carries_the_extension_and_the_utf8_name(self):
         header = server.attachment("Reunión <x>.docx")
         self.assertIn('filename="Reuni_n <x>.docx"', header)

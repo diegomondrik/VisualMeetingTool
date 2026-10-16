@@ -313,7 +313,10 @@ _SCALED = re.compile(_NUMBER + r"[ \xa0]?(mil|thousand|k|mill[oó]n(?:es)?|milli
 _TIMES = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
 # A fraction said in words ("one 10th", "a tenth", "un décimo"): the figure it stands for is 1/N, and a figure
 # written as the decimal ("0.1") is the one said (the first real run, "One 10th of 1%" was refused as 0.1).
-_FRACTION = re.compile(r"\b(?:one|a|an|un|una)\s+(?:(\d{1,3})(?:th|st|nd|rd)\b|(tenth|d[ée]cimo|hundredth|cent[ée]simo)\b)")
+# Only "th", from a denominator of 4 up ("a 3rd party" and "a 2nd time" are not fractions), and not the day of a month
+# ("a 5th of July").
+_FRACTION = re.compile(r"\b(?:one|a|an|un|una)\s+(?:(\d{1,3})th\b(?!\s+(?:de\s+|of\s+)(?:" + _MONTH + r")\b)"
+                       r"|(tenth|d[ée]cimo|hundredth|cent[ée]simo)\b)")
 _FRACTION_WORDS = {"tenth": 10, "décimo": 10, "decimo": 10, "hundredth": 100, "centésimo": 100, "centesimo": 100}
 
 
@@ -352,11 +355,18 @@ _WORD_NUMBER = re.compile(r"\b((?:twenty|thirty|forty|fifty|sixty|seventy|eighty
                           r"twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen))\b(\s+and\s+a\s+half\b)?")
 
 
+# "one" alone is mostly a pronoun ("no one", "one of the issues"): it is a figure only when a quantity follows it.
+_ONE_AS_FIGURE = re.compile(r"\s*(?:%|per\s?cent\b|million\b|thousand\b|hundred\b)")
+
+
 def words_numbers(text):
     """The Decimals of the numbers said in English words in `text` (lower case):
-    "forty-nine" is 49 and "forty-nine and a half" is 49.5."""
+    "forty-nine" is 49 and "forty-nine and a half" is 49.5; a bare "one" is
+    not a figure unless it is "one and a half", "one percent" or "one million"."""
     values = set()
     for match in _WORD_NUMBER.finditer(text):
+        if match.group(1) == "one" and not match.group(2) and not _ONE_AS_FIGURE.match(text, match.end()):
+            continue
         whole = Decimal(sum(_UNITS[part] for part in re.split(r"[- ]", match.group(1))))
         values.add(whole)
         if match.group(2):
@@ -370,7 +380,7 @@ def fractions(text):
     values = set()
     for match in _FRACTION.finditer(text):
         denominator = int(match.group(1)) if match.group(1) else _FRACTION_WORDS[match.group(2)]
-        if denominator:
+        if denominator >= 4:
             values.add(Decimal(1) / Decimal(denominator))
     return values
 
@@ -645,14 +655,20 @@ def _figure(item, transcript):
         item = {"measures": "", "figure": item, "said": ""}
     if not isinstance(item, dict) or not all(isinstance(item.get(key, ""), str) for key in ("measures", "figure", "said")):
         raise QAError("qa.knowledge_not_list", group="figures")
-    measures, figure, said = (" ".join(item.get(key, "").split()) for key in ("measures", "figure", "said"))
+    # The mark's own delimiters are no part of what is written inside it.
+    measures, figure, said = (" ".join(re.sub(r"[«»\[\]]", " ", item.get(key, "")).split())
+                              for key in ("measures", "figure", "said"))
     numbers = transcript.figures | {Decimal(year) for year in transcript.years}
-    if figure and _NUMBERS.search(figure) and not figures_in(figure, numbers):
+    # What the figure measures is no place for a number: one nobody said goes inside the mark, to be corrected by hand.
+    measures_unsaid = bool(figures_in(measures, numbers))
+    if figure and _NUMBERS.search(figure) and not figures_in(figure, numbers) and not measures_unsaid:
         return f"{measures}: {figure}" if measures else figure
     # The words said must be in the transcript; if they are not, the figure is marked as it was written.
     words = said if said and transcript.says(said, 0, transcript.last) else (figure or said)
     if not words:
         return ""
+    if measures_unsaid:
+        words, measures = f"{measures}: {words}", ""
     marked = VERIFY_FORMAT.format(words=words)
     return f"{measures}: {marked}" if measures else marked
 
