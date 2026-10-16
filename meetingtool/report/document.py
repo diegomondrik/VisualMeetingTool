@@ -34,7 +34,7 @@ from docx.enum.text import WD_BREAK
 from docx.image.exceptions import UnrecognizedImageError
 from docx.oxml import OxmlElement
 from docx.oxml.ns import qn
-from docx.shared import Cm, Pt
+from docx.shared import Cm, Pt, RGBColor
 
 from meetingtool import disk, texts, word_package
 from meetingtool.projects import store
@@ -608,17 +608,26 @@ def _has_style(document, name):
 
 
 def _add_text(paragraph, text):
-    for part in INLINE.split(text):
-        if not part:
+    # A figure to be corrected by hand (qa.VERIFY) is written in red, bold, so that nobody reads it as checked.
+    for piece in re.split(f"({qa.VERIFY.pattern})", text):
+        if not piece:
             continue
-        if (part.startswith("**") and part.endswith("**")) or (part.startswith("__") and part.endswith("__")):
-            paragraph.add_run(part[2:-2]).bold = True
-        elif part.startswith("`") and part.endswith("`"):
-            paragraph.add_run(part[1:-1]).font.name = "Courier New"
-        elif part.startswith("*") and part.endswith("*") and len(part) > 2:
-            paragraph.add_run(part[1:-1]).italic = True
-        else:
-            paragraph.add_run(part)
+        if qa.VERIFY.fullmatch(piece):
+            run = paragraph.add_run(piece)
+            run.bold = True
+            run.font.color.rgb = RGBColor(0xC0, 0x00, 0x00)
+            continue
+        for part in INLINE.split(piece):
+            if not part:
+                continue
+            if (part.startswith("**") and part.endswith("**")) or (part.startswith("__") and part.endswith("__")):
+                paragraph.add_run(part[2:-2]).bold = True
+            elif part.startswith("`") and part.endswith("`"):
+                paragraph.add_run(part[1:-1]).font.name = "Courier New"
+            elif part.startswith("*") and part.endswith("*") and len(part) > 2:
+                paragraph.add_run(part[1:-1]).italic = True
+            else:
+                paragraph.add_run(part)
 
 
 def _heading(document, text, level):

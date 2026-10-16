@@ -1,0 +1,169 @@
+132 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.8
+133 INFO: Python: 3.12.10
+165 INFO: Platform: Windows-11-10.0.26200-SP0
+166 INFO: Python environment: C:\Users\Diego\AppData\Local\Temp\claude\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\fd7917ba-9101-4810-bfce-4d18963c41ac\scratchpad\build-env
+167 INFO: Removing temporary files and cleaning cache in C:\Users\Diego\AppData\Local\pyinstaller
+288 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool',
+ 'C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env',
+ 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages',
+ 'C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool\\packaging',
+ 'C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool']
+921 INFO: Appending 'datas' from .spec
+922 INFO: checking Analysis
+922 INFO: Building Analysis because Analysis-00.toc is non existent
+922 INFO: Looking for Python shared library...
+922 INFO: Using Python shared library: C:\Users\Diego\AppData\Local\Programs\Python\Python312\python312.dll
+922 INFO: Running Analysis Analysis-00.toc
+922 INFO: Target bytecode optimization level: 0
+922 INFO: Initializing module dependency graph...
+923 INFO: Initializing module graph hook caches...
+944 INFO: Analyzing modules for base_library.zip ...
+2206 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+2313 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+3935 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+4194 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+5808 INFO: Caching module dependency graph...
+5848 INFO: Analyzing C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\packaging\launcher.py
+5934 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+5988 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+6100 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+6476 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+6810 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+6811 INFO: SetuptoolsInfo: initializing cached setuptools info...
+7684 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+7864 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+8124 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+8999 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+9182 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+10353 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+11131 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+11379 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+11706 INFO: Processing standard module hook 'hook-av.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+13490 INFO: Processing standard module hook 'hook-docx.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+13645 INFO: Processing standard module hook 'hook-lxml.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+14104 INFO: Processing standard module hook 'hook-lxml.etree.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+14635 INFO: Processing standard module hook 'hook-webview.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\webview\\__pyinstaller'
+15136 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+15278 INFO: Processing standard module hook 'hook-clr.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\pythonnet\\_pyinstaller'
+15306 INFO: Processing standard module hook 'hook-clr_loader.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+15420 INFO: Processing standard module hook 'hook-pycparser.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+15581 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+15594 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+15622 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+15623 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+15633 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+15634 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+15776 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+15792 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+16061 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+16063 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+16071 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+16072 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+16679 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+16679 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+17256 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+17257 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+17705 INFO: Analyzing hidden import 'meetingtool.texts.es'
+17716 INFO: Analyzing hidden import 'meetingtool.texts.en'
+17726 INFO: Processing module hooks (post-graph stage)...
+18150 INFO: Processing standard module hook 'hook-lxml.isoschematron.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18215 WARNING: Hidden import "pycparser.lextab" not found!
+18215 WARNING: Hidden import "pycparser.yacctab" not found!
+18514 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+18597 INFO: Processing standard module hook 'hook-lxml.objectify.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+18608 INFO: Performing binary vs. data reclassification (81 entries)
+18706 INFO: Looking for ctypes DLLs
+18759 INFO: Analyzing run-time hooks ...
+18765 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18768 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18771 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18774 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+18793 INFO: Creating base_library.zip...
+18820 INFO: Looking for dynamic libraries
+20278 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\av.libs', 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\numpy.libs']
+20278 INFO: Extra DLL search directories (PATH): []
+21337 WARNING: Library not found: could not resolve 'bcrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\av.libs\\avutil-61-e540ec7976bbd26a4a94dc737be3001c.dll'.
+21337 WARNING: Library not found: could not resolve 'Secur32.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\av.libs\\avformat-63-e8c4f8fc30664f2b7e85dcc683bd4b0d.dll'.
+21338 WARNING: Library not found: could not resolve 'ncrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\av.libs\\avformat-63-e8c4f8fc30664f2b7e85dcc683bd4b0d.dll'.
+21338 WARNING: Library not found: could not resolve 'SHLWAPI.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\av.libs\\avdevice-63-2b26d22512639c049532c0bc6f6c022f.dll'.
+21338 WARNING: Library not found: could not resolve 'AVICAP32.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\av.libs\\avdevice-63-2b26d22512639c049532c0bc6f6c022f.dll'.
+21342 WARNING: Library not found: could not resolve 'VERSION.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\python312.dll'.
+21343 WARNING: Library not found: could not resolve 'bcrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\python312.dll'.
+21357 WARNING: Library not found: could not resolve 'IPHLPAPI.DLL', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs\\_socket.pyd'.
+21361 WARNING: Library not found: could not resolve 'PROPSYS.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs\\_wmi.pyd'.
+21368 WARNING: Library not found: could not resolve 'PSAPI.DLL', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Temp\\claude\\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\\fd7917ba-9101-4810-bfce-4d18963c41ac\\scratchpad\\build-env\\Lib\\site-packages\\PIL\\_imagingtk.cp312-win_amd64.pyd'.
+21412 WARNING: Library not found: could not resolve 'bcrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs\\libcrypto-3.dll'.
+21439 INFO: Warnings written to C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\warn-meetingtool.txt
+21533 INFO: Graph cross-reference written to C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\xref-meetingtool.html
+21616 INFO: checking PYZ
+21616 INFO: Building PYZ because PYZ-00.toc is non existent
+21616 INFO: Building PYZ (ZlibArchive) C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\PYZ-00.pyz
+22471 INFO: Building PYZ (ZlibArchive) C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\PYZ-00.pyz completed successfully.
+22494 INFO: checking PKG
+22494 INFO: Building PKG because PKG-00.toc is non existent
+22494 INFO: Building PKG (CArchive) MeetingTool.pkg
+22516 INFO: Building PKG (CArchive) MeetingTool.pkg completed successfully.
+22517 INFO: Bootloader C:\Users\Diego\AppData\Local\Temp\claude\c--Users-Diego-Documents-Cowork-05-Proyectos-VisualMeetingTool\fd7917ba-9101-4810-bfce-4d18963c41ac\scratchpad\build-env\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+22517 INFO: checking EXE
+22517 INFO: Building EXE because EXE-00.toc is non existent
+22517 INFO: Building EXE from EXE-00.toc
+22517 INFO: Copying bootloader EXE to C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\MeetingTool.exe
+22978 INFO: Copying icon to EXE
+23204 INFO: Copying 0 resources to EXE
+23204 INFO: Embedding manifest in EXE
+23476 INFO: Appending PKG archive to EXE
+23568 INFO: Fixing EXE headers
+23776 INFO: Building EXE from EXE-00.toc completed successfully.
+23779 INFO: checking COLLECT
+23779 INFO: Building COLLECT because COLLECT-00.toc is non existent
+23780 INFO: Removing dir C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\dist\pyinstaller\MeetingTool
+23861 INFO: Building COLLECT COLLECT-00.toc
+24309 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+24315 INFO: Build complete! The results are available in: C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\dist\pyinstaller
+
+installer: dist\VisualMeetingTool-Setup-1.0.0.exe
+version:   1.0.0
+commit:    9af4c17014ff8cdddbd267685239e06c1cef1a25
+python:    3.12.10
+tool:      altgraph==0.17.5
+tool:      av==19.0.0
+tool:      bottle==0.13.4
+tool:      cffi==2.1.1
+tool:      clr_loader==0.3.1
+tool:      lxml==6.1.3
+tool:      numpy==2.5.3
+tool:      packaging==26.3
+tool:      pefile==2024.8.26
+tool:      pillow==12.3.0
+tool:      proxy_tools==0.1.0
+tool:      pycparser==3.0
+tool:      pyinstaller==6.22.3
+tool:      pyinstaller-hooks-contrib==2026.8
+tool:      python-docx==1.2.0
+tool:      pythonnet==3.2.0
+tool:      pywebview==6.2.1
+tool:      pywin32-ctypes==0.2.3
+tool:      setuptools==84.0.0
+tool:      typing_extensions==4.16.0
+inno:      C:\Users\Diego\AppData\Local\Programs\Inno Setup 6\ISCC.exe
+size:      43672605 bytes (43.7 MB)
+sha256:    c710195014a05037bc2fea0defa17b1e1bf2d932a22a1ccf8a5eed42dd003f7f
+
+== Silent install, 2026-10-16 (this installer, run on the machine that built it) ==
+command:   VisualMeetingTool-Setup-1.0.0.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LANG=es "/DIR=C:\Users\Diego\AppData\Local\Temp\vmt-t1" /LOG=install.log
+user:      a normal user, no administrator rights (PrivilegesRequired=lowest)
+before:    no registration of the AppId in HKCU or HKLM, and no folder in %LOCALAPPDATA%\Programs\VisualMeetingTool
+install exit code: 0
+folder after install: MeetingTool.exe, _internal, installation.ini, manual\user-manual.html, unins000.exe, unins000.dat
+installation.ini:
+  [installation]
+  language=es
+uninstall: unins000.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART, exit code 0
+after uninstall: the folder no longer exists, and the AppId is no longer registered in HKCU
+not tested here: the default folder ({localappdata}\Programs\VisualMeetingTool) on a machine other than this one, a clean machine, the antivirus.

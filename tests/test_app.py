@@ -214,6 +214,8 @@ class ScreensTest(Running):
         status, headers, data = self.request("GET", base + library.REPORT_NAME)
         self.assertEqual((status, headers["content-type"]), (200, DOCX_TYPE))
         self.assertIn("attachment", headers["content-disposition"])
+        self.assertIn('filename="Sesi_n de dudas.docx"', headers["content-disposition"])
+        self.assertIn("filename*=UTF-8''Sesi%C3%B3n%20de%20dudas.docx", headers["content-disposition"])
         for name in ("run.json", writer.OUTPUT_NAME, "..%2F..%2Fproject.json", "%2E%2E", "frame_7.jpg"):
             self.assertEqual(self.request("GET", base + name)[0], 404, name)
         self.assertEqual(self.request("GET", f"/p/{self.project}/m/{self.terminal['id']}/f/{FRAME}")[0], 404)
@@ -235,6 +237,13 @@ class ScreensTest(Running):
         self.assertEqual(self.request("GET", f"/r/d181-relevamiento/f/{FRAME}")[0], 200)
         self.assertEqual(self.request("GET", "/r/reunion2-demo")[0], 404)
         self.assertEqual(self.request("GET", "/r/reunion2-demo/f/transcript.txt")[0], 404)
+
+    def test_a_loose_report_downloads_under_the_name_of_its_folder(self):
+        (self.data / "d181-relevamiento" / library.REPORT_NAME).write_bytes(
+            (self.data / self.project / self.processed["folder"] / library.REPORT_NAME).read_bytes())
+        status, headers, _ = self.request("GET", f"/r/d181-relevamiento/f/{library.REPORT_NAME}")
+        self.assertEqual(status, 200)
+        self.assertIn('filename="d181-relevamiento.docx"', headers["content-disposition"])
 
     def test_the_word_report_is_opened_on_the_machine(self):
         self.api("/api/open", {"target": f"{self.project}/{self.processed['id']}"})

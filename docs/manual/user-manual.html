@@ -174,9 +174,10 @@
 <ul>
   <li>the <strong>summary</strong> (or the register of questions and answers), with its <strong>key points</strong>;</li>
   <li>the <strong>frames</strong> that were kept, each labelled with its minute in the meeting;</li>
-  <li>a button to <strong data-ui="app.result.open_word">Open the Word report</strong> (or <strong>Download</strong> it);</li>
+  <li>a button to <strong data-ui="app.result.open_word">Open the Word report</strong> (or <strong>Download</strong> it). The download is named after the meeting's title, for example <code>License Catch up.docx</code>;</li>
   <li>a line "<em>N</em> images in the report, of <em>M</em> kept from the video" and <strong>what it cost</strong>.</li>
 </ul>
+<p><strong>Figures to check by hand.</strong> When Gemini writes a figure whose number the program cannot find in the meeting, it does not guess it and does not stop the meeting. It writes the words that were said, in <strong style="color:#c00000">red and bold</strong>, as <code style="color:#c00000">[VERIFICAR: «…»]</code>. For example, a meeting that says "a buck and a half" shows that phrase in the report, marked. If the words Gemini gives as said are not in the transcript, the mark holds what Gemini wrote instead, so treat what is inside a mark as a clue and not as a quotation. A number in the text that says what the figure measures, which nobody said, is also put inside the mark. Figures said in English words ("forty-nine and a half") are read as the number they say and are not marked. Before you send the report, look for those marks, check the figure against the recording, replace the mark with the right number and delete the brackets.</p>
 <p>The project page also shows <strong data-ui="app.project.knowledge">What the project already knows</strong>: what each meeting leaves behind and the next summary reads.</p>
 <p>While a meeting is processed the recording is copied into the data folder, so that drive needs free space for it; the copy is deleted once its frames are taken, and the meeting keeps only the frames, the transcript, the text and the report.</p>
 

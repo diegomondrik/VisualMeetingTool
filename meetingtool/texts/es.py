@@ -110,7 +110,6 @@ TEXTS = {
     "qa.mentions_frame": "{where} menciona una imagen",
     "qa.invented_date": "{where} escribe una fecha que la transcripción no dice ({dates})",
     "qa.invented_year": "{where} escribe un año que la transcripción no dice ({years})",
-    "qa.invented_figure": "{where} escribe una cifra que nadie dijo en la reunión ({figures})",
     "qa.question_not_object": "{where} no es un objeto JSON",
     "qa.no_question": "{where} no tiene la pregunta",
     "qa.bad_status": "{where}: el estado {status!r} no es uno de {options}",

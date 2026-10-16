@@ -15,6 +15,7 @@ import unittest
 from pathlib import Path
 from unittest import mock
 
+import meetingtool
 from meetingtool import texts
 from meetingtool.app import company, jobs, library, server, window
 from meetingtool.projects import store
@@ -247,7 +248,7 @@ class LogTest(Folders):
         self.window(FakeWebview(), has_webview2=lambda: None).run()
         self.window(FakeWebview()).run()
         written = (self.tmp / "log" / window.LOG_NAME).read_text(encoding="utf-8")
-        self.assertEqual(written.count("VisualMeetingTool 0"), 1)
+        self.assertEqual(written.count(f"VisualMeetingTool {meetingtool.__version__}"), 1)
         self.assertNotIn("WebView2 runtime None", written)
 
     def test_a_page_that_does_not_load_is_said_in_a_box_with_the_log_s_place(self):

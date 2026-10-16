@@ -722,6 +722,42 @@ class DatesTest(unittest.TestCase):
         self.assertEqual(qa.parse_clock("4:43"), 283)
         self.assertIsNone(qa.parse_clock("al principio"))
 
+    def test_a_clock_past_the_first_hour_written_with_a_zero_hour_is_its_value(self):
+        # The second real run: Gemini wrote 0:61:05 for 1:01:05 and 0:73:56 for 1:13:56, and both were refused.
+        self.assertEqual(qa.parse_clock("0:61:05"), 3665)
+        self.assertEqual(qa.parse_clock("0:73:56"), 4436)
+        self.assertIsNone(qa.parse_clock("1:61:05"), "a written hour still limits the minutes to 59")
+        self.assertIsNone(qa.parse_clock("0:12:60"))
+
+    def test_a_fraction_said_in_words_is_the_figure_written_in_digits(self):
+        # "One 10th of 1%" was refused as the figure 0.1, nobody said it (the first real run).
+        transcript = qa.Transcript.read([(0, "", "One 10th of 1% across the network.")], "")
+        self.assertEqual(qa.figures_in("Un 0.1 % de la merma en toda la red.", transcript.figures), [])
+        self.assertEqual(qa.figures_in("Un 0.01 de la merma.", transcript.figures), ["0.01"])
+        self.assertEqual(qa.fractions("a tenth and one 100th, un décimo"), {qa.Decimal("0.1"), qa.Decimal("0.01")})
+
+    def test_a_number_said_in_english_words_is_the_figure_written_in_digits(self):
+        # "forty-nine and a half $1,000,000" was refused as the figure 49.5, nobody said it (the first real run).
+        transcript = qa.Transcript.read([(0, "", "I've got forty-nine and a half $1,000,000 in spare parts.")], "")
+        self.assertEqual(qa.figures_in("Hay 49.5 de repuestos.", transcript.figures), [])
+        self.assertEqual(qa.figures_in("Hay 50 de repuestos.", transcript.figures), ["50"])
+        self.assertEqual(qa.words_numbers("twenty three and thirty"), {qa.Decimal("23"), qa.Decimal("30")})
+
+    def test_the_pronoun_one_is_not_a_figure_said(self):
+        # The independent review of 1.0.0: "no one" and "one of the issues" made every figure 1 look said.
+        transcript = qa.Transcript.read([(0, "", "One of the issues is that no one knows. Pay twenty-one.")], "")
+        self.assertEqual(qa.figures_in("Un 1 problema.", transcript.figures), ["1"])
+        self.assertEqual(qa.words_numbers("no one knows, one of the issues"), set())
+        self.assertEqual(qa.words_numbers("twenty-one"), {qa.Decimal("21")})
+        self.assertEqual(qa.words_numbers("one and a half"), {qa.Decimal("1"), qa.Decimal("1.5")})
+        self.assertEqual(qa.words_numbers("one percent, one million"), {qa.Decimal("1")})
+
+    def test_an_ordinal_that_is_no_fraction_is_not_a_figure_said(self):
+        for said in ("a 3rd party", "a 2nd time", "a 5th of july", "a 5th de julio"):
+            with self.subTest(said=said):
+                self.assertEqual(qa.fractions(said), set())
+        self.assertEqual(qa.fractions("a 5th of the budget"), {qa.Decimal("0.2")})
+
 
 class BudgetTest(unittest.TestCase):
     def test_the_whole_run_on_a_meeting_like_a_client_fits_the_ceiling_at_its_worst_without_retries(self):
@@ -835,20 +871,20 @@ class YearsAndFiguresTest(Workspace):
         self.assertEqual(qa.written_years("el 25/09/2027, 3 de octubre de 2028 y para 2029, 2.500 y 2,40"),
                          {2027, 2028, 2029})
 
-    def test_a_figure_nobody_said_is_refused_and_the_retry_says_which(self):
+    def test_a_figure_nobody_said_is_marked_with_the_words_said_and_not_refused(self):
         transcript = self.said(self.FIGURES)
-        refusal, fake = self.run_register(self.figures("Se procesan 52.000 kilos por mes."), transcript)
-        self.assertEqual(self.cause(refusal).key, "qa.invented_figure")
-        self.assertIn("the knowledge 'figures' writes a figure nobody said in the meeting (52.000)", str(refusal))
-        self.assertEqual(len(fake.requests), 2)
-        self.assertNothingWritten()
-        retry = fake.requests[1]["body"]["contents"][0]["parts"][0]["text"]
-        self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: the knowledge 'figures' writes a figure nobody said", retry)
+        figure = {"measures": "Volumen", "figure": "Se procesan 52.000 kilos por mes.", "said": "Procesamos 48.000 kilos por mes"}
+        refusal, fake = self.run_register(self.figures(figure), transcript)
+        self.assertIsNone(refusal)
+        self.assertEqual(len(fake.requests), 1, "no retry is paid for a figure that is marked")
+        with FakeGemini([json_answer(self.figures(figure))]) as again:
+            self.register(again, transcript, language="es")
+        self.assertIn("Volumen: [VERIFICAR: «Procesamos 48.000 kilos por mes»]", self.text())
 
-    def test_every_figure_nobody_said_is_what_the_refusal_names(self):
+    def test_every_figure_nobody_said_is_marked_and_none_refuses_the_meeting(self):
         refusal, _ = self.run_register(self.figures("Se procesan 52.000 kilos, con 7 turnos y 48.000 de stock."),
                                        self.said(self.FIGURES))
-        self.assertIn("(52.000, 7)", str(refusal))
+        self.assertIsNone(refusal)
 
     def test_a_figure_that_was_said_written_in_another_form_is_accepted(self):
         transcript = self.said(self.FIGURES)
@@ -861,13 +897,41 @@ class YearsAndFiguresTest(Workspace):
                 refusal, _ = self.run_register(self.figures(entry), transcript)
                 self.assertIsNone(refusal)
 
-    def test_a_figure_said_another_way_is_not_the_one_written(self):
+    def test_a_figure_said_another_way_is_not_the_one_written_and_is_marked(self):
         transcript = self.said(self.FIGURES)
         for entry in ("Se procesan 48 kilos por mes.", "El margen es de 5 %.", "El margen es de 0,15 %.",
                       "La merma es de 0,5 %.", "Se procesan 4.800 kilos por mes.", "Son 30 turnos."):
             with self.subTest(entry=entry):
                 refusal, _ = self.run_register(self.figures(entry), transcript)
-                self.assertEqual(self.cause(refusal).key, "qa.invented_figure")
+                self.assertIsNone(refusal)
+
+    def test_a_figure_said_only_in_words_is_marked_even_if_the_words_are_in_the_transcript(self):
+        transcript = self.said("I've got forty-nine and a half $1,000,000 in spare parts.")
+        figure = {"measures": "Inventario", "figure": "a buck and a half", "said": "forty-nine and a half"}
+        with FakeGemini([json_answer(self.figures(figure))]) as fake:
+            self.register(fake, transcript, language="es")
+        self.assertIn("Inventario: [VERIFICAR: «forty-nine and a half»]", self.text())
+
+    def test_a_said_quote_that_is_not_in_the_transcript_is_marked_with_the_figure_written(self):
+        transcript = self.said(self.FIGURES)
+        figure = {"measures": "Merma", "figure": "La merma es de 22 %.", "said": "la merma subió al cuarenta por ciento"}
+        with FakeGemini([json_answer(self.figures(figure))]) as fake:
+            self.register(fake, transcript, language="es")
+        self.assertIn("Merma: [VERIFICAR: «La merma es de 22 %.»]", self.text())
+
+    def test_a_number_nobody_said_in_what_the_figure_measures_is_marked(self):
+        transcript = self.said(self.FIGURES)
+        figure = {"measures": "Descuento de 99 % sobre", "figure": "48.000", "said": "Procesamos 48.000 kilos por mes"}
+        with FakeGemini([json_answer(self.figures(figure))]) as fake:
+            self.register(fake, transcript, language="es")
+        self.assertIn("[VERIFICAR: «Descuento de 99 % sobre: Procesamos 48.000 kilos por mes»]", self.text())
+
+    def test_the_delimiters_of_the_mark_are_not_written_inside_it(self):
+        transcript = self.said(self.FIGURES)
+        figure = {"measures": "Merma", "figure": "a ] b » c [VERIFICAR: «x»]", "said": ""}
+        with FakeGemini([json_answer(self.figures(figure))]) as fake:
+            self.register(fake, transcript, language="es")
+        self.assertIn("Merma: [VERIFICAR: «a b c VERIFICAR: x»]", self.text())
 
     def test_the_dates_the_times_the_codes_and_the_years_of_a_figure_are_not_figures_to_find(self):
         transcript = self.said(self.FIGURES)
@@ -889,13 +953,13 @@ class YearsAndFiguresTest(Workspace):
         refusal, _ = self.run_register(sum_of_two, transcript)
         self.assertIsNone(refusal)
 
-    def test_a_figure_nobody_said_in_the_figures_then_a_register_without_it_is_accepted(self):
+    def test_a_figure_nobody_said_is_marked_in_the_summary_not_retried(self):
         transcript = self.said(self.FIGURES)
-        with FakeGemini([json_answer(self.figures("Se procesan 52.000 kilos por mes.")),
-                         json_answer(self.figures("Se procesan 48.000 kilos por mes."))]) as fake:
+        figure = {"measures": "Volumen", "figure": "Se procesan 52.000 kilos por mes.", "said": "Procesamos 48.000 kilos por mes"}
+        with FakeGemini([json_answer(self.figures(figure))]) as fake:
             self.register(fake, transcript, language="es")
-        self.assertEqual(len(fake.requests), 2)
-        self.assertIn("- Se procesan 48.000 kilos por mes.", self.text())
+        self.assertEqual(len(fake.requests), 1)
+        self.assertIn("- Volumen: [VERIFICAR: «Procesamos 48.000 kilos por mes»]", self.text())
 
     def test_numbers_are_compared_as_numbers(self):
         for token in ("48.000", "48,000", "48 000", "48\xa0000", "48000", "48.000,00", "48,000.00"):
@@ -992,13 +1056,16 @@ class YearsAnywhereAndScalesTest(Workspace):
                 refusal, _ = self.run_register(self.figures(entry), transcript)
                 self.assertIsNone(refusal)
 
-    def test_a_figure_that_is_not_the_scaled_one_is_refused(self):
+    def test_a_figure_that_is_not_the_scaled_one_is_marked_and_not_refused(self):
         transcript = self.said("Procesamos 48 mil kilos, con 3 millones de pesos y 1,5 millones de dólares.")
         for entry in ("Se procesan 49.000 kilos.", "Se procesan 49 mil kilos.", "Son 30.000.000 de pesos.",
                       "Son 3 mil de pesos.", "Son 1.500 dólares.", "Son 15 millones de dólares."):
             with self.subTest(entry=entry):
                 refusal, _ = self.run_register(self.figures(entry), transcript)
-                self.assertEqual(self.cause(refusal).key, "qa.invented_figure")
+                self.assertIsNone(refusal)
+                with FakeGemini([json_answer(self.figures(entry))]) as fake:
+                    self.register(fake, transcript, language="es")
+                self.assertIn("[VERIFICAR: «" + entry + "»]", self.text())
 
     def test_the_scales_are_read_as_numbers(self):
         spans = qa.scaled("48 mil kilos, 1,5 millones, 3 million, 48k y 5 km y 2 millón")

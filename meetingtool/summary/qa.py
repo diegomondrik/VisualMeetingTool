@@ -147,14 +147,18 @@ and nothing said after the farewell goes into the register."""
 
 KNOWLEDGE_RULE = """Also fill "knowledge" for the whole meeting, one short item per string, as it was said:
 "rules": business rules and criteria that were agreed; "owners": who owns and who loads or sends each piece of
-data; "figures": figures and parameters that were said, each with what it measures, never a figure nobody said;
-"glossary": terms and codes with what they mean ("term: meaning"); "scope": what is in and what is out of the
-project. An empty list where nothing was said."""
+data; "glossary": terms and codes with what they mean ("term: meaning"); "scope": what is in and what is out of the
+project. An empty list where nothing was said.
+"figures": one object per figure or parameter said, {"measures": what it measures, without the number, "figure":
+the number written in digits as it was said, "said": the words of the transcript where it was said, copied word for
+word}. Write a number only if it was said; if the meeting says it in words or with an expression ("a buck and a
+half"), leave the digits out of "figure" and copy the words exactly in "said"."""
 
 SHAPE = """Answer only with JSON of this shape:
 {"questions": [{"question": "", "asked_by": "", "start": "H:MM:SS", "end": "H:MM:SS", "answers": [{"speaker": "",
 "text": ""}], "quote": "", "agreement": "", "pending": "", "deadline": "", "status": "", "screen": false,
-"screen_quote": ""}], "knowledge": {"rules": [], "owners": [], "figures": [], "glossary": [], "scope": []}}"""
+"screen_quote": ""}], "knowledge": {"rules": [], "owners": [], "figures": [{"measures": "", "figure": "", "said": ""}],
+"glossary": [], "scope": []}}"""
 
 SEEN_ROLE = """Below are answers from the question-and-answer register of a meeting that relied on something shown
 on screen, each with what was read in the frames kept while it was given (the frame's file name heads each
@@ -307,6 +311,13 @@ _NUMBERS = re.compile(_NUMBER)
 SCALES = {"mil": 1000, "thousand": 1000, "k": 1000, "millon": 10 ** 6, "millones": 10 ** 6, "million": 10 ** 6}
 _SCALED = re.compile(_NUMBER + r"[ \xa0]?(mil|thousand|k|mill[oó]n(?:es)?|million)\b")
 _TIMES = re.compile(r"\b\d{1,2}:\d{2}(?::\d{2})?\b")
+# A fraction said in words ("one 10th", "a tenth", "un décimo"): the figure it stands for is 1/N, and a figure
+# written as the decimal ("0.1") is the one said (the first real run, "One 10th of 1%" was refused as 0.1).
+# Only "th", from a denominator of 4 up ("a 3rd party" and "a 2nd time" are not fractions), and not the day of a month
+# ("a 5th of July").
+_FRACTION = re.compile(r"\b(?:one|a|an|un|una)\s+(?:(\d{1,3})th\b(?!\s+(?:de\s+|of\s+)(?:" + _MONTH + r")\b)"
+                       r"|(tenth|d[ée]cimo|hundredth|cent[ée]simo)\b)")
+_FRACTION_WORDS = {"tenth": 10, "décimo": 10, "decimo": 10, "hundredth": 100, "centésimo": 100, "centesimo": 100}
 
 
 def number(token):
@@ -332,6 +343,46 @@ def scaled(text):
     their scale ("48 mil" is 48000)."""
     return [(match.start(), match.end(), number(match.group(1)) * SCALES[match.group(2).replace("ó", "o")])
             for match in _SCALED.finditer(text)]
+
+
+_UNITS = {"one": 1, "two": 2, "three": 3, "four": 4, "five": 5, "six": 6, "seven": 7, "eight": 8, "nine": 9,
+          "ten": 10, "eleven": 11, "twelve": 12, "thirteen": 13, "fourteen": 14, "fifteen": 15, "sixteen": 16,
+          "seventeen": 17, "eighteen": 18, "nineteen": 19, "twenty": 20, "thirty": 30, "forty": 40, "fifty": 50,
+          "sixty": 60, "seventy": 70, "eighty": 80, "ninety": 90}
+# A number said in English words ("forty-nine", "twenty three", "forty-nine and a half"); the transcript is in English.
+_WORD_NUMBER = re.compile(r"\b((?:twenty|thirty|forty|fifty|sixty|seventy|eighty|ninety)(?:[- ](?:one|two|three|four|"
+                          r"five|six|seven|eight|nine))?|(?:one|two|three|four|five|six|seven|eight|nine|ten|eleven|"
+                          r"twelve|thirteen|fourteen|fifteen|sixteen|seventeen|eighteen|nineteen))\b(\s+and\s+a\s+half\b)?")
+
+
+# "one" alone is mostly a pronoun ("no one", "one of the issues"): it is a figure only when a quantity follows it.
+_ONE_AS_FIGURE = re.compile(r"\s*(?:%|per\s?cent\b|million\b|thousand\b|hundred\b)")
+
+
+def words_numbers(text):
+    """The Decimals of the numbers said in English words in `text` (lower case):
+    "forty-nine" is 49 and "forty-nine and a half" is 49.5; a bare "one" is
+    not a figure unless it is "one and a half", "one percent" or "one million"."""
+    values = set()
+    for match in _WORD_NUMBER.finditer(text):
+        if match.group(1) == "one" and not match.group(2) and not _ONE_AS_FIGURE.match(text, match.end()):
+            continue
+        whole = Decimal(sum(_UNITS[part] for part in re.split(r"[- ]", match.group(1))))
+        values.add(whole)
+        if match.group(2):
+            values.add(whole + Decimal("0.5"))
+    return values
+
+
+def fractions(text):
+    """The Decimals of the fractions said in words in `text` (lower case):
+    "one 10th" and "a tenth" are 0.1, "one 100th" is 0.01."""
+    values = set()
+    for match in _FRACTION.finditer(text):
+        denominator = int(match.group(1)) if match.group(1) else _FRACTION_WORDS[match.group(2)]
+        if denominator >= 4:
+            values.add(Decimal(1) / Decimal(denominator))
+    return values
 
 
 def _values(token):
@@ -365,7 +416,9 @@ def parse_clock(value):
     if not match:
         return None
     hours, minutes, seconds = int(match.group(1) or 0), int(match.group(2)), int(match.group(3))
-    if seconds > 59 or (match.group(1) and minutes > 59):
+    # "0:61:05" is an hour and a minute written with no hour: Gemini writes it so for a time past the first hour
+    # (the second real run), and its value is right. Only a written hour limits the minutes to 59.
+    if seconds > 59 or (hours and minutes > 59):
         return None
     return hours * 3600 + minutes * 60 + seconds
 
@@ -435,6 +488,8 @@ class Transcript:
         clockless = _TIMES.sub(" ", spoken.casefold())
         figures = {value for token in _NUMBERS.finditer(clockless) for value in _values(token.group())}
         figures |= {value for _, _, value in scaled(clockless)}
+        figures |= fractions(clockless)
+        figures |= words_numbers(clockless)
         return cls(words, speakers, max(start for start, _, _ in turns), frozenset(dates), frozenset(years),
                    frozenset(figures))
 
@@ -587,6 +642,37 @@ def check_question(item, number, transcript, window):
                     fields["screen_quote"] if screen else "")
 
 
+# A figure whose number nobody said is written as the words said, in this mark, to be corrected by hand in the report
+# (the owner's decision: a figure said as "a buck and a half" or "un palo y medio" is not guessed, nor the meeting refused).
+VERIFY_FORMAT = "[VERIFICAR: «{words}»]"
+VERIFY = re.compile(r"\[VERIFICAR: «[^»]*»\]")
+
+
+def _figure(item, transcript):
+    """One figure of the knowledge as the register keeps it: its number as it is written when it was said, else the
+    words said in VERIFY_FORMAT. A plain string (the old form) is a figure with no words said."""
+    if isinstance(item, str):
+        item = {"measures": "", "figure": item, "said": ""}
+    if not isinstance(item, dict) or not all(isinstance(item.get(key, ""), str) for key in ("measures", "figure", "said")):
+        raise QAError("qa.knowledge_not_list", group="figures")
+    # The mark's own delimiters are no part of what is written inside it.
+    measures, figure, said = (" ".join(re.sub(r"[«»\[\]]", " ", item.get(key, "")).split())
+                              for key in ("measures", "figure", "said"))
+    numbers = transcript.figures | {Decimal(year) for year in transcript.years}
+    # What the figure measures is no place for a number: one nobody said goes inside the mark, to be corrected by hand.
+    measures_unsaid = bool(figures_in(measures, numbers))
+    if figure and _NUMBERS.search(figure) and not figures_in(figure, numbers) and not measures_unsaid:
+        return f"{measures}: {figure}" if measures else figure
+    # The words said must be in the transcript; if they are not, the figure is marked as it was written.
+    words = said if said and transcript.says(said, 0, transcript.last) else (figure or said)
+    if not words:
+        return ""
+    if measures_unsaid:
+        words, measures = f"{measures}: {words}", ""
+    marked = VERIFY_FORMAT.format(words=words)
+    return f"{measures}: {marked}" if measures else marked
+
+
 def check_register(data, transcript, window, language, with_knowledge):
     """([Question], {group: [item]} or None) from a batch's JSON, or QAError."""
     questions = data.get("questions")
@@ -613,18 +699,18 @@ def check_register(data, transcript, window, language, with_knowledge):
         knowledge = {}
         for group in KNOWLEDGE:
             items = grouped.get(group, [])
-            if not isinstance(items, list) or not all(isinstance(entry, str) for entry in items):
+            if not isinstance(items, list):
                 raise QAError("qa.knowledge_not_list", group=group)
-            knowledge[group] = [" ".join(entry.split()) for entry in items if entry.strip()]
+            if group == "figures":
+                # Not refused when nobody said the number: the words said are marked (see _figure).
+                knowledge[group] = [entry for entry in (_figure(item, transcript) for item in items) if entry]
+            else:
+                if not all(isinstance(entry, str) for entry in items):
+                    raise QAError("qa.knowledge_not_list", group=group)
+                knowledge[group] = [" ".join(entry.split()) for entry in items if entry.strip()]
             for entry in knowledge[group]:
                 where = texts.Message("qa.where.knowledge", group=group)
                 _check_text(entry, where, transcript)
-                if group == "figures":
-                    # The group holds, by its title, figures that were said (WI25); the figures of any other
-                    # place may be derived (a sum, a percentage) and are not checked.
-                    invented = figures_in(entry, transcript.figures | {Decimal(year) for year in transcript.years})
-                    if invented:
-                        raise QAError("qa.invented_figure", where=where, figures=", ".join(invented))
     said = [q.question for q in found] + [text for q in found for _, text in q.answers]
     said += [text for q in found for text in (q.agreement, q.pending, q.deadline) if text]
     said += [entry for items in (knowledge or {}).values() for entry in items]
