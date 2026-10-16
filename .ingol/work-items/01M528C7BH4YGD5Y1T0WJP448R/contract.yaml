@@ -29,29 +29,29 @@ affected_surfaces:
   - .ingol/work-items/01M528C7BH4YGD5Y1T0WJP448R/**
   - tests/**
 acceptance:
-  - id: WI-1.0.0-AC01
+  - id: WI100-AC01
     description: >
       The installer, compiled from the committed tree, installs without
       administrator rights into the user's programs folder: a silent install
       into a folder given by /DIR returns exit code 0, and the language written
       to installation.ini is the one chosen. The build record is committed under
       docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/installer-build.txt.
-  - id: WI-1.0.0-AC02
+  - id: WI100-AC02
     description: >
       A figure that nobody said in digits is written in the report as the words
       that were said, marked [VERIFICAR: «…»] in red and bold, and does not
       refuse the meeting. Covered by tests/test_qa.py and tests/test_verificar_rojo.py.
-  - id: WI-1.0.0-AC03
+  - id: WI100-AC03
     description: >
       The Word report downloads under the meeting's title with the .docx
       extension, and a title Windows does not accept is cleaned, not refused.
       Covered by tests/test_nombre_docx.py.
-  - id: WI-1.0.0-AC04
+  - id: WI100-AC04
     description: >
       The whole suite passes on the committed tree: 775 tests, OK, three skipped
       (those that need INGOL's test kits, which are not in this repository).
       Output committed under docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/local-test-run.txt.
-  - id: WI-1.0.0-AC05
+  - id: WI100-AC05
     description: >
       The user manual states the new behaviour: the download's file name, the
       red [VERIFICAR] marks and the per-user installation folder.
