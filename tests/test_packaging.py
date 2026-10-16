@@ -54,7 +54,8 @@ class InstallerTest(unittest.TestCase):
     def test_it_installs_for_the_user_without_administrator_rights(self):
         self.assertEqual(setting("PrivilegesRequired"), "lowest")
         self.assertIsNone(setting("PrivilegesRequiredOverridesAllowed"))
-        self.assertTrue(setting("DefaultDirName").startswith("{autopf}"))  # the user's own programs folder
+        # The user's own programs folder: {autopf} is Program Files, which needs administrator rights (error 5).
+        self.assertEqual(setting("DefaultDirName"), "{localappdata}\\Programs\\VisualMeetingTool")
 
     def test_every_version_installs_over_the_last_and_never_touches_the_data(self):
         self.assertRegex(setting("AppId"), r"^\{\{[0-9A-F-]{36}\}$")

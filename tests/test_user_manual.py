@@ -165,7 +165,7 @@ class ItIsTrueTest(unittest.TestCase):
         log = window.log_dir() / window.LOG_NAME
         self.assertIn(f"AppData\\Local\\{log.parent.name}\\{log.name}", VISIBLE)
         iss = (ROOT / "packaging" / "installer.iss").read_text(encoding="utf-8")
-        self.assertIn("DefaultDirName={autopf}\\VisualMeetingTool", iss)
+        self.assertIn("DefaultDirName={localappdata}\\Programs\\VisualMeetingTool", iss)
         self.assertIn("C:\\Users\\<you>\\AppData\\Local\\Programs\\VisualMeetingTool", VISIBLE)
 
     def test_the_languages_and_the_kinds_of_meeting_it_lists_are_the_program_s(self):

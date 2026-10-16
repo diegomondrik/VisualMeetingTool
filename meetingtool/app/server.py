@@ -26,6 +26,7 @@ import http.server
 import ipaddress
 import json
 import os
+import re
 import secrets
 import socket
 import sys
@@ -39,6 +40,25 @@ from meetingtool import texts
 from meetingtool.app import company, jobs, library, pages
 from meetingtool.projects import store
 from meetingtool.reading import gemini
+
+
+# Characters Windows does not allow in a file name, and the names it reserves.
+_UNSAFE = re.compile(r'[<>:"/\\|?*\x00-\x1f]')
+_RESERVED = {"CON", "PRN", "AUX", "NUL", *(f"{name}{number}" for name in ("COM", "LPT") for number in range(1, 10))}
+
+
+def report_name(title):
+    """The Word report's name for the person: the meeting's title, as a file name."""
+    name = " ".join(_UNSAFE.sub(" ", title or "").split()).strip(" .")[:120]
+    if not name or name.upper() in _RESERVED:
+        name = "summary"
+    return f"{name}.docx"
+
+
+def attachment(name):
+    """A Content-Disposition for a download: the name in ASCII, and the same name in UTF-8 for the browser."""
+    ascii_name = name.encode("ascii", "replace").decode("ascii").replace("?", "_").replace('"', "'")
+    return f"attachment; filename=\"{ascii_name}\"; filename*=UTF-8''{quote(name)}"
 
 HOST = "127.0.0.1"
 COOKIE = "meetingtool_session"
@@ -171,12 +191,11 @@ class Handler(http.server.BaseHTTPRequestHandler):
         else:
             self._html(pages.message_page(view, view.say("app.error.cannot_show"), text, details), status)
 
-    def _file(self, path):
+    def _file(self, path, download_name=None):
         if path.name in company.LOGO_TYPES:
             self._send(200, path.read_bytes(), company.LOGO_TYPES[path.name])
         elif path.suffix == ".docx":
-            self._send(200, path.read_bytes(), DOCX_TYPE,
-                       [("Content-Disposition", "attachment; filename=\"summary.docx\"")])
+            self._send(200, path.read_bytes(), DOCX_TYPE, [("Content-Disposition", attachment(download_name or path.name))])
         else:
             self._send(200, path.read_bytes(), "image/jpeg")
 
@@ -312,7 +331,9 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 return self._html(pages.result_page(view, record["title"], pages.project_crumbs(view, project),
                                                     record, entry["result"], base, f"{project_id}/{record['id']}"))
             if parts[2] == "m" and len(parts) == 6 and parts[4] == "f":
-                return self._file(library.meeting_file(data_dir, project_id, parts[3], parts[5]))
+                name = report_name(library.meeting_record(data_dir, project_id, parts[3])["title"]) \
+                    if parts[5] == library.REPORT_NAME else None
+                return self._file(library.meeting_file(data_dir, project_id, parts[3], parts[5]), name)
         if head == "r" and len(parts) >= 2:
             if len(parts) == 2:
                 entry = library.loose_result(data_dir, parts[1])
