@@ -40,15 +40,24 @@ acceptance:
     description: >
       A figure that nobody said in digits is written in the report as the words
       that were said, marked [VERIFICAR: «…»] in red and bold, and does not
-      refuse the meeting. Covered by tests/test_qa.py and tests/test_verificar_rojo.py.
+      refuse the meeting. A number nobody said inside the text of what the
+      figure measures is put inside the mark too. A bare "one" (as in "no
+      one", "one of the issues") and an ordinal that is no fraction ("a 3rd
+      party", "a 5th of July") do not count as a figure said. The mark's own
+      delimiters are never written inside it. Covered by tests/test_qa.py and
+      tests/test_verificar_rojo.py.
   - id: WI100-AC03
     description: >
       The Word report downloads under the meeting's title with the .docx
-      extension, and a title Windows does not accept is cleaned, not refused.
-      Covered by tests/test_nombre_docx.py.
+      extension, and a title Windows does not accept is cleaned, not refused:
+      reserved names even with an extension after them ("CON.report", "COM1"
+      with a superscript), characters that reverse the text, and a title that
+      already ends in .docx. A result outside a project downloads under the
+      name of its folder. Covered by tests/test_nombre_docx.py and
+      tests/test_app.py.
   - id: WI100-AC04
     description: >
-      The whole suite passes on the committed tree: 775 tests, OK, three skipped
+      The whole suite passes on the committed tree: 783 tests, OK, three skipped
       (those that need INGOL's test kits, which are not in this repository).
       Output committed under docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/local-test-run.txt.
   - id: WI100-AC05
