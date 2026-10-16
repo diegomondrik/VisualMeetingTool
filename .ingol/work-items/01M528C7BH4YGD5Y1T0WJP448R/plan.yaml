@@ -1,0 +1,29 @@
+schema_version: "1"
+work_item: 01M528C7BH4YGD5Y1T0WJP448R
+status: proposed
+next_gate: suite-then-installer-then-open-the-pull-request
+owner: Carlos Diego Mondrik
+executor: Claude Code (construction role)
+branch: release/1.0.0-verificar-y-descarga
+steps:
+  - the-per-user-installer-folder-wi-1-0-0-ac01
+  - the-verify-marks-and-the-number-words-wi-1-0-0-ac02
+  - the-download-name-wi-1-0-0-ac03
+  - the-suite-on-the-committed-tree-wi-1-0-0-ac04
+  - the-manual-wi-1-0-0-ac05
+evaluations:
+  - criterion: WI-1.0.0-AC01
+    method: deterministic
+    control: silent install of dist\VisualMeetingTool-Setup-1.0.0.exe into a short folder returns 0; installation.ini says language=es; installer-build.txt has the commit and the SHA-256.
+  - criterion: WI-1.0.0-AC02
+    method: deterministic
+    control: tests.test_qa and tests.test_verificar_rojo pass.
+  - criterion: WI-1.0.0-AC03
+    method: deterministic
+    control: tests.test_nombre_docx passes.
+  - criterion: WI-1.0.0-AC04
+    method: deterministic
+    control: python -m unittest discover -s tests, local-test-run.txt, 775 tests OK, 3 skipped.
+  - criterion: WI-1.0.0-AC05
+    method: deterministic
+    control: docs/manual/user-manual.html mentions the download name, the red marks and the user folder; the guide check passes.

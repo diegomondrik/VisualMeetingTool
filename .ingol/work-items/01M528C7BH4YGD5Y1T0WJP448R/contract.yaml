@@ -1,0 +1,57 @@
+schema_version: "1"
+id: 01M528C7BH4YGD5Y1T0WJP448R
+objective: >
+  Release version 1.0.0 of MeetingTool, with a Windows installer that installs
+  for the user without administrator rights. Four changes go together:
+  (1) the installer's default folder is the user's own programs folder
+  ({localappdata}\Programs\VisualMeetingTool) instead of {autopf} (Program
+  Files), which needs administrator rights and failed with error 5 on the
+  owner's machine; (2) a figure that Gemini writes and the meeting did not say
+  in digits is no longer a reason to refuse the whole meeting: the words that
+  were said are written in the Word report, in red and bold, as
+  [VERIFICAR: «…»], for a person to correct by hand; figures said in English
+  words ("forty-nine and a half") and minutes written with a zero hour
+  ("0:61:05") are read as what they say; (3) the Word report's download carries
+  the meeting's title as its file name, with the .docx extension; (4) the user
+  manual describes the result, the marks and the file name. The program's
+  behaviour otherwise does not change.
+lane: standard
+affected_surfaces:
+  - packaging/installer.iss
+  - meetingtool/__init__.py
+  - meetingtool/summary/qa.py
+  - meetingtool/report/document.py
+  - meetingtool/app/server.py
+  - meetingtool/texts/es.py
+  - meetingtool/texts/en.py
+  - docs/manual/user-manual.html
+  - docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/**
+  - .ingol/work-items/01M528C7BH4YGD5Y1T0WJP448R/**
+  - tests/**
+acceptance:
+  - id: WI-1.0.0-AC01
+    description: >
+      The installer, compiled from the committed tree, installs without
+      administrator rights into the user's programs folder: a silent install
+      into a folder given by /DIR returns exit code 0, and the language written
+      to installation.ini is the one chosen. The build record is committed under
+      docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/installer-build.txt.
+  - id: WI-1.0.0-AC02
+    description: >
+      A figure that nobody said in digits is written in the report as the words
+      that were said, marked [VERIFICAR: «…»] in red and bold, and does not
+      refuse the meeting. Covered by tests/test_qa.py and tests/test_verificar_rojo.py.
+  - id: WI-1.0.0-AC03
+    description: >
+      The Word report downloads under the meeting's title with the .docx
+      extension, and a title Windows does not accept is cleaned, not refused.
+      Covered by tests/test_nombre_docx.py.
+  - id: WI-1.0.0-AC04
+    description: >
+      The whole suite passes on the committed tree: 775 tests, OK, three skipped
+      (those that need INGOL's test kits, which are not in this repository).
+      Output committed under docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/local-test-run.txt.
+  - id: WI-1.0.0-AC05
+    description: >
+      The user manual states the new behaviour: the download's file name, the
+      red [VERIFICAR] marks and the per-user installation folder.
