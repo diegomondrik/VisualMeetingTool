@@ -1,6 +1,6 @@
 # Informe de cierre para INGOL — VisualMeetingTool, piloto D1
 
-Escrito y puesto al día el 2026-10-08, al cerrar la versión 0.1.0, por el ejecutor (Claude Code) para que el owner lo lleve a una sesión de INGOL, que lo lee en
+Escrito el 2026-10-08, al cerrar la versión 0.1.0, y puesto al día el 2026-10-16 con la versión 1.0.0 (punto 7), por el ejecutor (Claude Code) para que el owner lo lleve a una sesión de INGOL, que lo lee en
 sólo lectura (D-179, D-189). Este archivo es del proyecto; no se escribió nada en archivos de INGOL.
 
 **Cómo leerlo.** Cada afirmación lleva su evidencia entre corchetes: un comando, un archivo o un commit. "No
@@ -21,6 +21,11 @@ estimaciones. Las rutas son de este repositorio salvo que diga otra cosa. Las ci
 - El juez externo de INGOL corrió una vez, se cortó por cuota y dejó un borrador con **1 P0 y 2 P1 abiertos** más un P1
   aceptado por el owner. Por decisión del owner, esos hallazgos quedan **sin arreglar y registrados como limitaciones de la
   versión 0.1.0**, cada uno con su reproducción (WI32, PR #32, `a41e88e`).
+- **Versión 1.0.0, integrada en `main` el 2026-10-16** (WI `01M528C7BH4YGD5Y1T0WJP448R`, PR #35, `9d6e8e4`): instalador por
+  usuario que no pide administrador, cifras que nadie dijo marcadas en rojo en lugar de rechazar la reunión, y descarga con
+  el nombre de la reunión. Salió después de una revisión independiente que encontró un falso aceptado real. Detalle en el
+  punto 7. El instalador de la 1.0.0 (sha256 `c710195014a05037bc2fea0defa17b1e1bf2d932a22a1ccf8a5eed42dd003f7f`) tampoco se
+  publicó en la página de releases.
 
 ---
 
@@ -415,6 +420,84 @@ Ordenado por impacto.
    Pedido: un corredor de mutaciones en los kits que distinga "las pruebas fallaron" de "el proceso murió", y una
    plantilla del registro de hallazgos que se genere con el contrato. Y que INGOL avise **al aprobar el contrato** que una
    superficie de workflow lo lleva a la vía controlada (punto 2.12), en vez de al abrir el PR.
+
+---
+
+## 7. Versión 1.0.0 (2026-10-16)
+
+### 7.1 Qué se hizo
+
+Un solo work item (`01M528C7BH4YGD5Y1T0WJP448R`, carril `standard`, PR #35, abierto 2026-10-16 02:41Z, integrado 15:27Z: 766 min)
+con cinco criterios (`WI100-AC01` a `AC05`) [`.ingol/work-items/01M528C7BH4YGD5Y1T0WJP448R/contract.yaml`]:
+
+- **AC01** el instalador instala sin administrador en `%LOCALAPPDATA%\Programs\VisualMeetingTool` (con la versión 0.1.0 el
+  owner recibió el error 5, porque la carpeta por defecto era `Program Files`).
+- **AC02** una cifra que Gemini escribe y la reunión no dijo en dígitos ya no rechaza la reunión: sale en el Word como
+  `[VERIFICAR: «…»]`, en rojo y negrita. Las cifras dichas en palabras en inglés y los minutos con hora cero (`0:61:05`) se
+  aceptan.
+- **AC03** el Word se descarga con el título de la reunión como nombre.
+- **AC04** la suite completa pasa en el árbol commiteado: 783 pruebas, OK, 3 salteadas (las que necesitan los kits de INGOL,
+  que no están en el repositorio) [`docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/local-test-run.txt`: 741 s, commit `9af4c17`].
+- **AC05** el manual dice lo que hace el programa.
+
+### 7.2 La revisión independiente encontró algo que las pruebas del implementador no
+
+El buzón de INGOL (`buzon_codex.py`) no se encontró en esta máquina [`find` sobre el directorio del usuario, sin resultados],
+así que la revisión independiente la hizo un agente de contexto limpio y de sólo lectura, lanzado desde la misma sesión. El
+registro lo dice [`docs/evidence/01M528C7BH4YGD5Y1T0WJP448R/independent-review.md`]. Veredicto: aprobar con correcciones, sin P0.
+
+- **Un falso aceptado real, que el ejecutor reprodujo antes de arreglarlo.** El código que lee cifras dichas en palabras
+  contaba "one" como cifra: `words_numbers("One of the issues is that no one knows")` devolvía `{1}`, y `fractions("a 3rd
+  party and a 5th of July")` devolvía `{0.2, 0.333…}`. Con eso, casi cualquier cifra chica quedaba como "verificada"
+  en cualquier reunión en inglés, justo lo que la marca roja debía evitar. Las 96 pruebas del área pasaban, porque ninguna
+  cubría ese caso. Se corrigió y se agregaron pruebas que fallan con el código viejo (13 fallas, contando subpruebas,
+  comprobadas contra el código anterior) y pasan con el nuevo.
+- **Otros tres P2 y varios P3**: el manual decía lo contrario del código en dos frases; el campo `measures` no se revisaba
+  (un "99 %" inventado quedaba sin marca); y nombres de archivo como `CON.report`, `COM¹` o con el carácter U+202E
+  pasaban el saneado. Todos corregidos en `9af4c17`.
+- **El contrato afirmaba una evidencia que no existía.** AC01 decía que `installer-build.txt` guardaba el registro de la
+  instalación silenciosa, y el archivo sólo tenía el registro del armado. La revisión lo vio; el ejecutor hizo la
+  instalación (código 0, `language=es`, desinstalación limpia) y la registró. Lección: un contrato no debería nombrar
+  un archivo de evidencia como ya hecho antes de que exista.
+- **Como el código cambió, se recompiló el instalador** (de `0077d9c` a `9af4c17`; nuevo sha256) y se corrió otra vez la
+  suite completa. Costo de la revisión y sus correcciones en minutos del owner: no medido.
+
+### 7.3 Firma del registro de aprobación: otra vez a mano, y esta vez hubo dos rojos previsibles
+
+`bootstrap` falló dos veces antes de pasar, las dos por TP-08 [`gh run list --branch release/1.0.0-verificar-y-descarga`]:
+la corrida `38896216203` (11:48Z, todavía no había registro) y la `38913502991` (14:09Z, el ejecutor había empujado las
+correcciones de la revisión, que cambian el contrato y por lo tanto su digest, y el owner todavía no había firmado). La
+tercera, `38917148893` (14:36Z), pasó con el registro `01M52J97DQBKKJQ5K2NHBM4JZ9` firmado por el owner con un bloque de
+PowerShell que el ejecutor le dio. Es el pedido 1 del punto 6, ahora con una observación nueva: **el orden importa y nada
+lo avisa**. Si el contrato cambia después de la firma, el registro queda sin efecto; el ejecutor lo resolvió esperando
+a que el contrato fuera definitivo antes de pedir la firma, pero nada en INGOL impide pedirla antes. Minutos del owner: no medidos.
+
+### 7.4 Números
+
+| Cambio | PR | Abierto → integrado | Producto (`meetingtool/`, `packaging/`) | Pruebas (`tests/`) | CI verde al primer intento |
+|---|---|---|---|---|---|
+| 1.0.0 | #35 | 766 min | 163 líneas agregadas y 42 borradas | 163 agregadas y 22 borradas | No (`bootstrap`, dos veces, TP-08) |
+
+[Líneas de producto: `git diff --shortstat 257787b 0077d9c -- meetingtool packaging` (+130 −32) más `git diff --shortstat
+0077d9c 9af4c17 -- meetingtool packaging` (+33 −10). Líneas de pruebas: `git diff --shortstat 257787b 9af4c17 -- tests`
+(+163 −22). Control y docs: no medidos para este cambio. `tests` en CI: 13 min 16 s y 10 min 39 s.]
+
+### 7.5 Decisiones del owner de la versión y lo que queda para la próxima
+
+- **No usar Gemini 4 Argon** para el análisis. Se evaluó leyendo la documentación de Google (sin correr nada): sube el
+  precio a US$2 / US$10 por millón de tokens de entrada y salida hasta el 2026-11-30 y a US$4 / US$20 desde el 2026-12-01,
+  contra los US$0,75 / US$3,75 que usa hoy el programa; ignora `temperature`; pide un tiempo de espera de 15 min; y no
+  encontré ninguna medición oficial de que lea mejor capturas de pantalla o transcripciones. El owner decidió no cambiar. El
+  modelo se sigue pidiendo como `gemini-flash-latest`.
+- **Pendientes para la próxima versión** (ninguno es un hallazgo de INGOL):
+  1. Una opción en el programa para **borrar las imágenes de una reunión ya procesada** (hoy se guardan para siempre en
+     `results\<reunión>\frame_*.jpg` y no hay forma de borrarlas desde la pantalla). El owner las borró a mano.
+  2. «Volver a intentar» (en una corrida fallida) lleva a un formulario vacío.
+  3. Guardar de dónde sale el video (huella y nombre) para reusarlo al reintentar.
+  4. Instalador de Mac (1.1.0).
+  5. Cuando la cita que da Gemini no está en la transcripción, la marca `[VERIFICAR]` lleva lo que escribió Gemini y no una
+     cita; conviene marcarlo distinto (hoy lo dice el manual).
+  6. Siguen abiertos a propósito `D1-01`, `D1-02`, `D1-04`, `D1-05`, `D1-09` y `WI18-P3-1/2/3`.
 
 ---
 
