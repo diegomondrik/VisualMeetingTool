@@ -286,6 +286,19 @@ token at each start), and a request from a page of another site (another
 Origin, Sec-Fetch-Site or Host) is refused. `--port` fixes the port and
 `--no-browser` only prints the launch address.
 
+## Instalación paso a paso (Windows)
+
+1. Abrí la [última versión](https://github.com/diegomondrik/VisualMeetingTool/releases/latest) y, en **Assets**, descargá `VisualMeetingTool-Setup-<versión>.exe`.
+2. Ejecutalo. Windows puede mostrar "Windows protegió su PC" porque el programa no está firmado: hacé clic en **Más información** y después en **Ejecutar de todas formas**.
+3. Elegí el idioma (español o inglés) al comienzo del asistente.
+4. Seguí el asistente. Se instala solo para tu usuario: no pide permisos de administrador y no necesita Python.
+5. Abrí el programa desde el menú Inicio (o desde el acceso directo del escritorio, si lo marcaste).
+6. El manual de usuario queda en el menú Inicio y también está en el release.
+
+Tus datos (proyectos, reuniones y la clave de Gemini) quedan en una carpeta de tu usuario: desinstalar o instalar una versión nueva encima no los borra.
+
+Requisitos: Windows 10 u 11. WebView2 viene con Windows 11; en Windows 10 puede hacer falta instalarlo por separado (Microsoft lo ofrece sin costo).
+
 ## The installer for Windows
 
 `VisualMeetingTool-Setup-<version>.exe`, on the repository's releases page,
