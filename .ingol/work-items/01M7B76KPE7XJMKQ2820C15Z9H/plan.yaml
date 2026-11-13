@@ -1,7 +1,7 @@
 schema_version: "1"
 work_item: 01M7B76KPE7XJMKQ2820C15Z9H
-status: draft
-next_gate: owner-reads-the-contract-then-integrate-proposal-and-contract-before-code
+status: approved
+next_gate: build-then-suite-then-real-meeting-then-independent-review-then-installer
 owner: Carlos Diego Mondrik
 executor: Claude Code (construction role)
 branch: work-item/01M7B76KPE7XJMKQ2820C15Z9H-resumen-fiel-y-notas
