@@ -1,0 +1,53 @@
+schema_version: "1"
+work_item: 01M7B76KPE7XJMKQ2820C15Z9H
+status: draft
+next_gate: owner-reads-the-contract-then-integrate-proposal-and-contract-before-code
+owner: Carlos Diego Mondrik
+executor: Claude Code (construction role)
+branch: work-item/01M7B76KPE7XJMKQ2820C15Z9H-resumen-fiel-y-notas
+steps:
+  - the-summary-that-does-not-invent-wi-2-0-0-ac01
+  - the-figures-net-wi-2-0-0-ac02
+  - the-participant-notes-wi-2-0-0-ac03
+  - the-incomplete-recording-notice-wi-2-0-0-ac04
+  - the-template-warning-wi-2-0-0-ac05
+  - the-version-in-view-wi-2-0-0-ac06
+  - the-editable-context-wi-2-0-0-ac07
+  - the-suite-on-the-committed-tree-wi-2-0-0-ac09
+  - the-real-meeting-twice-judged-apart-wi-2-0-0-ac08
+  - the-manual-and-the-guide-wi-2-0-0-ac11
+  - the-installer-wi-2-0-0-ac10
+evaluations:
+  - criterion: WI200-AC01
+    method: deterministic
+    control: tests.test_resumen_fiel passes (the presale request's rules, no "implied", the meeting's date and weekday in the request).
+  - criterion: WI200-AC02
+    method: deterministic
+    control: tests.test_resumen_fiel and tests.test_verificar_rojo pass (an unsaid figure marked in the three sections, a said one untouched, other sections unchecked).
+  - criterion: WI200-AC03
+    method: deterministic
+    control: tests.test_notas and tests.test_app pass, including the notes with a hidden order and the empty, oversized, other-encoding, .docm and outside-content files.
+  - criterion: WI200-AC04
+    method: deterministic
+    control: tests.test_resumen_fiel passes (the fixed line read and removed, the notice in the report, a missing or unknown value refused and retried).
+  - criterion: WI200-AC05
+    method: deterministic
+    control: the template tests pass (warning without {informe} or a table of contents, none with either).
+  - criterion: WI200-AC06
+    method: deterministic
+    control: tests.test_app passes; meetingtool.__version__ == "2.0.0".
+  - criterion: WI200-AC07
+    method: deterministic
+    control: tests.test_app and tests.test_projects pass (context saved, knowledge rebuilt, escaped, bounded).
+  - criterion: WI200-AC08
+    method: independent-agent-judgement
+    control: two runs of the real meeting with its notes, each judged point by point against the proposal's nine-point checklist by an agent that did not build the change; both pass every point; only neutral verdicts committed.
+  - criterion: WI200-AC09
+    method: deterministic
+    control: python -m unittest discover -s tests on the committed tree; local-test-run.txt committed.
+  - criterion: WI200-AC10
+    method: deterministic
+    control: silent install of dist\VisualMeetingTool-Setup-2.0.0.exe into a short folder returns 0; installer-build.txt has the commit and the SHA-256.
+  - criterion: WI200-AC11
+    method: deterministic
+    control: docs/manual/user-manual.html covers the seven changes; docs/evidence/01M4CM3YV9HEAHSW5V5ER4V8W7/check_guide.py passes on docs/MAINTAINING.md.
