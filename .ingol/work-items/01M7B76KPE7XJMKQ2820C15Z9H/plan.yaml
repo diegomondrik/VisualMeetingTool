@@ -43,7 +43,7 @@ evaluations:
     method: deterministic
     control: tests.test_app and tests.test_projects pass (context saved, knowledge rebuilt, escaped, bounded).
   - criterion: WI200-AC08
-    method: independent-agent-judgement
+    method: independent-review
     control: two runs of the real meeting with its notes through the default model's API (GPT-6.1 Sol), summary stage plus a neutral and a template Word report each, judged point by point against the proposal's nine-point checklist by two judges of different companies (GPT-6 Astra via Codex, Claude Opus 5.5) not told the model; both runs pass every point with both judges; one round, at most US$1.50, then the owner decides; only neutral verdicts committed.
   - criterion: WI200-AC09
     method: deterministic

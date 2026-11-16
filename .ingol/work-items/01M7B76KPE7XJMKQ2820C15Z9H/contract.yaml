@@ -60,6 +60,7 @@ affected_surfaces:
   - packaging/installer.iss
   - docs/manual/user-manual.html
   - docs/MAINTAINING.md
+  - docs/proposals/2.0.0-resumen-fiel-y-notas-proposal.md
   - docs/evidence/01M7B76KPE7XJMKQ2820C15Z9H/**
   - .ingol/work-items/01M7B76KPE7XJMKQ2820C15Z9H/**
   - tests/**
