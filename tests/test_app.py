@@ -28,7 +28,7 @@ from meetingtool.app import company, jobs, library, pages, server
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.report import document
-from meetingtool.summary import qa, writer
+from meetingtool.summary import providers, qa, writer
 from meetingtool.summary.__main__ import main as summary_main
 from tests import test_qa, test_report, test_summary
 from tests.test_frames import SLIDES, TIMED, write_teams_docx, write_timed_docx, write_video
@@ -44,26 +44,36 @@ SUMMARY_MD = ("## Resumen ejecutivo\n\nSe revisó el costo de proceso <script>al
 
 
 class Keys:
-    """The Windows Credential Manager, in a dictionary."""
+    """The Windows Credential Manager, in a dictionary: `key` is Gemini's (the
+    credential functions' default), `others` the other providers' by name
+    (amendment 1)."""
 
-    def __init__(self, key=None):
+    def __init__(self, key=None, others=None):
         self.key = key
+        self.others = dict(others or {})
 
-    def read(self):
-        return self.key
+    def read(self, target=None):
+        return self.key if target is None else self.others.get(target)
 
-    def save(self, key):
-        self.key = key
+    def save(self, key, target=None):
+        if target is None:
+            self.key = key
+        else:
+            self.others[target] = key
 
-    def delete(self):
-        had, self.key = self.key is not None, None
-        return had
+    def delete(self, target=None):
+        if target is None:
+            had, self.key = self.key is not None, None
+            return had
+        return self.others.pop(target, None) is not None
 
 
 class Running(unittest.TestCase):
     """A running application over a data folder of its own."""
 
     key = KEY
+    model = "gemini-flash-latest"
+    ceiling_floor = False
 
     def setUp(self):
         self._tmp = tempfile.TemporaryDirectory()
@@ -72,10 +82,19 @@ class Running(unittest.TestCase):
         self.data.mkdir()
         self.keys = Keys(self.key)
         self.opened = []
+        # The tests written before amendment 1 process with Gemini, as the application did then; the new ones choose.
+        if self.model:
+            company.set_summary_model(self.data, self.model)
+        if not self.ceiling_floor:
+            # They also set low ceilings on purpose, to see a run stop at its budget mid-way; the minimum a request
+            # must have (amendment 1) is checked by the tests that turn it on.
+            floor = mock.patch.object(providers, "needed_ceiling", lambda *args, **kwargs: 0.0)
+            floor.start()
+            self.addCleanup(floor.stop)
         self.fake = FakeGemini(self.script()).__enter__()
         self.app = server.App(self.data, read_key=self.keys.read, save_key=self.keys.save, delete_key=self.keys.delete,
                               endpoint=self.fake.endpoint, sleep=lambda seconds: None, retry_delays=(0, 0),
-                              opener=self.opened.append).start()
+                              opener=self.opened.append, endpoints=self.summary_endpoints()).start()
 
     def tearDown(self):
         self.app.stop()
@@ -84,6 +103,10 @@ class Running(unittest.TestCase):
 
     def script(self):
         return ()
+
+    def summary_endpoints(self):
+        """The other providers' fake servers for the summary, by provider name (amendment 1)."""
+        return {}
 
     def request(self, method, path, body=None, headers=None, cookie=True, host=None):
         connection = http.client.HTTPConnection(server.HOST, self.app.port, timeout=60)
@@ -823,7 +846,8 @@ class ProcessTest(Processing):
             with contextlib.redirect_stdout(io.StringIO()):
                 code = summary_main(["--frames", str(copy), "--transcript", str(copy / "transcript.docx"),
                                      "--project", "planta-demo-sprint-3", "--title", "Sesión de dudas", "--date",
-                                     "2026-09-25", "--type", "requirements", "--data-dir", str(twin)],
+                                     "2026-09-25", "--type", "requirements", "--data-dir", str(twin),
+                                     "--model", "gemini-flash-latest"],
                                     read_key=lambda: KEY, endpoint=command.endpoint, sleep=lambda s: None)
             self.assertEqual(code, 0)
             self.assertEqual(self.summary_requests(command)[0]["body"], self.summary_requests()[-1]["body"])
@@ -1206,6 +1230,31 @@ class CommandTest(unittest.TestCase):
         self.assertIn('"meetingtool.app" = ["static/*"]', text)
         for name in server.STATIC_TYPES:
             self.assertTrue((server.STATIC / name).is_file(), name)
+
+
+class ContextScreenTest(Running):
+    """WI-2.0.0, AC07: the project's screen shows its context and lets it be changed."""
+
+    def test_the_context_is_shown_changed_and_read_by_the_knowledge(self):
+        project = self.new_project()
+        page = self.page(f"/p/{project}")
+        self.assertIn("Contexto del proyecto", page)
+        self.assertIn(f'maxlength="{store.CONTEXT_LIMIT}"', page)
+        self.api("/api/project/context", {"project": project, "context": "Somos el proveedor <b>X</b>."})
+        page = self.page(f"/p/{project}")
+        self.assertIn("Somos el proveedor &lt;b&gt;X&lt;/b&gt;.</textarea>", page)
+        self.assertNotIn("<b>X</b>", page)
+        self.assertIn("Somos el proveedor <b>X</b>.", store.knowledge_context(self.data, project))
+
+    def test_a_context_that_cannot_be_kept_is_refused(self):
+        project = self.new_project()
+        answer = self.api("/api/project/context", {"project": project, "context": "x" * (store.CONTEXT_LIMIT + 1)},
+                          expect=400)
+        self.assertIn("más que los 4000 que se guardan", answer["error"])
+        answer = self.api("/api/project/context", {"project": project, "context": ["no", "texto"]}, expect=400)
+        self.assertIn("el proyecto y el contexto son texto", answer["error"])
+        status, _, _ = self.request("POST", "/api/project/context", {"project": "missing", "context": "x"}, JSON)
+        self.assertEqual(status, 404)
 
 
 if __name__ == "__main__":

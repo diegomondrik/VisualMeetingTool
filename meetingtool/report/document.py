@@ -491,6 +491,7 @@ class TemplateInfo:
     tables_of_contents: int
     start: str | None     # "index", "marker" or None
     dropped: int          # paragraphs with text of the template's model, dropped from every report
+    after_break: int = 0  # with no report start, paragraphs with text after a page break, copied into every report
 
 
 def stored_template(data_dir=None):
@@ -512,7 +513,8 @@ def template_info(data_dir=None):
         record = {}
     name = record.get("name") if isinstance(record, dict) and isinstance(record.get("name"), str) else None
     set_utc = record.get("set_utc") if name and isinstance(record.get("set_utc"), str) else None
-    return TemplateInfo(path, name, set_utc, found.fields, len(found.tocs), found.start_kind, found.dropped)
+    return TemplateInfo(path, name, set_utc, found.fields, len(found.tocs), found.start_kind, found.dropped,
+                        found.after_break)
 
 
 def set_template(path, data_dir=None, name=None):

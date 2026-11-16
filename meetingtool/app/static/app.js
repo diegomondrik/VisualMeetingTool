@@ -147,6 +147,11 @@ function processForm() {
         data.recording = (await upload("/api/upload?kind=recording&name=" + encodeURIComponent(recording.name),
           recording, (percent) => say(form, text("js.uploading_video", { percent: percent })))).upload;
       }
+      const notes = form.elements.notes ? form.elements.notes.files[0] : null;
+      if (notes) {
+        say(form, text("js.uploading_notes"));
+        data.notes = (await upload("/api/upload?kind=notes&name=" + encodeURIComponent(notes.name), notes)).upload;
+      }
       say(form, text("js.starting"));
       const answer = await send("/api/process", data);
       window.location.href = "/job/" + encodeURIComponent(answer.job);

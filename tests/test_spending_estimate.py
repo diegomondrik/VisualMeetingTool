@@ -283,7 +283,8 @@ class EndOfRunTest(unittest.TestCase):
         stdout, stderr = io.StringIO(), io.StringIO()
         with FakeGemini([returning(self.over_summary())]) as fake, contextlib.redirect_stdout(stdout), \
                 contextlib.redirect_stderr(stderr):
-            code = summary_main(["--frames", str(work.frames), "--transcript", str(work.transcript)],
+            code = summary_main(["--frames", str(work.frames), "--transcript", str(work.transcript),
+                                 "--model", "gemini-flash-latest"],
                                 read_key=lambda: KEY, endpoint=fake.endpoint, sleep=work.sleeps.append)
         self.assertEqual(code, 2)
         self.assertIn("at the end of the run, before writing anything", stderr.getvalue())

@@ -26,6 +26,7 @@ TEXTS = {
     "projects.missing": "el proyecto {project} no existe en {folder}",
     "projects.needs_name": "un proyecto necesita un nombre",
     "projects.exists": "ya existe el proyecto {project} en {folder}",
+    "projects.context_too_long": "el contexto tiene {length} caracteres, más que los {limit} que se guardan",
     "projects.needs_title": "una reunión necesita un título",
     "projects.unreadable": "no se puede leer el registro {file}[[: {detail}]]; no se cambió nada: arreglalo "
                            "o sacalo del proyecto",
@@ -34,13 +35,13 @@ TEXTS = {
     "meeting.bad_date": "la fecha de la reunión {date!r} no es una fecha AAAA-MM-DD válida",
 
     # ── La clave de Gemini y la lectura de las imágenes (meetingtool.reading)
-    "credentials.not_windows": "la clave de Gemini se guarda en el Administrador de credenciales de Windows; este "
+    "credentials.not_windows": "las claves se guardan en el Administrador de credenciales de Windows; este "
                                "sistema no es Windows",
     "credentials.unreadable": "no se pudo leer el Administrador de credenciales de Windows (error {code})",
     "credentials.empty": "la clave está vacía; no se guardó nada",
     "credentials.refused": "el Administrador de credenciales de Windows no dejó guardar la clave (error {code})",
     "credentials.cannot_delete": "el Administrador de credenciales de Windows no dejó borrar la clave (error {code})",
-    "gemini.no_text": "la respuesta de Gemini no trae texto ({kind})",
+    "gemini.no_text": "la respuesta del servicio de IA no trae texto ({kind})",
     "gemini.unfinished": "la respuesta de Gemini no terminó bien (finishReason {finish})",
     "gemini.blocks": "la respuesta de Gemini no trae un bloque por imagen, de la {first} a la {last}: faltan "
                      "{missing}, repetidas {repeated}, no mandadas {extra}",
@@ -57,11 +58,11 @@ TEXTS = {
     "gemini.estimate_short.end": " al terminar la corrida, antes de escribir nada",
     "gemini.before.no_answer": " (el intento anterior no tuvo respuesta[[: {reason}]])",
     "gemini.before.refused": " (la respuesta anterior se rechazó: {error})",
-    "gemini.refused": "Gemini rechazó el pedido (HTTP {status}); si dice que la clave no sirve, guardala de nuevo en "
+    "gemini.refused": "el servicio de IA rechazó el pedido (HTTP {status}); si dice que la clave no sirve, guardala de nuevo en "
                       "Ajustes[[: {reason}]]",
-    "gemini.no_answer": "Gemini no respondió {what} después de {retries} reintentos ({label}[[: {reason}]]); no se "
+    "gemini.no_answer": "el servicio de IA no respondió {what} después de {retries} reintentos ({label}[[: {reason}]]); no se "
                         "escribió nada: probá de nuevo en unos minutos",
-    "gemini.bad_key": "la clave guardada tiene caracteres que una clave de Gemini nunca tiene; guardala de nuevo",
+    "gemini.bad_key": "la clave guardada tiene caracteres que una clave nunca tiene; guardala de nuevo",
     "gemini.inside_repository": "la carpeta {folder} está dentro del repositorio git {work_tree}; las imágenes y lo "
                                 "que muestran tienen que quedar fuera de cualquier repositorio",
     "gemini.what.frames": "las imágenes {first} a {last}",
@@ -81,7 +82,7 @@ TEXTS = {
     "summary.frames_missing": "el resumen nombra imágenes que no están en la carpeta: {names}",
     "summary.frame_range": "el resumen nombra un rango de imágenes en vez de cada imagen por separado: {text}",
     "summary.frame_unbracketed": "el resumen menciona una imagen sin su nombre de archivo entre corchetes: {text}",
-    "summary.unfinished": "el resumen de Gemini no terminó bien (finishReason {finish})",
+    "summary.unfinished": "el resumen no terminó bien (finishReason {finish})",
     "summary.section_count": "el resumen tiene la sección «{heading}» {count} veces, no una",
     "summary.order": "las secciones del resumen no están en el orden pedido",
     "summary.no_key_points": "la sección «{heading}» del resumen no tiene ningún punto",
@@ -94,6 +95,20 @@ TEXTS = {
     "summary.needs_title_and_date": "una reunión que se agrega a un proyecto necesita --title y --date",
     "summary.project": "no se pudo leer lo que sabe el proyecto {project}[[: {error}]]",
     "summary.not_added": "se escribió {output}, pero la reunión no se pudo agregar al proyecto {project}[[: {error}]]",
+    "summary.recording_line": "el resumen no empezó con una línea RECORDING antes del primer título (empezó: {found})",
+    "summary.unknown_model": "no hay un modelo {model!r} para el resumen; los que hay: {options}",
+    "summary.selling": "el resumen elogia nuestro producto con palabras propias, fuera de una cita: {text}",
+    "summary.demo_listed": "el resumen enumera lo que mostraron pantallas de la demo que nadie comentó: {text}",
+    "summary.notes.someone": "un participante",
+    "summary.notes_unreadable": "las notas no se pudieron leer[[: {detail}]]",
+    "summary.notes_empty": "las notas no tienen texto",
+    "summary.notes_too_long": "las notas tienen {length} caracteres, más que los {limit} que se pueden mandar",
+    "summary.notice.starts": "La grabación empieza con la reunión ya empezada: lo que se dijo antes no está en este "
+                             "resumen.",
+    "summary.notice.ends": "La grabación termina antes que la reunión: lo que se dijo después no está en este resumen.",
+    "summary.notice.both": "La grabación empieza con la reunión ya empezada y termina antes que ella: lo que se dijo "
+                           "antes y después no está en este resumen.",
+    "summary.notice.notes": "Salvo lo que traen las notas.",
 
     # ── Preguntas y respuestas (meetingtool.summary.qa) ─────────────────────
     "qa.what.register": "registro",
@@ -226,8 +241,8 @@ TEXTS = {
     # ── La aplicación (meetingtool.app): sus pantallas ──────────────────────
     "app.nav.projects": "Proyectos",
     "app.nav.settings": "Ajustes",
-    "app.footer": "Esta página la sirve tu propia máquina: nada de lo que ves sale de ella, salvo lo que se manda a "
-                  "Gemini al procesar.",
+    "app.footer": "Esta página la sirve tu propia máquina: nada de lo que ves sale de ella, salvo lo que se manda al "
+                  "procesar a Gemini y al proveedor del modelo que escribe el resumen.",
     "app.detail": "Detalle: {detail}",
     "app.day": "{day}/{month}/{year}",
     "app.error.cannot_show": "No se puede mostrar",
@@ -258,6 +273,9 @@ TEXTS = {
     "app.project.no_meetings": "Todavía no hay reuniones.",
     "app.project.knowledge": "Lo que el proyecto ya sabe",
     "app.project.knowledge_hint": "Lo que cada reunión deja y la próxima lee.",
+    "app.project.context": "Contexto del proyecto",
+    "app.project.context_hint": "Lo que cada resumen de este proyecto lee primero. Escribí quiénes somos y quién es el cliente, qué se busca vender o hacer, y lo que hay que saber para leer bien las reuniones (por ejemplo, que nuestras demos usan datos inventados).",
+    "app.project.context_save": "Guardar el contexto",
     "app.kept.title": "Guardado de corridas que fallaron",
     "app.kept.hint": "Lo que se pagó en una corrida que falló queda acá, para que procesar de nuevo la misma "
                      "reunión (la misma transcripción y el mismo formato) no lo vuelva a pagar. Descartarlo no "
@@ -307,6 +325,10 @@ TEXTS = {
     "app.new.transcript_hint": "(el .docx de Teams, o un .txt con líneas [HH:MM:SS])",
     "app.new.recording": "Video",
     "app.new.recording_hint": "(opcional: sin video sólo se puede hacer preguntas y respuestas)",
+    "app.new.optional": "Opcional",
+    "app.new.notes": "Notas de un participante",
+    "app.new.notes_hint": "(un .docx o .txt: el resumen las usa como segunda fuente y muestra dónde no coinciden con la grabación)",
+    "app.new.notes_by": "Quién las tomó",
     "app.new.type": "Tipo de reunión",
     "app.new.no_type": "Sin tipo",
     "app.new.language": "Idioma del resultado",
@@ -336,16 +358,30 @@ TEXTS = {
     "app.company.no_logo": "Sin logo.",
     "app.company.use_logo": "Usar este logo",
     "app.company.remove_logo": "Quitar el logo",
-    "app.key.title": "Clave de Gemini",
+    "app.key.title": "Claves",
+    "app.key.intro": "Cada proveedor tiene su clave, guardada en el Administrador de credenciales de Windows. La de "
+                     "Gemini hace falta siempre (lee las imágenes); la de OpenAI o la de Anthropic, sólo si el resumen "
+                     "lo escribe un modelo suyo.",
+    "app.key.of": "Clave de {provider}",
     "app.key.saved": "Hay una clave guardada ({length} caracteres). No se muestra nunca.",
-    "app.key.none": "No hay una clave guardada: sin ella no se puede procesar.",
-    "app.key.hint": "Tiene que ser de un proyecto de Google Cloud con facturación activa: en el nivel gratuito Google "
-                    "puede usar lo que se le manda, y las reuniones son datos del cliente. Se guarda en el "
-                    "Administrador de credenciales de Windows.",
+    "app.key.none": "No hay una clave guardada.",
+    "app.key.hint.gemini": "Tiene que ser de un proyecto de Google Cloud con facturación activa: en el nivel gratuito "
+                           "Google puede usar lo que se le manda, y las reuniones son datos del cliente.",
+    "app.key.hint.openai": "Una clave de la API de OpenAI (platform.openai.com), que se paga por uso: una suscripción "
+                           "de ChatGPT no sirve. Según OpenAI, lo que llega por la API no se usa para entrenar.",
+    "app.key.hint.anthropic": "Una clave de la API de Anthropic (platform.claude.com), que se paga por uso: una "
+                              "suscripción de Claude no sirve.",
     "app.key.new": "Clave nueva",
     "app.key.save": "Guardar la clave",
-    "app.key.delete_confirm": "¿Borrar la clave guardada?",
+    "app.key.delete_confirm_of": "¿Borrar la clave de {provider} guardada?",
     "app.key.delete": "Borrar la clave",
+    "app.model.title": "Modelo que escribe el resumen",
+    "app.model.recommended": "recomendado",
+    "app.model.untested": "sin probar en la aplicación",
+    "app.model.cost": "~{cost} el resumen",
+    "app.model.save": "Guardar el modelo",
+    "app.model.hint": "Es el costo del resumen en una reunión como la de prueba, en un intento. Las imágenes las lee "
+                      "siempre Gemini, y el registro de preguntas también lo escribe Gemini.",
     "app.template.title": "Plantilla de Word de la empresa",
     "app.template.unusable": "La plantilla guardada ya no se puede usar: {problem}",
     "app.template.unusable_hint": "Cargá otra, o dejá de usarla para que los informes salgan con el diseño neutro.",
@@ -373,6 +409,9 @@ TEXTS = {
     "app.template.dropped_marker": "Lo que tiene después de {{informe}} es un modelo y no entra en los informes: "
                                    "{count} párrafos con texto.",
     "app.template.all_cover": "Todo lo que tiene escrito en la hoja sale como portada de cada informe.",
+    "app.template.after_break_one": "Atención: después del salto de página tiene 1 párrafo con texto, y no tiene {{informe}} ni índice: ese texto se va a copiar en cada informe. Poné {{informe}} solo en una línea donde empieza el informe.",
+    "app.template.after_break": "Atención: después del salto de página tiene {count} párrafos con texto, y no tiene {{informe}} ni índice: ese texto se va a copiar en cada informe. Poné {{informe}} solo en una línea donde empieza el informe.",
+    "app.version": "VisualMeetingTool {version}",
     "app.template.hint": "Un .docx o .dotx (nunca uno con macros) con el logo, el encabezado, los colores y las letras "
                          "de la empresa. Lo que tenga escrito en su hoja es la portada de cada informe; donde escriba "
                          "{{cliente}}, {{proyecto}}, {{reunion}}, {{fecha}} o {{tipo}}, entre llaves, va ese dato de "
@@ -413,6 +452,10 @@ TEXTS = {
     "app.request.no_format": "no hay un formato {value!r}",
     "app.request.no_transcript": "falta la transcripción (un .docx de Teams o un .txt con líneas [HH:MM:SS])",
     "app.request.video_gone": "el video subido ya no está: subilo de nuevo",
+    "app.request.notes_gone": "las notas subidas ya no están: subilas de nuevo",
+    "app.request.notes_only_summary": "las notas van con el resumen: el registro de preguntas no las usa",
+    "app.request.notes_by_too_long": "quién tomó las notas tiene más de {limit} caracteres",
+    "app.request.context_not_text": "el proyecto y el contexto son texto",
     "app.request.qa_needs_speakers": "el registro de preguntas y respuestas necesita saber quién preguntó y quién "
                                      "respondió, y esta transcripción no dice quién habla (cada hora está sola en "
                                      "su renglón): elegí el formato resumen",
@@ -421,6 +464,12 @@ TEXTS = {
     "app.request.bad_ceiling": "el techo de gasto tiene que ser un número de dólares mayor que 0 y hasta 5",
     "app.request.project_not_text": "el nombre y el cliente son texto",
     "app.run.no_key": "no hay una clave de Gemini guardada: guardala en Ajustes",
+    "app.run.no_key_for": "el resumen lo escribe un modelo de {provider} y no hay una clave de {provider} guardada: "
+                          "guardala en Ajustes o elegí otro modelo",
+    "app.request.ceiling_too_low": "con {model} el techo tiene que ser de al menos US${needed:.2f}: dos intentos del "
+                                   "resumen en el peor caso, más la lectura de las imágenes",
+    "app.request.ceiling_out_of_reach": "el modelo elegido necesita un techo de US${needed:.2f}, más que el máximo de "
+                                        "US${top:.2f}: elegí otro modelo en Ajustes",
     "app.run.busy": "ya hay una reunión procesándose: esperá a que termine",
     "app.run.folder_taken": "ya hay una carpeta {folder} en el proyecto",
     "app.run.closed": "MeetingTool se cerró mientras la reunión se procesaba: no se agregó al proyecto",
@@ -428,6 +477,8 @@ TEXTS = {
     "app.open.windows_only": "abrir el Word desde acá sólo funciona en Windows: descargalo",
     "app.data_folder_in_use": "MeetingTool ya está abierto sobre {folder}: usá esa ventana",
     "app.settings.unknown_language": "no hay un idioma {value!r} para la aplicación",
+    "app.settings.unknown_model": "no hay un modelo {value!r} para el resumen",
+    "app.key.unknown_provider": "no hay un proveedor {value!r}",
     "app.company.name_not_text": "el nombre de la empresa es texto",
     "app.company.name_too_long": "el nombre de la empresa puede tener hasta {limit} caracteres",
     "app.company.name_unprintable": "el nombre de la empresa tiene caracteres que no se pueden mostrar",
@@ -471,6 +522,7 @@ TEXTS = {
     "js.missing_transcript": "Falta la transcripción.",
     "js.summary_needs_video": "El resumen necesita el video. Sin video, elegí preguntas y respuestas.",
     "js.uploading_transcript": "Subiendo la transcripción…",
+    "js.uploading_notes": "Subiendo las notas…",
     "js.uploading_video": "Subiendo el video… {percent} %",
     "js.starting": "Empezando…",
     "js.col.stage": "Etapa",
@@ -489,7 +541,7 @@ TEXTS = {
     "js.retry": "Volver a intentar",
     "js.connection_job": "Se cortó la conexión con MeetingTool: fijate que su ventana siga abierta.",
     "js.running": "Se está procesando «{title}»: ver el avance",
-    "js.kept": "Lo que Gemini ya respondió para esta reunión quedó guardado (lleva pagado {paid}): procesarla "
+    "js.kept": "Lo que ya se respondió para esta reunión quedó guardado (lleva pagado {paid}): procesarla "
                "de nuevo con la misma transcripción no lo vuelve a pagar. Hasta entonces, figura en el proyecto.",
     "js.discard": "Descartar lo guardado",
     "js.discard_confirm": "¿Descartar lo guardado? Procesar de nuevo esta reunión lo volvería a pagar.",

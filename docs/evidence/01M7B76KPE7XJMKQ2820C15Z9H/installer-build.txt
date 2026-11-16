@@ -1,0 +1,172 @@
+157 INFO: PyInstaller: 6.22.3, contrib hooks: 2026.8
+157 INFO: Python: 3.12.10
+190 INFO: Platform: Windows-11-10.0.26200-SP0
+191 INFO: Python environment: C:\Users\Diego\AppData\Local\vmt-build-env
+194 INFO: Removing temporary files and cleaning cache in C:\Users\Diego\AppData\Local\pyinstaller
+295 INFO: Module search paths (PYTHONPATH):
+['C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool',
+ 'C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\python312.zip',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\Lib',
+ 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312',
+ 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env',
+ 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages',
+ 'C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool\\packaging',
+ 'C:\\Users\\Diego\\Documents\\Cowork\\05_Proyectos\\VisualMeetingTool']
+970 INFO: Appending 'datas' from .spec
+972 INFO: checking Analysis
+972 INFO: Building Analysis because Analysis-00.toc is non existent
+972 INFO: Looking for Python shared library...
+972 INFO: Using Python shared library: C:\Users\Diego\AppData\Local\Programs\Python\Python312\python312.dll
+972 INFO: Running Analysis Analysis-00.toc
+972 INFO: Target bytecode optimization level: 0
+972 INFO: Initializing module dependency graph...
+973 INFO: Initializing module graph hook caches...
+991 INFO: Analyzing modules for base_library.zip ...
+2002 INFO: Processing standard module hook 'hook-encodings.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+2987 INFO: Processing standard module hook 'hook-math.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+5675 INFO: Processing standard module hook 'hook-pickle.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+7351 INFO: Processing standard module hook 'hook-heapq.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+8363 INFO: Caching module dependency graph...
+8445 INFO: Analyzing C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\packaging\launcher.py
+8630 INFO: Processing standard module hook 'hook-platform.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+8732 INFO: Processing standard module hook 'hook-PIL.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+8960 INFO: Processing standard module hook 'hook-PIL.Image.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+9386 INFO: Processing standard module hook 'hook-numpy.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+10022 INFO: Processing pre-safe-import-module hook 'hook-typing_extensions.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+10024 INFO: SetuptoolsInfo: initializing cached setuptools info...
+11196 INFO: Processing standard module hook 'hook-multiprocessing.util.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+11521 INFO: Processing standard module hook 'hook-xml.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+11983 INFO: Processing standard module hook 'hook-_ctypes.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+13595 INFO: Processing standard module hook 'hook-sysconfig.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+13853 INFO: Processing standard module hook 'hook-webbrowser.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+15581 INFO: Processing standard module hook 'hook-difflib.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+16689 INFO: Processing standard module hook 'hook-xml.etree.cElementTree.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+17118 INFO: Processing standard module hook 'hook-PIL.ImageFilter.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+17659 INFO: Processing standard module hook 'hook-av.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+19617 INFO: Processing standard module hook 'hook-docx.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+19773 INFO: Processing standard module hook 'hook-lxml.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+20190 INFO: Processing standard module hook 'hook-lxml.etree.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+21126 INFO: Processing standard module hook 'hook-webview.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\webview\\__pyinstaller'
+21976 INFO: Processing pre-safe-import-module hook 'hook-gi.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+22181 INFO: Processing standard module hook 'hook-clr.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\pythonnet\\_pyinstaller'
+22219 INFO: Processing standard module hook 'hook-clr_loader.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+22431 INFO: Processing standard module hook 'hook-pycparser.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+22704 INFO: Processing standard module hook 'hook-setuptools.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+22730 INFO: Processing pre-safe-import-module hook 'hook-distutils.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+22782 INFO: Processing pre-safe-import-module hook 'hook-jaraco.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+22783 INFO: Setuptools: 'jaraco' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.jaraco'!
+22805 INFO: Processing pre-safe-import-module hook 'hook-more_itertools.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+22806 INFO: Setuptools: 'more_itertools' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.more_itertools'!
+23078 INFO: Processing standard module hook 'hook-_osx_support.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+23108 INFO: Processing pre-safe-import-module hook 'hook-packaging.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+23618 INFO: Processing standard module hook 'hook-setuptools._vendor.jaraco.text.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+23620 INFO: Processing pre-safe-import-module hook 'hook-importlib_resources.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+23635 INFO: Processing pre-safe-import-module hook 'hook-backports.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+23637 INFO: Setuptools: 'backports' appears to be a full setuptools-vendored copy - creating alias to 'setuptools._vendor.backports'!
+24773 INFO: Processing pre-safe-import-module hook 'hook-tomli.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+24775 INFO: Setuptools: 'tomli' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.tomli'!
+25546 INFO: Processing pre-safe-import-module hook 'hook-wheel.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\pre_safe_import_module'
+25547 INFO: Setuptools: 'wheel' appears to be a setuptools-vendored copy - creating alias to 'setuptools._vendor.wheel'!
+26353 INFO: Analyzing hidden import 'meetingtool.texts.es'
+26368 INFO: Analyzing hidden import 'meetingtool.texts.en'
+26389 INFO: Processing module hooks (post-graph stage)...
+26952 INFO: Processing standard module hook 'hook-lxml.isoschematron.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+27062 WARNING: Hidden import "pycparser.lextab" not found!
+27062 WARNING: Hidden import "pycparser.yacctab" not found!
+27612 INFO: Processing standard module hook 'hook-PIL.SpiderImagePlugin.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks'
+27761 INFO: Processing standard module hook 'hook-lxml.objectify.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\_pyinstaller_hooks_contrib\\stdhooks'
+27778 INFO: Performing binary vs. data reclassification (81 entries)
+27938 INFO: Looking for ctypes DLLs
+28031 INFO: Analyzing run-time hooks ...
+28037 INFO: Including run-time hook 'pyi_rth_inspect.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+28042 INFO: Including run-time hook 'pyi_rth_pkgutil.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+28046 INFO: Including run-time hook 'pyi_rth_multiprocessing.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+28050 INFO: Including run-time hook 'pyi_rth_setuptools.py' from 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PyInstaller\\hooks\\rthooks'
+28075 INFO: Creating base_library.zip...
+28141 INFO: Looking for dynamic libraries
+29667 INFO: Extra DLL search directories (AddDllDirectory): ['C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\av.libs', 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\numpy.libs']
+29668 INFO: Extra DLL search directories (PATH): []
+31278 WARNING: Library not found: could not resolve 'ncrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\av.libs\\avformat-63-e8c4f8fc30664f2b7e85dcc683bd4b0d.dll'.
+31278 WARNING: Library not found: could not resolve 'Secur32.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\av.libs\\avformat-63-e8c4f8fc30664f2b7e85dcc683bd4b0d.dll'.
+31280 WARNING: Library not found: could not resolve 'bcrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\av.libs\\avutil-61-e540ec7976bbd26a4a94dc737be3001c.dll'.
+31281 WARNING: Library not found: could not resolve 'SHLWAPI.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\av.libs\\avdevice-63-2b26d22512639c049532c0bc6f6c022f.dll'.
+31281 WARNING: Library not found: could not resolve 'AVICAP32.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\av.libs\\avdevice-63-2b26d22512639c049532c0bc6f6c022f.dll'.
+31282 WARNING: Library not found: could not resolve 'VERSION.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\python312.dll'.
+31282 WARNING: Library not found: could not resolve 'bcrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\python312.dll'.
+31301 WARNING: Library not found: could not resolve 'IPHLPAPI.DLL', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs\\_socket.pyd'.
+31310 WARNING: Library not found: could not resolve 'PROPSYS.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs\\_wmi.pyd'.
+31315 WARNING: Library not found: could not resolve 'PSAPI.DLL', dependency of 'C:\\Users\\Diego\\AppData\\Local\\vmt-build-env\\Lib\\site-packages\\PIL\\_imagingtk.cp312-win_amd64.pyd'.
+31367 WARNING: Library not found: could not resolve 'bcrypt.dll', dependency of 'C:\\Users\\Diego\\AppData\\Local\\Programs\\Python\\Python312\\DLLs\\libcrypto-3.dll'.
+31413 INFO: Warnings written to C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\warn-meetingtool.txt
+31551 INFO: Graph cross-reference written to C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\xref-meetingtool.html
+31695 INFO: checking PYZ
+31696 INFO: Building PYZ because PYZ-00.toc is non existent
+31696 INFO: Building PYZ (ZlibArchive) C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\PYZ-00.pyz
+33114 INFO: Building PYZ (ZlibArchive) C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\PYZ-00.pyz completed successfully.
+33175 INFO: checking PKG
+33175 INFO: Building PKG because PKG-00.toc is non existent
+33175 INFO: Building PKG (CArchive) MeetingTool.pkg
+33212 INFO: Building PKG (CArchive) MeetingTool.pkg completed successfully.
+33214 INFO: Bootloader C:\Users\Diego\AppData\Local\vmt-build-env\Lib\site-packages\PyInstaller\bootloader\Windows-64bit-intel\runw.exe
+33214 INFO: checking EXE
+33214 INFO: Building EXE because EXE-00.toc is non existent
+33215 INFO: Building EXE from EXE-00.toc
+33215 INFO: Copying bootloader EXE to C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\build\pyinstaller\meetingtool\MeetingTool.exe
+34122 INFO: Copying icon to EXE
+34579 INFO: Copying 0 resources to EXE
+34581 INFO: Embedding manifest in EXE
+35124 INFO: Appending PKG archive to EXE
+35292 INFO: Fixing EXE headers
+35713 INFO: Building EXE from EXE-00.toc completed successfully.
+35718 INFO: checking COLLECT
+35718 INFO: Building COLLECT because COLLECT-00.toc is non existent
+35718 INFO: Removing dir C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\dist\pyinstaller\MeetingTool
+35792 INFO: Building COLLECT COLLECT-00.toc
+36277 INFO: Building COLLECT COLLECT-00.toc completed successfully.
+36286 INFO: Build complete! The results are available in: C:\Users\Diego\Documents\Cowork\05_Proyectos\VisualMeetingTool\dist\pyinstaller
+
+installer: dist\VisualMeetingTool-Setup-2.0.0.exe
+version:   2.0.0
+commit:    cfe71d6c1d9d0622b8daf6e2f451a19833fa4ef8
+python:    3.12.10
+tool:      altgraph==0.17.5
+tool:      av==19.0.0
+tool:      bottle==0.13.4
+tool:      cffi==2.1.1
+tool:      clr_loader==0.3.1
+tool:      lxml==6.1.3
+tool:      numpy==2.5.3
+tool:      packaging==26.3
+tool:      pefile==2024.8.26
+tool:      pillow==12.3.0
+tool:      proxy_tools==0.1.0
+tool:      pycparser==3.0
+tool:      pyinstaller==6.22.3
+tool:      pyinstaller-hooks-contrib==2026.8
+tool:      python-docx==1.2.0
+tool:      pythonnet==3.2.0
+tool:      pywebview==6.2.1
+tool:      pywin32-ctypes==0.2.3
+tool:      setuptools==84.0.0
+tool:      typing_extensions==4.16.0
+inno:      C:\Users\Diego\AppData\Local\Programs\Inno Setup 6\ISCC.exe
+size:      43703029 bytes (43.7 MB)
+sha256:    b1a75a93bfa8346af0e6abb597b2a2f13243439c1bec0152332c78a943defff6
+build exit code: 0
+
+== Silent install, 2026-11-16 (this installer, over the installed 1.0.0, on the machine that built it) ==
+date: 2026-11-16T16:56:20
+installer sha256: b1a75a93bfa8346af0e6abb597b2a2f13243439c1bec0152332c78a943defff6
+user: DiegoTemp (no administrator rights asked; PrivilegesRequired=lowest)
+before: version 1.0.0 registered in HKCU, folder C:\Users\Diego\AppData\Local\Programs\VisualMeetingTool
+command: VisualMeetingTool-Setup-2.0.0.exe /VERYSILENT /SUPPRESSMSGBOXES /NORESTART /LANG=es "/DIR=C:\Users\Diego\AppData\Local\Programs\VisualMeetingTool" /LOG=install.log
+install exit code: 0
+after: version 2.0.0 registered in HKCU, folder C:\Users\Diego\AppData\Local\Programs\VisualMeetingTool\
+folder after install: _internal, installation.ini, manual, MeetingTool.exe, unins000.dat, unins000.exe
+manual: True
+installation.ini:
+  [installation]
+  language=es
+not tested here: a clean machine, a folder other than the installed one, uninstall (the owner keeps 2.0.0 installed), the antivirus.

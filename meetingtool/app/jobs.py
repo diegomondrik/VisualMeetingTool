@@ -34,11 +34,11 @@ import time
 from pathlib import Path
 
 from meetingtool import disk, texts
-from meetingtool.app import library
+from meetingtool.app import company, library
 from meetingtool.frames import transcript as transcript_module
 from meetingtool.projects import store
 from meetingtool.reading import gemini
-from meetingtool.summary import qa
+from meetingtool.summary import providers, qa
 
 FORMATS = ("summary", "qa")
 # The ceiling of one meeting, every stage together (INGOL D-186): it must cover each paid request and
@@ -46,6 +46,8 @@ FORMATS = ("summary", "qa")
 # 70 frames reserve about US$0.26, twice is over US$0.50). What is usually paid is far less.
 DEFAULT_MAX_COST_USD = 1.00
 TRANSCRIPT_SUFFIXES = (".docx", ".txt")
+NOTES_SUFFIXES = TRANSCRIPT_SUFFIXES  # a participant's notes (WI-2.0.0), read as a transcript is
+NOTES_BY_LIMIT = 80
 RECORDING_SUFFIXES = (".mp4", ".mov", ".mkv", ".webm", ".avi", ".wmv", ".m4v")
 # In a run's working folder: what it was asked, so that the same meeting processed again continues in it.
 KEPT_RECORD = "kept.json"
@@ -152,6 +154,16 @@ def check_request(data, data_dir, uploads, meeting_types, languages):
             raise JobError("app.request.video_gone")
     if kind == "summary" and recording is None:
         raise JobError("app.request.summary_needs_video")
+    notes = None
+    if text("notes"):
+        if kind != "summary":
+            raise JobError("app.request.notes_only_summary")
+        notes = uploads.get(text("notes"), NOTES_SUFFIXES)
+        if notes is None:
+            raise JobError("app.request.notes_gone")
+    notes_by = text("notes_by")
+    if len(notes_by) > NOTES_BY_LIMIT:
+        raise JobError("app.request.notes_by_too_long", limit=NOTES_BY_LIMIT)
     if kind == "qa":
         try:
             nobody = transcript_module.names_no_one(transcript)
@@ -159,13 +171,33 @@ def check_request(data, data_dir, uploads, meeting_types, languages):
             nobody = False  # an unreadable transcript fails where it always did, in the run
         if nobody:
             raise JobError("app.request.qa_needs_speakers")
-    max_cost = data.get("max_cost", DEFAULT_MAX_COST_USD)
+    # The summary's model is the one chosen in Settings when the run is asked for (amendment 1); the register is
+    # always Gemini's. A summary's ceiling must fit two attempts at that model's worst case and the frames.
+    model = company.summary_model(data_dir) if kind == "summary" else gemini.MODEL
+    needed = providers.needed_ceiling(model, writer_max_output_tokens()) if kind == "summary" else 0.0
+    if needed > providers.CEILING_TOP:
+        raise JobError("app.request.ceiling_out_of_reach", needed=needed, top=providers.CEILING_TOP)
+    max_cost = data.get("max_cost", default_ceiling(data_dir) if kind == "summary" else DEFAULT_MAX_COST_USD)
     if isinstance(max_cost, bool) or not isinstance(max_cost, (int, float)) or not 0 < max_cost <= 5:
         raise JobError("app.request.bad_ceiling")
+    if max_cost < needed:
+        raise JobError("app.request.ceiling_too_low", needed=needed, model=providers.MODELS[model].label)
     return {"project": project_id, "project_name": project["name"], "client": project.get("client") or "",
             "title": title, "date": date,
             "meeting_type": meeting_type or None, "language": language or None, "format": kind,
-            "transcript": transcript, "recording": recording, "max_cost": float(max_cost)}
+            "transcript": transcript, "recording": recording, "notes": notes,
+            "notes_by": notes_by if notes is not None else "", "max_cost": float(max_cost), "model": model}
+
+
+def writer_max_output_tokens():
+    from meetingtool.summary import writer  # writer imports what the frames need; not at import time
+    return writer.MAX_OUTPUT_TOKENS
+
+
+def default_ceiling(data_dir):
+    """The ceiling a new meeting starts with: the larger of US$1.00 and what
+    the chosen model needs (amendment 1)."""
+    return providers.minimum_ceiling(company.summary_model(data_dir), writer_max_output_tokens())
 
 
 class Uploads:
@@ -196,7 +228,8 @@ class Uploads:
     def discard(self, names):
         """Remove the uploads of a request that was refused."""
         for name in names:
-            path = self.get(name, TRANSCRIPT_SUFFIXES + RECORDING_SUFFIXES) if isinstance(name, str) else None
+            path = (self.get(name, TRANSCRIPT_SUFFIXES + NOTES_SUFFIXES + RECORDING_SUFFIXES)
+                    if isinstance(name, str) else None)
             if path is not None:
                 path.unlink(missing_ok=True)
 
@@ -373,10 +406,14 @@ class Runner:
     """Starts one run at a time in a thread of its own and keeps every job of
     this session, to be asked how it goes."""
 
-    def __init__(self, data_dir, read_key, endpoint=gemini.ENDPOINT, sleep=time.sleep, retry_delays=None):
+    def __init__(self, data_dir, read_key, endpoint=gemini.ENDPOINT, sleep=time.sleep, retry_delays=None,
+                 endpoints=None):
         self.data_dir = Path(data_dir)
+        # read_key() is Gemini's key, the credential functions' default; read_key(name) another provider's.
         self.read_key = read_key
         self.endpoint = endpoint
+        # The other providers' addresses for the summary (the tests' fake servers); by default their own.
+        self.endpoints = endpoints or {}
         self.sleep = sleep
         self.retry_delays = gemini.RETRY_DELAYS if retry_delays is None else retry_delays
         self.jobs = {}
@@ -412,12 +449,17 @@ class Runner:
         key = self.read_key()
         if not key:
             raise JobError("app.run.no_key")
+        # The summary's provider's key too, before anything is spent (amendment 1); Gemini's is the one above.
+        provider = providers.MODELS[request.get("model", gemini.MODEL)].provider
+        summary_key = key if provider is providers.GEMINI else self.read_key(provider.key_name)
+        if not summary_key:
+            raise JobError("app.run.no_key_for", provider=provider.label)
         with self.lock:
             if any(job.state == "running" for job in self.jobs.values()):
                 raise JobError("app.run.busy")
             job = Job(request)
             self.jobs[job.id] = job
-        thread = threading.Thread(target=self._run, args=(job, key), daemon=True)
+        thread = threading.Thread(target=self._run, args=(job, key, summary_key), daemon=True)
         thread.start()
         if wait:
             thread.join()
@@ -440,7 +482,7 @@ class Runner:
         stage.state = "done"
         return value
 
-    def _run(self, job, key):
+    def _run(self, job, key, summary_key=None):
         # Imported here: the frames need av and numpy, the report python-docx.
         from meetingtool.frames.extract import extract_frames
         from meetingtool.report import document
@@ -482,6 +524,10 @@ class Runner:
             disk.write_text(work / KEPT_RECORD, json.dumps(kept, ensure_ascii=False, indent=2) + "\n")
             transcript = work / f"transcript{request['transcript'].suffix.lower()}"
             os.replace(request["transcript"], transcript)
+            notes = None
+            if request.get("notes") is not None:
+                notes = work / f"notes{request['notes'].suffix.lower()}"
+                os.replace(request["notes"], notes)
             if request["recording"] is not None:
                 recording = work / f"recording{request['recording'].suffix.lower()}"
                 os.replace(request["recording"], recording)
@@ -503,12 +549,20 @@ class Runner:
                 later["args"], later["kwargs"] = args, kwargs
                 return {"id": ""}
 
-            write = qa.write_register if request["format"] == "qa" else writer.write_summary
+            if request["format"] == "qa":
+                write, write_key, chosen = qa.write_register, key, {"endpoint": self.endpoint}
+            else:  # the model chosen in Settings, with its provider's key and address (amendment 1)
+                model_id = request.get("model", gemini.MODEL)
+                provider = providers.MODELS[model_id].provider
+                write, write_key = writer.write_summary, summary_key or key
+                chosen = {"model": model_id, "endpoint": self.endpoint if provider is providers.GEMINI
+                          else self.endpoints.get(provider.name)}
             written = self._stage(job, request["format"], lambda: write(
-                work, transcript, key, data_dir=self.data_dir, project=request["project"], title=request["title"],
-                date=request["date"], meeting_type=request["meeting_type"], language=request["language"],
-                endpoint=self.endpoint, max_cost_usd=request["max_cost"], retry_delays=self.retry_delays,
-                sleep=self.sleep, counters=job.counters, add_meeting=record_later))
+                work, transcript, write_key, data_dir=self.data_dir, project=request["project"],
+                title=request["title"], date=request["date"], meeting_type=request["meeting_type"],
+                language=request["language"], max_cost_usd=request["max_cost"], retry_delays=self.retry_delays,
+                sleep=self.sleep, counters=job.counters, add_meeting=record_later, **chosen,
+                **({"notes": notes, "notes_author": request["notes_by"]} if notes is not None else {})))
             report = self._stage(job, "report", lambda: document.build_report(
                 work, title=request["title"], date=request["date"], project_name=request["project_name"],
                 client=request["client"], meeting_type=request["meeting_type"], data_dir=self.data_dir))
@@ -536,6 +590,8 @@ class Runner:
             os.replace(work, final)
             moved = True
             later["kwargs"]["transcript"] = str(final / transcript.name)
+            if notes is not None:
+                later["kwargs"]["notes"] = str(final / notes.name)
             record = store.add_meeting(*later["args"], **later["kwargs"], meeting_folder=folder_name)
             added = True
             job.meeting_id = record["id"]
@@ -581,6 +637,6 @@ class Runner:
                 job.kept = {"run": work.name, "paid_usd": record["paid_usd"]}
             else:
                 shutil.rmtree(work, ignore_errors=True)
-        for leftover in (request["transcript"], request["recording"]):
+        for leftover in (request["transcript"], request["recording"], request.get("notes")):
             if leftover is not None and leftover.exists():
                 leftover.unlink()

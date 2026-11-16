@@ -237,8 +237,8 @@ class RequestTest(Workspace):
         from tests.test_summary import summary_text
         with FakeGemini([lambda first, count: answer(summary_text())]) as fake, \
                 contextlib.redirect_stdout(io.StringIO()):
-            code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--language", "es"],
-                        read_key=lambda: KEY, endpoint=fake.endpoint, sleep=self.sleeps.append)
+            code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--language", "es",
+                         "--model", "gemini-flash-latest"], read_key=lambda: KEY, endpoint=fake.endpoint, sleep=self.sleeps.append)
         self.assertEqual(code, 0)
         self.assertEqual(len(fake.requests), 1)
         self.assertNotIn("responseMimeType", fake.requests[0]["body"]["generationConfig"])

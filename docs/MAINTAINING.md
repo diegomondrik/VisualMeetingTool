@@ -19,6 +19,10 @@ own, and the application runs the same functions in this order.
 - Summary or register: `writer.write_summary` writes `summary.md`;
   `qa.write_register` writes `qa.json` and the register as `summary.md`
   (`python -m meetingtool.summary`, with `--format qa` for the register).
+  The summary is written by the model chosen from `providers.MODELS`
+  (WI-2.0.0, amendment 1): `providers.DEFAULT_MODEL` (GPT-6.1 Sol, OpenAI)
+  unless Settings (`company.summary_model`) or `--model` say another. The
+  frames and the register are always Gemini's.
 - Report: `document.build_report` builds `summary.docx` from `summary.md` and
   its frames, with no network (`python -m meetingtool.report build`).
 
@@ -26,8 +30,34 @@ own, and the application runs the same functions in this order.
 (`store.add_meeting`). `python -m meetingtool app` starts the application
 (`server.serve`): a server on 127.0.0.1 whose `jobs.Runner` runs the stages
 in a thread, one run at a time, under one spending ceiling for the whole run
-(`jobs.DEFAULT_MAX_COST_USD`, shared through `gemini.new_counters`). Every
-text the program says is an entry of `meetingtool/texts/<language>.py`.
+(`jobs.default_ceiling`, never under `providers.CEILING_FLOOR`, shared through
+`gemini.new_counters`). Every text the program says is an entry of
+`meetingtool/texts/<language>.py`.
+
+The summary's providers (`meetingtool/summary/providers.py`):
+
+- Each `providers.Model` has its provider, its prices with the day each holds
+  from, and whether it was tested in the application. A cost is counted at
+  the price of the day it is paid (`gemini.price_on`, `gemini.today`), for the
+  summary and for the frames (`gemini.PRICES`). A new model or a new price is
+  a line in that list, with its source and date in the commit.
+- Each `providers.Provider` says where the request goes and with which header
+  (`providers.Provider.headers`), what it holds (`providers.Provider.payload`),
+  and turns the answer into Gemini's shape (`providers.Provider.normalize`), so
+  `gemini.call_checked`, `writer.check_summary` and the paid answers kept work
+  the same for every model. Requests go by plain HTTP (`gemini.post_generate`),
+  with no library of any provider.
+- Keys: one per provider in the Windows Credential Manager, named
+  VisualMeetingTool/ and the provider's name (the field key_name of each provider). Gemini's is the credential functions' default;
+  the others are read, saved and deleted by name (`server.App.saved_keys`,
+  `server.App.key_provider`); `jobs.Runner.start` checks both keys before
+  anything is spent.
+- Ceilings: `providers.needed_ceiling` is what a run needs with a model (two
+  summary attempts at the worst case plus the frames); `jobs.check_request`
+  refuses a lower one. `providers.summary_ceiling` is the summary's own
+  default on the command line.
+- What each provider receives is in the user manual's Privacy section; keep it
+  true when a provider or a model is added.
 
 What reaches the program from outside, and what looks at it first:
 
@@ -42,6 +72,13 @@ What reaches the program from outside, and what looks at it first:
 - Transcripts (`.docx` or `.txt`): `transcript.read_turns` decodes them
   (`transcript.names_no_one` tells a transcript with no speaker) and refuses
   with `transcript.TranscriptError`.
+- A participant's notes (`.docx` or `.txt`, optional, WI-2.0.0): uploaded as
+  the kind `notes` (`jobs.NOTES_SUFFIXES`), read by `writer.read_notes` as a
+  transcript is (only the words of the main part of the document, nothing it links to),
+  refused when empty or longer than `writer.NOTES_LIMIT`, and sent after
+  `writer.MATERIAL`; who took them is cleaned by `writer.clean_author`. A
+  project's context, typed on its screen, is kept by `store.set_context`
+  (at most `store.CONTEXT_LIMIT` characters) and shown escaped.
 - Company templates: `document.template_bytes` refuses macros
   (`document.carries_macros`) and anything that loads or runs content from
   outside (`document.active_content`, `document.field_instructions`,
@@ -51,10 +88,14 @@ What reaches the program from outside, and what looks at it first:
 - The recording: `extract.extract_frames` opens only a local file, turns what
   the decoder refuses into `extract.FramesError`, and writes only outside a git
   work tree (`extract.enclosing_git_work_tree`).
-- Gemini's answers: every paid request goes through `gemini.call_checked`
+- The models' answers (Gemini's, and the summary's provider's in Gemini's
+  shape after `providers.Provider.normalize`): every paid request goes through `gemini.call_checked`
   with the stage's check, which refuses a bad answer and allows one retry:
   `gemini.check_answer` (reading), `writer.check_summary` (headings, language,
-  empty sections, and `writer.check_frames` for the frames it names) and
+  empty sections, the `RECORDING` line read by `writer.take_recording_line`,
+  and `writer.check_frames` for the frames it names; after it,
+  `writer.mark_unsaid_figures` marks the figures nobody said in
+  `writer.CHECKED_SECTIONS`) and
   `qa.check_register` (fragments, speakers, minutes, dates and figures against
   the transcript). The transcript and the frame readings are sent as material
   after `writer.MATERIAL`, not as instructions.

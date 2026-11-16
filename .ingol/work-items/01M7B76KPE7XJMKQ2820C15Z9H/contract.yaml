@@ -1,0 +1,221 @@
+schema_version: "1"
+id: 01M7B76KPE7XJMKQ2820C15Z9H
+objective: >
+  Release version 2.0.0 of MeetingTool, as approved by the owner on 2026-11-13
+  in docs/proposals/2.0.0-resumen-fiel-y-notas-proposal.md. A real presales
+  meeting processed with 1.0.0 showed that the summary turns the figures of our
+  own demo (synthetic data) into the client's problems, invents costs and
+  deadlines, does not say that the recording started mid-conversation, misreads
+  who approves the purchase, and that a company template without {informe}
+  copies its sample text into every report. Seven changes go together:
+  (1) the summary stops inventing: the presale guides keep our demo apart from
+  the client's data, no longer ask for problems nobody said, write a cost or a
+  deadline only as it was said, ask for the buying process, and name a screen
+  of our own demo only when the client made an important comment about what it
+  showed; the request carries the meeting's date with its weekday;
+  (2) a figure in the client's problems, the sales signals or the key points
+  that neither the transcript nor the notes say is written in the Word report
+  as [VERIFICAR: «…»] in red and bold, never a reason to refuse the meeting
+  (the owner's decision of 1.0.0, confirmed for 2.0.0);
+  (3) the notes of a participant, optional, as a second source with who took
+  them: what only the notes say carries its origin, and where notes and
+  recording disagree a section "Recording and notes" shows both;
+  (4) the summary says, in one line of fixed form, whether the recording seems
+  to start or end mid-conversation, and the report then opens with a notice;
+  (5) Settings warns when a template has text after its cover and neither
+  {informe} nor a table of contents;
+  (6) the version is shown in Settings and at the foot of the window;
+  (7) the project's context can be read and edited in the application;
+  (8) amendment 1 (2026-11-15, same proposal): the summary is written by
+  GPT-6.1 Sol through OpenAI's API by default, and the model can be chosen
+  from a closed list (GPT-6.1 Sol, Claude Opus 5.5, Claude Sonnet 5.5, Gemini
+  Flash) in Settings and with --model, each provider with its own key in the
+  Windows Credential Manager, prices with the date they hold from, and a
+  spending cap computed for the chosen model; Gemini keeps reading the frames
+  and writing the question register. Three rounds with Gemini 3.8 Flash did
+  not meet AC08, and a blind comparison judged by two models of different
+  companies put it last.
+  No client data enters the repository: the real meeting is kept in the data
+  folder and only its pass or fail per checklist point is committed.
+lane: standard
+affected_surfaces:
+  - meetingtool/__init__.py
+  - meetingtool/summary/writer.py
+  - meetingtool/summary/providers.py
+  - meetingtool/summary/qa.py
+  - meetingtool/reading/gemini.py
+  - meetingtool/summary/__main__.py
+  - meetingtool/report/document.py
+  - meetingtool/report/layout.py
+  - meetingtool/frames/transcript.py
+  - meetingtool/projects/store.py
+  - meetingtool/app/server.py
+  - meetingtool/app/jobs.py
+  - meetingtool/app/pages.py
+  - meetingtool/app/company.py
+  - meetingtool/app/static/app.js
+  - meetingtool/app/static/style.css
+  - meetingtool/texts/es.py
+  - meetingtool/texts/en.py
+  - packaging/installer.iss
+  - docs/manual/user-manual.html
+  - docs/MAINTAINING.md
+  - docs/proposals/2.0.0-resumen-fiel-y-notas-proposal.md
+  - docs/evidence/01M7B76KPE7XJMKQ2820C15Z9H/**
+  - .ingol/work-items/01M7B76KPE7XJMKQ2820C15Z9H/**
+  - tests/**
+acceptance:
+  - id: WI200-AC01
+    description: >
+      The summary request no longer makes the model invent. For a presale
+      meeting it says that the screens our side shows are our product and
+      their figures are demo data unless the client says they are theirs; the
+      client's problems are only the ones said (one nobody said goes to
+      "Beyond the agenda", as our reading); a cost is written only if it was
+      said, otherwise "not stated"; a deadline is written as it was said or
+      "not set", never "implied"; the sales signals ask for the stages of the
+      purchase, who approves each, when price is discussed, which documents
+      the client asks for, their success criteria and how they see us against
+      the alternatives; a screen of our own demo is named only when the client
+      made an important comment about what it showed, and its observation says
+      what the client said or did; nothing personal is a deliverable; the
+      reading between the lines of the role is kept for "Beyond the agenda".
+      The request carries the meeting's date and weekday. Covered by tests on
+      the request (tests/test_resumen_fiel.py).
+  - id: WI200-AC02
+    description: >
+      In "Client problems", "Sales signals" and "Key points" (and their Spanish
+      headings), a figure that neither the transcript nor the notes say is
+      written in the report as [VERIFICAR: «…»] in red and bold, and does not
+      refuse the summary. A figure the transcript says, in digits or in words
+      as the 1.0.0 register reads them, is left as it is. The other sections
+      are not checked. Covered by tests/test_resumen_fiel.py and
+      tests/test_verificar_rojo.py.
+  - id: WI200-AC03
+    description: >
+      A meeting can carry one optional notes file (.docx or .txt) and the name
+      of who took them, from the application and from the command line. The
+      notes are kept with the meeting in the data folder, never in the
+      repository, and go into the request after the material marker, labelled
+      as notes that may cover what was not recorded and may hold the note
+      taker's own research or mistakes. With notes, the summary must have the
+      section "Recording and notes" (Spanish "Grabación y notas") with each
+      disagreement as topic, recording with its minute, notes, and what to
+      confirm, or one line saying there was none; without notes the section is
+      not asked for. What only the notes say carries "(according to <name>'s
+      notes)". Notes are data, not instructions: a notes file that orders the
+      model to ignore its instructions leaves the request's instructions
+      unchanged and is checked by a test. An empty notes file, one over the
+      upload limit, one in another text encoding, a .docm, and a .docx that
+      links outside content are refused or read as plain text, never fetched
+      or run. Covered by tests/test_notas.py and tests/test_app.py.
+  - id: WI200-AC04
+    description: >
+      The summary carries one line of fixed form saying whether the recording
+      is complete, starts mid-conversation, ends mid-conversation, or both. The
+      program reads it, takes it out of the text, and, unless complete, the
+      Word report opens with a notice saying that what was said before (or
+      after) is not in the summary, and, with notes, "except what the notes
+      bring". A summary without that line, or with another value, is refused
+      like a missing section and retried once with a note saying why. Covered
+      by tests/test_resumen_fiel.py.
+  - id: WI200-AC05
+    description: >
+      Setting a company template that has text after its cover and neither
+      {informe} nor a table of contents keeps it and warns in Settings that
+      that text will be copied into every report and how to mark where the
+      report starts. A template with {informe} or a table of contents shows no
+      such warning. Covered by tests/test_template.py (or the existing
+      template tests).
+  - id: WI200-AC06
+    description: >
+      Settings and the foot of the window show "VisualMeetingTool 2.0.0", read
+      from meetingtool.__version__, which is "2.0.0". Covered by
+      tests/test_app.py.
+  - id: WI200-AC07
+    description: >
+      The project's page shows its context and lets it be changed, with a short
+      guide of what to write (who we are and who the client is, what we want to
+      sell or do, what must be known to read the meetings right). The change is
+      saved in project.json and the project's knowledge is rebuilt with it; the
+      text is shown escaped and is bounded in length. Covered by
+      tests/test_app.py and tests/test_projects.py.
+  - id: WI200-AC08
+    description: >
+      The real presales meeting kept as the regression case in the data folder, with its
+      notes, is processed twice with the committed tree and the default model
+      (GPT-6.1 Sol, through OpenAI's API): the summary stage on the frame
+      reading already paid for, then two Word reports per run, one neutral and
+      one with the copy of the company template that carries {informe}. Two
+      judges of different companies that did not build the change (GPT-6 Astra
+      through Codex, and Claude Opus 5.5), not told which model wrote the
+      summary, judge each run against the nine points of the proposal's
+      checklist (no demo figure as the client's; no invented cost or deadline,
+      a loosely promised delivery dated as said; who approves as the client said;
+      the four statements that matter for selling; disagreements with the notes
+      shown; what only the
+      notes say with its origin; the incomplete recording notice; no template
+      sample text, judged on the template report; no selling observation, no
+      personal deliverable and no demo screen without an important client
+      comment). Both runs pass every point with both judges. One round only,
+      with at most US$1.50 of API spending, spent once for this check and not
+      per report; if it does not pass, nothing is adjusted or repeated without
+      the owner, who is shown what failed and decides. Only the verdict per point, in neutral words, is committed
+      under docs/evidence/01M7B76KPE7XJMKQ2820C15Z9H/; the outputs stay in the
+      data folder.
+  - id: WI200-AC09
+    description: >
+      The whole suite passes on the committed tree, with only the tests that
+      need INGOL's test kits skipped. Output committed under
+      docs/evidence/01M7B76KPE7XJMKQ2820C15Z9H/local-test-run.txt.
+  - id: WI200-AC10
+    description: >
+      The installer VisualMeetingTool-Setup-2.0.0.exe, compiled from the
+      committed tree, installs silently without administrator rights into a
+      folder given by /DIR with exit code 0. The build record, with the commit
+      and the SHA-256, is committed under
+      docs/evidence/01M7B76KPE7XJMKQ2820C15Z9H/installer-build.txt.
+  - id: WI200-AC11
+    description: >
+      The user manual explains the notes and who took them, the "Recording and
+      notes" section, the [VERIFICAR] marks in the summary, the incomplete
+      recording notice, the template warning, the editable context, where the
+      version is shown, how to choose the summary's model, the key each
+      provider needs and what data goes to each provider; docs/MAINTAINING.md
+      names the new functions, the providers and the notes as untrusted input,
+      and its guide check passes.
+  - id: WI200-AC12
+    description: >
+      The summary's model is chosen from a closed list (gpt-6.1-sol, the
+      default; claude-opus-5-5; claude-sonnet-5-5; gemini-flash-latest) in
+      Settings, saved in app-settings.json, and with --model on the command
+      line. Settings shows each model's estimated cost of one summary and marks
+      the two Claude models as not tested in the application. A model outside
+      the list is refused before any spending. Covered by tests/test_app.py
+      and the summary tests.
+  - id: WI200-AC13
+    description: >
+      Each provider has its own key in the Windows Credential Manager
+      (VisualMeetingTool/openai, VisualMeetingTool/anthropic, and the existing
+      VisualMeetingTool/gemini), through the existing credential functions with
+      the key's name; credentials.py does not change. Settings shows each key's
+      state without ever showing it, with save and delete; key messages name
+      the key's provider. A run whose chosen model's key, or Gemini's for the
+      frames, is missing is refused before any spending, saying which. Covered
+      by tests/test_app.py and the summary tests.
+  - id: WI200-AC14
+    description: >
+      For each provider, against a fake server: the request (address, key
+      header, model, output limit, the summary request as text; OpenAI's
+      Responses API with store false), the answer's text and whether it
+      finished or was cut, the cost from its usage including reasoning tokens,
+      the model that answered, which errors are retried, the spending cap and
+      its reservation of the worst case, the retry of a refused answer with its
+      note, and the paid answer kept and reused. Prices carry the date they
+      hold from, the frame reading's too, and a run on or after a price change
+      is costed at the new price. The default cap of a run is the larger of
+      US$1.00 and two summary attempts at the worst case plus the frame
+      reading's estimate; a cap set below that is refused before spending,
+      saying the minimum. The client's praise is asked to be quoted with its
+      minute also in the executive summary and the key points. Covered by
+      tests/test_proveedores.py and tests/test_resumen_fiel.py.

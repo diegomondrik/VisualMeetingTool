@@ -21,8 +21,15 @@ may have been billed. The model that answered is recorded, so the estimate
 can be checked against its price. If an answer cost more than the most its
 request was estimated to cost, which with the prices in this file means it
 used more tokens than estimated, the answer is kept (it was paid) and the run
-sends nothing more, and does not end as done (WI28). A change of price is
-not noticed: the cost is counted with the same prices as the estimate.
+sends nothing more, and does not end as done (WI28). Each price carries the
+day it holds from (PRICES), and both the estimate and the cost use the price
+of the day they are counted on (WI-2.0.0, amendment 1: Google doubles Gemini
+Flash on 2027-01-01). A change of price Google makes without this file being
+updated is still not noticed.
+
+call_checked also sends the summary to the other providers of
+meetingtool.summary.providers, which turn each answer into the shape Gemini
+answers in.
 
 Only the standard library is used. The reading is written only once every
 request succeeded, but each accepted answer is kept as it arrives, in
@@ -33,6 +40,7 @@ tree: frames and what they show are client data.
 
 import base64
 import dataclasses
+import datetime
 import hashlib
 import http.client
 import json
@@ -51,16 +59,18 @@ CHUNK_SIZE = 70
 # 35 frames took 9328 output and 9881 thinking tokens (D-169), so 70 need
 # about 38,500: the cap leaves room and bounds the cost of one answer.
 MAX_OUTPUT_TOKENS = 49152
-# Spend budget. Prices in US$ per million tokens, the list prices used for
-# D-169 (thinking is billed as output); input estimated per frame from the
-# 39510 tokens 35 frames took (1129 each), rounded up.
+# Spend budget. Prices in US$ per million tokens (thinking is billed as output), each with the day it holds
+# from: Google's list price of D-169, doubled on 2027-01-01 (aistudio.google.com/docs/pricing, read 2026-11-15).
+# Input estimated per frame from the 39510 tokens 35 frames took (1129 each), rounded up. The ceiling of a
+# reading run alone is the owner's (D-173); from 2027-01-01 it fits fewer frames, and a long meeting read from the
+# command line needs --max-cost (the application's run ceiling counts the frames at the price of the day).
 MAX_COST_USD = 0.50
-PRICE_INPUT_PER_MILLION = 0.75
-PRICE_OUTPUT_PER_MILLION = 3.75
+PRICES = ((datetime.date(2000, 1, 1), 0.75, 3.75), (datetime.date(2027, 1, 1), 1.50, 7.50))
 INPUT_TOKENS_PER_FRAME = 1500
 PROMPT_TOKENS = 1000
 RETRY_DELAYS = (30.0, 60.0)
-RETRYABLE_STATUS = frozenset({429, 500, 503})
+# 529: Anthropic's "overloaded"; 502 and 504: a gateway in between (the independent review of WI-2.0.0).
+RETRYABLE_STATUS = frozenset({429, 500, 502, 503, 504, 529})
 TIMEOUT = 300
 OUTPUT_NAME = "frames_read.md"
 # Where the accepted answers of paid requests are kept, by fingerprint (see call_checked).
@@ -119,8 +129,25 @@ def frame_files(frames_dir):
     return sorted(Path(frames_dir).glob("frame_*.jpg"))
 
 
-def token_cost(input_tokens, output_tokens):
-    return (input_tokens * PRICE_INPUT_PER_MILLION + output_tokens * PRICE_OUTPUT_PER_MILLION) / 1e6
+def today():
+    """The day a cost is counted on (replaced in the tests)."""
+    return datetime.date.today()
+
+
+def price_on(prices, day=None):
+    """(input, output) in US$ per million tokens: the last of `prices`
+    ((from day, input, output), in order) that has begun on `day`."""
+    day = day or today()
+    current = prices[0]
+    for price in prices:
+        if price[0] <= day:
+            current = price
+    return current[1], current[2]
+
+
+def token_cost(input_tokens, output_tokens, prices=PRICES, day=None):
+    price_input, price_output = price_on(prices, day)
+    return (input_tokens * price_input + output_tokens * price_output) / 1e6
 
 
 def listed_output_tokens(frame_count):
@@ -131,9 +158,9 @@ def listed_output_tokens(frame_count):
     return min(MAX_OUTPUT_TOKENS, 2000 + 1000 * frame_count)
 
 
-def worst_attempt_cost(frame_count, max_output_tokens=MAX_OUTPUT_TOKENS):
+def worst_attempt_cost(frame_count, max_output_tokens=MAX_OUTPUT_TOKENS, day=None):
     """The most one attempt for frame_count frames can cost."""
-    return token_cost(PROMPT_TOKENS + frame_count * INPUT_TOKENS_PER_FRAME, max_output_tokens)
+    return token_cost(PROMPT_TOKENS + frame_count * INPUT_TOKENS_PER_FRAME, max_output_tokens, day=day)
 
 
 def _payload(frames, first, max_output_tokens=MAX_OUTPUT_TOKENS):
@@ -168,11 +195,13 @@ def check_answer(answer, first, count):
     return text
 
 
-def post_generate(url, key, payload):
+def post_generate(url, key, payload, headers=None):
     """One request: (status, parsed JSON or None, short reason). The reason
-    is a message of the program, or Google's own words (External)."""
+    is a message of the program, or the provider's own words (External).
+    `headers` carry the key for another provider; by default, Google's."""
+    headers = headers or {"Content-Type": "application/json", "x-goog-api-key": key}
     request = urllib.request.Request(url, data=json.dumps(payload).encode("utf-8"), method="POST",
-                                     headers={"Content-Type": "application/json", "x-goog-api-key": key})
+                                     headers=headers)
     try:
         with urllib.request.urlopen(request, timeout=TIMEOUT) as response:
             raw = response.read()
@@ -235,7 +264,7 @@ def _kept_answer(path, check):
 
 
 def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, counters, max_cost_usd, revise=None,
-                 keep=None):
+                 keep=None, provider=None, prices=PRICES, check_kept=None):
     """Send one request and return check(answer), within the budget and after
     the allowed retries: an answer check refuses is retried once; a busy,
     rate-limited or unanswered request twice, after the given pauses; any
@@ -250,10 +279,17 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
     request's fingerprint, and the same request made again (the same model,
     exactly the same content) takes it from there, checked again, without
     paying (WI20: what was paid is never thrown away). Any other request,
-    even one differing in a single character, pays."""
+    even one differing in a single character, pays. With `check_kept`, a kept
+    answer is checked with it instead of `check`: an answer accepted once,
+    maybe on the retry, is not refused for what only the first answer is
+    refused for.
+
+    With `provider` (meetingtool.summary.providers), the request goes with
+    that provider's key header and its answer is turned into Gemini's shape
+    before anything reads it; `prices` are that model's."""
     kept = Path(keep) / f"{fingerprint(url, payload)}.json" if keep is not None else None
     if kept is not None:
-        found = _kept_answer(kept, check)
+        found = _kept_answer(kept, check_kept or check)
         if found is not None:
             return found
     spent_before = counters["spent"]
@@ -268,7 +304,10 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
             raise ReadingError("gemini.over_budget", what=what, worst=float(worst), spent=float(counters["spent"]),
                                budget=float(max_cost_usd), refused=refused)
         counters["attempts"] += 1
-        status, answer, reason = post_generate(url, key, payload)
+        status, answer, reason = post_generate(url, key, payload,
+                                               provider.headers(key) if provider is not None else None)
+        if status == 200 and provider is not None:
+            answer = provider.normalize(answer)
         if status is None:
             counters["spent"] += worst  # no answer: it may have been billed in full
             refused = texts.Message("gemini.before.no_answer", reason=reason)
@@ -279,7 +318,7 @@ def call_checked(url, key, payload, check, worst, what, retry_delays, sleep, cou
                 counters["output"] += usage.get("candidatesTokenCount", 0)
                 counters["thinking"] += usage.get("thoughtsTokenCount", 0)
                 cost = token_cost(usage.get("promptTokenCount", 0),
-                                  usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0))
+                                  usage.get("candidatesTokenCount", 0) + usage.get("thoughtsTokenCount", 0), prices)
                 counters["spent"] += cost
                 # No tolerance: `worst` and the cost come from the same formula, so an answer that reached
                 # its estimate exactly is not an overrun, and one token more is.
