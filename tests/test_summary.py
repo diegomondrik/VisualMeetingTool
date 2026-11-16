@@ -34,9 +34,10 @@ ENGLISH = [("Ann Parker", "0:04", "Good morning, we are reviewing the plant's pr
 
 
 def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=False, points=True, empty=None,
-                 emptied=""):
-    """A complete summary; the section of the heading `empty` holds `emptied` (nothing, by default)."""
-    headings = writer.required_headings(language, meeting_type)
+                 emptied="", recording="complete", notes=False):
+    """A complete summary; the section of the heading `empty` holds `emptied` (nothing, by default). It starts
+    with the RECORDING line (WI-2.0.0), unless `recording` is None; with `notes`, it has the notes' section."""
+    headings = writer.required_headings(language, meeting_type, notes=notes)
     if swap:
         headings[1], headings[2] = headings[2], headings[1]
     parts = []
@@ -54,7 +55,13 @@ def summary_text(language="es", meeting_type=None, drop=None, repeat=None, swap=
         parts.append(f"## {heading}\n{body}")
         if heading == repeat:
             parts.append(f"## {heading}\nOtra vez.")
-    return "\n\n".join(parts)
+    text = "\n\n".join(parts)
+    return f"RECORDING: {recording}\n\n{text}" if recording else text
+
+
+def saved(text):
+    """What is written for a delivered summary: the summary without its RECORDING line (WI-2.0.0)."""
+    return writer.take_recording_line(text)[1].strip()
 
 
 def answer(text, finish="STOP"):
@@ -125,7 +132,7 @@ class WritingTest(Workspace):
         for heading in writer.required_headings("es"):
             self.assertIn(f"## {heading}", prompt)
         self.assertEqual(request["body"]["generationConfig"]["maxOutputTokens"], 24576)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text())
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(summary_text()))
         self.assertEqual((result.language, result.attempts, result.model_versions), ("es", 1, ("fake-flash-1",)))
         self.assertAlmostEqual(result.estimated_cost_usd, gemini.token_cost(30000, 5000))
         self.assertEqual(result.meeting_id, "")
@@ -252,7 +259,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
             self.forget_paid()
             stdout, stderr = io.StringIO(), io.StringIO()
             with FakeGemini(script) as fake, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
-                code = main(["--frames", str(self.frames), "--transcript", str(self.transcript)],
+                code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--model", "gemini-flash-latest"],
                             read_key=lambda: KEY, endpoint=fake.endpoint, sleep=self.sleeps.append)
             outputs.append((code, stdout.getvalue() + stderr.getvalue()))
         self.assertEqual([code for code, _ in outputs], [0, 2, 2])
@@ -264,7 +271,7 @@ class LanguageTypeKeyBudgetTest(Workspace):
     def test_with_no_key_saved_nothing_is_sent(self):
         stderr = io.StringIO()
         with FakeGemini() as fake, contextlib.redirect_stderr(stderr):
-            code = main(["--frames", str(self.frames), "--transcript", str(self.transcript)],
+            code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--model", "gemini-flash-latest"],
                         read_key=lambda: None, endpoint=fake.endpoint)
         self.assertEqual(code, 2)
         self.assertIn("key set", stderr.getvalue())
@@ -411,7 +418,7 @@ class NewTypesTest(Workspace):
             stderr = io.StringIO()
             with FakeGemini() as fake, contextlib.redirect_stderr(stderr):
                 code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type",
-                             meeting_type], read_key=lambda: KEY, endpoint=fake.endpoint)
+                             meeting_type, "--model", "gemini-flash-latest"], read_key=lambda: KEY, endpoint=fake.endpoint)
             self.assertEqual(code, 2)
             self.assertIn(words, stderr.getvalue())
             self.assertEqual(fake.requests, [])
@@ -526,7 +533,7 @@ class LanguageControlTest(Workspace):
         with FakeGemini([returning(spanish_body), returning(summary_text("en"))]) as fake:
             result = self.summarise(fake, language="en")
         self.assertEqual(result.attempts, 2)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text("en"))
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(summary_text("en")))
 
     def test_one_section_in_the_other_language_is_refused_and_named(self):
         text = summary_text("es").replace(
@@ -591,7 +598,7 @@ class KeyAndBudgetWithTypesTest(Workspace):
             stdout, stderr = io.StringIO(), io.StringIO()
             with FakeGemini(script) as fake, contextlib.redirect_stdout(stdout), contextlib.redirect_stderr(stderr):
                 code = main(["--frames", str(self.frames), "--transcript", str(self.transcript), "--type",
-                             "requirements", "--language", "en"],
+                             "requirements", "--language", "en", "--model", "gemini-flash-latest"],
                             read_key=lambda: KEY, endpoint=fake.endpoint, sleep=self.sleeps.append)
             outputs.append((code, stdout.getvalue() + stderr.getvalue()))
             self.assertNotIn(KEY, json.dumps(fake.requests[0]["body"]) + fake.requests[0]["path"])
@@ -630,7 +637,7 @@ class NamedFramesTest(Workspace):
         text = self.with_frames("[frame_001_t00-01-22.jpg] y [frame_002_t00-05-00.jpg]")
         with FakeGemini([returning(text)]) as fake:
             self.summarise(fake)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(text))
 
     def test_a_frame_that_is_not_in_the_folder_is_retried_once_then_refused(self):
         # The real case: frame 002's number with frame 001's minute.
@@ -741,7 +748,7 @@ class NamedFramesTest(Workspace):
         text = self.with_frames(NOT_RANGES[1])
         with FakeGemini([returning(self.with_frames(RANGES[0])), returning(text)]) as fake:
             self.assertEqual(self.summarise(fake).attempts, 2)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(text))
 
 
 # Written as the real summaries of INGOL D-178 wrote them, and in the other
@@ -784,7 +791,7 @@ class NoSpeakerTest(Workspace):
                     result = self.summarise(fake)
                 prompt = prompt_of(fake.requests[0])
                 self.assertEqual(result.language, "es")
-                self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text())
+                self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(summary_text()))
                 self.assertIn("[00:00:02] Buen día a todos, empezamos con el costo de proceso.\n[00:00:41] Primero el "
                               "total.\nLuego la columna de kilos, que se cierra a las 10:30.\n[00:12:09] Mirá el "
                               "tablero.\n[01:02:03] Queda acordado enviar el detalle.\n[02:11:00] Hasta la próxima.",
@@ -857,7 +864,7 @@ class FrameLabelsTest(Workspace):
         with FakeGemini([returning(self.naming(wrong)), returning(good)]) as fake:
             result = self.summarise(fake)
         self.assertEqual(result.attempts, 2)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), good)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(good))
         first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
         self.assertNotIn(wrong, first)
         self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED", second)
@@ -949,7 +956,7 @@ class EmptySectionTest(Workspace):
 
     def test_the_answer_of_the_review_with_the_headings_and_nothing_else_is_refused(self):
         headings = writer.required_headings("es")
-        text = "\n\n".join(f"## {heading}" for heading in headings[:-1])
+        text = "RECORDING: complete\n\n" + "\n\n".join(f"## {heading}" for heading in headings[:-1])
         text += f"\n\n## {headings[-1]}\n- Se habló de la planta.\n"
         message = self.refusal(text, headings)
         self.assertEqual(message.params["headings"], ", ".join(headings[:-1]))
@@ -983,7 +990,7 @@ class EmptySectionTest(Workspace):
         with FakeGemini([returning(text)]) as fake:
             result = self.summarise(fake)
         self.assertEqual(result.attempts, 1)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), text)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(text))
 
     def test_a_section_with_subsections_has_the_content_under_them(self):
         headings = writer.required_headings("es")
@@ -1026,7 +1033,7 @@ class EmptySectionTest(Workspace):
         with FakeGemini([returning(summary_text(empty=headings[2])), returning(summary_text())]) as fake:
             result = self.summarise(fake)
         self.assertEqual(result.attempts, 2)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), summary_text())
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(summary_text()))
         first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
         self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
         self.assertIn("YOUR PREVIOUS ANSWER WAS REFUSED: these sections had nothing under their heading: "
@@ -1181,10 +1188,10 @@ class FrameListTest(Workspace):
             result = self.summarise(fake)
         self.assertEqual(result.attempts, 1)
         self.assertEqual(len(fake.requests), 1)
-        saved = self.output().read_text(encoding="utf-8").strip()
-        self.assertEqual(saved, self.screen(f"- **Outlier Treatment Mechanics** [{self.FIRST}], [{self.SECOND}]: "
-                                            "cómo se trata un valor atípico en la planilla."))
-        self.assertEqual(writer.FRAME_REF.findall(saved), [self.FIRST, self.SECOND])
+        written = self.output().read_text(encoding="utf-8").strip()
+        self.assertEqual(written, saved(self.screen(f"- **Outlier Treatment Mechanics** [{self.FIRST}], "
+                                                    f"[{self.SECOND}]: cómo se trata un valor atípico en la planilla.")))
+        self.assertEqual(writer.FRAME_REF.findall(written), [self.FIRST, self.SECOND])
 
     def test_three_names_are_three_pairs_in_the_same_order(self):
         text = self.checked(f"[{self.THIRD}, {self.FIRST}, {self.SECOND}]")
@@ -1313,7 +1320,7 @@ class FrameListTest(Workspace):
         with FakeGemini([returning(refused), returning(good)]) as fake:
             result = self.summarise(fake)
         self.assertEqual(result.attempts, 2)
-        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), good)
+        self.assertEqual(self.output().read_text(encoding="utf-8").strip(), saved(good))
         first, second = prompt_of(fake.requests[0]), prompt_of(fake.requests[1])
         self.assertNotIn("YOUR PREVIOUS ANSWER WAS REFUSED", first)
         # The retry is the same request with the note added, before the material.

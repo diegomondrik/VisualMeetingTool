@@ -40,7 +40,10 @@ table.list th { font-size: 0.85rem; color: var(--muted); font-weight: 600; }
 .empty { color: var(--muted); font-style: italic; }
 form label { display: block; margin: 10px 0; }
 form label.inline { display: inline-block; margin-right: 18px; }
-input, select { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+input, select, textarea { font: inherit; padding: 6px 8px; border: 1px solid var(--line); border-radius: 6px; }
+textarea { display: block; width: 100%; box-sizing: border-box; margin: 4px 0 8px; resize: vertical; }
+.understood .warning { color: #a3231a; }
+footer .version { white-space: nowrap; }
 input[type=text], input:not([type]), input[type=password], select { min-width: 320px; }
 input[type=file] { display: block; margin-top: 4px; border: 0; padding: 0; }
 fieldset { border: 1px solid var(--line); border-radius: 6px; margin: 10px 0; }

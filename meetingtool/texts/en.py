@@ -25,6 +25,7 @@ TEXTS = {
     "projects.missing": "project {project} does not exist in {folder}",
     "projects.needs_name": "a project needs a name",
     "projects.exists": "project {project} already exists in {folder}",
+    "projects.context_too_long": "the context holds {length} characters, more than the {limit} that are kept",
     "projects.needs_title": "a meeting needs a title",
     "projects.unreadable": "the record {file} cannot be read[[: {detail}]]; nothing was changed: fix it or "
                            "move it out of the project",
@@ -33,12 +34,12 @@ TEXTS = {
     "meeting.bad_date": "meeting date {date!r} is not a valid YYYY-MM-DD date",
 
     # ── The Gemini key and the reading of the frames (meetingtool.reading) ──
-    "credentials.not_windows": "the Gemini key is kept in the Windows Credential Manager; this system is not Windows",
+    "credentials.not_windows": "the keys are kept in the Windows Credential Manager; this system is not Windows",
     "credentials.unreadable": "the Windows Credential Manager could not be read (error {code})",
     "credentials.empty": "the key is empty; nothing was saved",
     "credentials.refused": "the Windows Credential Manager refused to save the key (error {code})",
     "credentials.cannot_delete": "the Windows Credential Manager could not delete the key (error {code})",
-    "gemini.no_text": "Gemini's answer has no text ({kind})",
+    "gemini.no_text": "the AI service's answer has no text ({kind})",
     "gemini.unfinished": "Gemini's answer did not finish normally (finishReason {finish})",
     "gemini.blocks": "Gemini's answer does not hold one block per frame {first}-{last}: missing {missing}, repeated "
                      "{repeated}, not sent {extra}",
@@ -55,10 +56,10 @@ TEXTS = {
     "gemini.estimate_short.end": " at the end of the run, before writing anything",
     "gemini.before.no_answer": " (the attempt before got no answer[[: {reason}]])",
     "gemini.before.refused": " (the answer before was refused: {error})",
-    "gemini.refused": "Gemini refused the request (HTTP {status})[[: {reason}]]",
-    "gemini.no_answer": "Gemini did not answer {what} after {retries} retries ({label}[[: {reason}]]); nothing was "
+    "gemini.refused": "the AI service refused the request (HTTP {status})[[: {reason}]]",
+    "gemini.no_answer": "the AI service did not answer {what} after {retries} retries ({label}[[: {reason}]]); nothing was "
                         "written",
-    "gemini.bad_key": "the saved key has characters a Gemini key never has; save it again",
+    "gemini.bad_key": "the saved key has characters a key never has; save it again",
     "gemini.inside_repository": "folder {folder} is inside the git work tree {work_tree}; frames and what they show "
                                 "must live outside any repository",
     "gemini.what.frames": "frames {first}-{last}",
@@ -78,7 +79,7 @@ TEXTS = {
     "summary.frames_missing": "the summary names frame(s) that are not in the frames folder: {names}",
     "summary.frame_range": "the summary names a range of frames instead of each frame on its own: {text}",
     "summary.frame_unbracketed": "the summary mentions a frame without its file name in square brackets: {text}",
-    "summary.unfinished": "Gemini's summary did not finish normally (finishReason {finish})",
+    "summary.unfinished": "the summary did not finish normally (finishReason {finish})",
     "summary.section_count": "the summary has the section '{heading}' {count} times, not once",
     "summary.order": "the summary's sections are not in the required order",
     "summary.no_key_points": "the summary's '{heading}' section has no bullet point",
@@ -91,6 +92,21 @@ TEXTS = {
     "summary.needs_title_and_date": "a meeting added to a project needs --title and --date",
     "summary.project": "project {project}[[: {error}]]",
     "summary.not_added": "{output} was written, but the meeting could not be added to project {project}[[: {error}]]",
+    "summary.recording_line": "the summary did not start with one RECORDING line before its first heading (it "
+                              "started: {found})",
+    "summary.unknown_model": "there is no model {model!r} for the summary; the ones there are: {options}",
+    "summary.selling": "the summary praises our own product in its own words, outside a quote: {text}",
+    "summary.demo_listed": "the summary lists what demo screens showed that nobody commented on: {text}",
+    "summary.notes.someone": "a participant",
+    "summary.notes_unreadable": "the notes could not be read[[: {detail}]]",
+    "summary.notes_empty": "the notes hold no text",
+    "summary.notes_too_long": "the notes hold {length} characters, more than the {limit} that can be sent",
+    "summary.notice.starts": "The recording starts with the meeting already under way: what was said before is not in "
+                             "this summary.",
+    "summary.notice.ends": "The recording ends before the meeting does: what was said after is not in this summary.",
+    "summary.notice.both": "The recording starts with the meeting already under way and ends before it does: what was "
+                           "said before and after is not in this summary.",
+    "summary.notice.notes": "Except what the notes bring.",
 
     # ── Questions and answers (meetingtool.summary.qa) ──────────────────────
     "qa.what.register": "register",
@@ -223,8 +239,8 @@ TEXTS = {
     # ── The application (meetingtool.app): its screens ──────────────────────
     "app.nav.projects": "Projects",
     "app.nav.settings": "Settings",
-    "app.footer": "This page is served by your own machine: nothing you see leaves it, except what is sent to Gemini "
-                  "when processing.",
+    "app.footer": "This page is served by your own machine: nothing you see leaves it, except what is sent when "
+                  "processing to Gemini and to the provider of the model that writes the summary.",
     "app.detail": "Detail: {detail}",
     "app.day": "{month}/{day}/{year}",
     "app.error.cannot_show": "Cannot be shown",
@@ -255,6 +271,9 @@ TEXTS = {
     "app.project.no_meetings": "There are no meetings yet.",
     "app.project.knowledge": "What the project already knows",
     "app.project.knowledge_hint": "What each meeting leaves and the next one reads.",
+    "app.project.context": "Project context",
+    "app.project.context_hint": "What every summary of this project reads first. Write who we are and who the client is, what we want to sell or do, and what must be known to read the meetings right (for example, that our demos use made-up data).",
+    "app.project.context_save": "Save the context",
     "app.kept.title": "Kept from runs that failed",
     "app.kept.hint": "What was paid in a run that failed stays here, so that processing the same meeting "
                      "again (the same transcript and format) does not pay it again. Discarding it cannot be "
@@ -304,6 +323,10 @@ TEXTS = {
     "app.new.transcript_hint": "(the Teams .docx, or a .txt with [HH:MM:SS] lines)",
     "app.new.recording": "Video",
     "app.new.recording_hint": "(optional: without a video only questions and answers can be made)",
+    "app.new.optional": "Optional",
+    "app.new.notes": "A participant's notes",
+    "app.new.notes_hint": "(a .docx or .txt: the summary uses them as a second source and shows where they disagree with the recording)",
+    "app.new.notes_by": "Who took them",
     "app.new.type": "Meeting type",
     "app.new.no_type": "No type",
     "app.new.language": "Language of the result",
@@ -333,15 +356,29 @@ TEXTS = {
     "app.company.no_logo": "No logo.",
     "app.company.use_logo": "Use this logo",
     "app.company.remove_logo": "Remove the logo",
-    "app.key.title": "Gemini key",
+    "app.key.title": "Keys",
+    "app.key.intro": "Each provider has its own key, kept in the Windows Credential Manager. Gemini's is always needed "
+                     "(it reads the frames); OpenAI's or Anthropic's only if one of their models writes the summary.",
+    "app.key.of": "{provider} key",
     "app.key.saved": "A key is saved ({length} characters). It is never shown.",
-    "app.key.none": "No key is saved: without one nothing can be processed.",
-    "app.key.hint": "It must belong to a Google Cloud project with billing enabled: on the free tier Google may use "
-                    "what is sent to it, and meetings are client data. It is kept in the Windows Credential Manager.",
+    "app.key.none": "No key is saved.",
+    "app.key.hint.gemini": "It must belong to a Google Cloud project with billing enabled: on the free tier Google may "
+                           "use what is sent to it, and meetings are client data.",
+    "app.key.hint.openai": "An OpenAI API key (platform.openai.com), paid by use: a ChatGPT subscription does not do. "
+                           "According to OpenAI, what reaches its API is not used for training.",
+    "app.key.hint.anthropic": "An Anthropic API key (platform.claude.com), paid by use: a Claude subscription does not "
+                              "do.",
     "app.key.new": "New key",
     "app.key.save": "Save the key",
-    "app.key.delete_confirm": "Delete the saved key?",
+    "app.key.delete_confirm_of": "Delete the saved {provider} key?",
     "app.key.delete": "Delete the key",
+    "app.model.title": "Model that writes the summary",
+    "app.model.recommended": "recommended",
+    "app.model.untested": "not tested in the application",
+    "app.model.cost": "~{cost} the summary",
+    "app.model.save": "Save the model",
+    "app.model.hint": "It is what the summary costs for a meeting like the test one, in one attempt. The frames are "
+                      "always read by Gemini, and the question register is written by Gemini too.",
     "app.template.title": "The company's Word template",
     "app.template.unusable": "The saved template can no longer be used: {problem}",
     "app.template.unusable_hint": "Upload another one, or stop using it so that reports come out with the neutral "
@@ -370,6 +407,9 @@ TEXTS = {
     "app.template.dropped_marker": "What it has after {{report}} is a model and does not go into the reports: "
                                    "{count} paragraphs with text.",
     "app.template.all_cover": "Everything written on its page comes out as the cover of each report.",
+    "app.template.after_break_one": "Watch out: after the page break it has 1 paragraph with text, and it has neither {{report}} nor a table of contents: that text will be copied into every report. Put {{report}} alone on a line where the report starts.",
+    "app.template.after_break": "Watch out: after the page break it has {count} paragraphs with text, and it has neither {{report}} nor a table of contents: that text will be copied into every report. Put {{report}} alone on a line where the report starts.",
+    "app.version": "VisualMeetingTool {version}",
     "app.template.hint": "A .docx or .dotx (never one with macros) with the company's logo, header, colours and "
                          "fonts. What is written on its page is the cover of each report; where it writes {{client}}, "
                          "{{project}}, {{meeting}}, {{date}} or {{type}}, in braces, that data of the meeting goes. If "
@@ -410,6 +450,10 @@ TEXTS = {
     "app.request.no_format": "there is no format {value!r}",
     "app.request.no_transcript": "the transcript is missing (a Teams .docx or a .txt with [HH:MM:SS] lines)",
     "app.request.video_gone": "the uploaded video is no longer there: upload it again",
+    "app.request.notes_gone": "the uploaded notes are no longer there: upload them again",
+    "app.request.notes_only_summary": "notes go with the summary: the question register does not use them",
+    "app.request.notes_by_too_long": "who took the notes is longer than {limit} characters",
+    "app.request.context_not_text": "the project and the context are text",
     "app.request.qa_needs_speakers": "the register of questions and answers needs who asked and who answered, and "
                                      "this transcript names no speaker (each time stands alone on its line): "
                                      "choose the summary format",
@@ -418,6 +462,12 @@ TEXTS = {
     "app.request.bad_ceiling": "the spending ceiling must be a number of dollars greater than 0 and up to 5",
     "app.request.project_not_text": "the name and the client are text",
     "app.run.no_key": "no Gemini key is saved: save it in Settings",
+    "app.run.no_key_for": "a {provider} model writes the summary and no {provider} key is saved: save it in Settings "
+                          "or choose another model",
+    "app.request.ceiling_too_low": "with {model} the ceiling must be at least US${needed:.2f}: two summary attempts at "
+                                   "the worst case, plus reading the frames",
+    "app.request.ceiling_out_of_reach": "the chosen model needs a ceiling of US${needed:.2f}, more than the top of "
+                                        "US${top:.2f}: choose another model in Settings",
     "app.run.busy": "a meeting is already being processed: wait until it ends",
     "app.run.folder_taken": "there is already a folder {folder} in the project",
     "app.run.closed": "MeetingTool was closed while the meeting was being processed: it was not added to the project",
@@ -425,6 +475,8 @@ TEXTS = {
     "app.open.windows_only": "opening the Word report from here only works on Windows: download it",
     "app.data_folder_in_use": "MeetingTool is already open on {folder}: use that window",
     "app.settings.unknown_language": "there is no language {value!r} for the application",
+    "app.settings.unknown_model": "there is no model {value!r} for the summary",
+    "app.key.unknown_provider": "there is no provider {value!r}",
     "app.company.name_not_text": "the company's name is text",
     "app.company.name_too_long": "the company's name can have up to {limit} characters",
     "app.company.name_unprintable": "the company's name has characters that cannot be shown",
@@ -466,6 +518,7 @@ TEXTS = {
     "js.missing_transcript": "The transcript is missing.",
     "js.summary_needs_video": "The summary needs the video. Without a video, choose questions and answers.",
     "js.uploading_transcript": "Uploading the transcript…",
+    "js.uploading_notes": "Uploading the notes…",
     "js.uploading_video": "Uploading the video… {percent} %",
     "js.starting": "Starting…",
     "js.col.stage": "Stage",
@@ -485,7 +538,7 @@ TEXTS = {
     "js.retry": "Try again",
     "js.connection_job": "The connection with MeetingTool was lost: check that its window is still open.",
     "js.running": "«{title}» is being processed: see the progress",
-    "js.kept": "What Gemini already answered for this meeting was kept ({paid} paid so far): processing it "
+    "js.kept": "What was already answered for this meeting was kept ({paid} paid so far): processing it "
                "again with the same transcript does not pay that again. Until then, it is listed in the project.",
     "js.discard": "Discard what was kept",
     "js.discard_confirm": "Discard what was kept? Processing this meeting again would pay it again.",

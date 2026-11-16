@@ -82,6 +82,22 @@ def set_language(data_dir, code):
     _change(data_dir, lambda settings: settings.update(language=code))
 
 
+def summary_model(data_dir):
+    """The model that writes the summary (WI-2.0.0, amendment 1): the one
+    chosen in Settings, or providers.DEFAULT_MODEL if none was chosen or the
+    record names a model that is not on the list."""
+    from meetingtool.summary import providers
+    chosen = _read(data_dir).get("summary_model")
+    return chosen if isinstance(chosen, str) and chosen in providers.MODELS else providers.DEFAULT_MODEL
+
+
+def set_summary_model(data_dir, model_id):
+    from meetingtool.summary import providers
+    if not isinstance(model_id, str) or model_id not in providers.MODELS:
+        raise SettingsError("app.settings.unknown_model", value=str(model_id)[:80])
+    _change(data_dir, lambda settings: settings.update(summary_model=model_id))
+
+
 def logo_path(data_dir):
     for name in LOGO_NAMES.values():
         path = Path(data_dir) / name

@@ -127,7 +127,13 @@ class TrazabilidadDelRegistro(unittest.TestCase):
 
     En verde si: written_dates guarda el año cuando está escrito (y uno que la
     transcripción y la fecha de la reunión no dicen es inventado), y las
-    cifras del conocimiento y de las respuestas se buscan en la transcripción."""
+    cifras del conocimiento y de las respuestas se buscan en la transcripción.
+
+    Desde 1.0.0 (decisión del owner, WI100-AC02) una cifra que nadie dijo no
+    rechaza la reunión: se escribe marcada [VERIFICAR: «…»] para corregirla a
+    mano. WI-2.0.0 (2026-11-13, a pedido del owner) pone el caso al día: la
+    cifra inventada es una falla si queda escrita sin su marca, y no si el
+    registro se entrega con ella marcada. El año inventado se sigue rechazando."""
 
     def test_d1_el_registro_rechaza_un_año_y_una_cifra_que_nadie_dijo(self):
         verbal = test_qa.verbal()
@@ -136,7 +142,8 @@ class TrazabilidadDelRegistro(unittest.TestCase):
             {"id": "año-inventado", "fuente": "", "esperado": "rechazar",
              "motivo": "la transcripción dice 'el 25 de septiembre' y la reunión es de 2026",
              "respuesta": test_qa.changed(verbal, number=2, deadline="el 25 de septiembre de 2027")},
-            {"id": "cifra-inventada", "fuente": "", "esperado": "rechazar", "motivo": "nadie dijo 48.000",
+            {"id": "cifra-inventada", "fuente": "", "esperado": "aceptar",
+             "motivo": "nadie dijo 48.000: se entrega marcada [VERIFICAR], nunca como cifra dicha",
              "respuesta": test_qa.changed(verbal, knowledge=dict(verbal["knowledge"], figures=[
                  "Se procesan 48.000 kilos por mes en la planta."]))},
         ]
@@ -147,10 +154,16 @@ class TrazabilidadDelRegistro(unittest.TestCase):
                 write_teams_docx(tmp / "t.docx", test_qa.SPANISH)
                 with FakeGemini([test_qa.json_answer(respuesta)] * 2) as fake:
                     try:
-                        qa.write_register(tmp, tmp / "t.docx", KEY, date="2026-09-25", language="es",
-                                          endpoint=fake.endpoint, sleep=lambda s: None, retry_delays=())
+                        result = qa.write_register(tmp, tmp / "t.docx", KEY, date="2026-09-25", language="es",
+                                                   endpoint=fake.endpoint, sleep=lambda s: None, retry_delays=())
                     except qa.QAError as error:
                         return [str(error)]
+                escrito = result.output.read_text(encoding="utf-8")
+            sin_marca = qa.VERIFY.sub("", escrito)
+            if "48.000" in sin_marca or "48000" in sin_marca:
+                return ["la cifra que nadie dijo quedó escrita como dicha, sin [VERIFICAR]"]
+            if caso["id"] == "cifra-inventada" and not qa.VERIFY.search(escrito):
+                return ["la cifra que nadie dijo no quedó marcada [VERIFICAR]"]
             return []
 
         resultado.afirmar_corpus(resultado.correr_corpus(validar, corpus))

@@ -40,6 +40,7 @@ from meetingtool import texts
 from meetingtool.app import company, jobs, library, pages
 from meetingtool.projects import store
 from meetingtool.reading import gemini
+from meetingtool.summary import providers
 
 
 # Characters Windows does not allow in a file name, and the names it reserves.
@@ -73,9 +74,9 @@ JSON_LIMIT = 1_000_000
 DOCX_TYPE = "application/vnd.openxmlformats-officedocument.wordprocessingml.document"
 EXAMPLE_NAME = pages.EXAMPLE_NAME
 UPLOAD_LIMITS = {"transcript": 50_000_000, "recording": 16_000_000_000, "template": 50_000_000,
-                 "logo": company.LOGO_LIMIT}
+                 "logo": company.LOGO_LIMIT, "notes": 20_000_000}
 UPLOAD_SUFFIXES = {"transcript": jobs.TRANSCRIPT_SUFFIXES, "recording": jobs.RECORDING_SUFFIXES,
-                   "template": (".docx", ".dotx"), "logo": company.LOGO_SUFFIXES}
+                   "template": (".docx", ".dotx"), "logo": company.LOGO_SUFFIXES, "notes": jobs.NOTES_SUFFIXES}
 # Uploads of the settings, each to its own address; a meeting's go to /api/upload.
 SETTING_UPLOADS = {"/api/template": "template", "/api/logo": "logo"}
 CHUNK = 1 << 20
@@ -301,13 +302,13 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 raise library.NotFound(path)
             return self._file(logo)
         if head == "settings" and len(parts) == 1:
-            saved = app.read_key()
+            lengths = {name: len(found) if found else 0 for name, found in app.saved_keys().items()}
             try:
                 template, problem = app.template_info(data_dir), ""
             except app.report_error as error:
                 template, problem = None, error.text(view.language)
-            return self._html(pages.settings_page(view, len(saved) if saved else 0, company.company(data_dir),
-                                                  template, problem))
+            return self._html(pages.settings_page(view, lengths, company.company(data_dir), template, problem,
+                                                  company.summary_model(data_dir)))
         if path == "/" + EXAMPLE_NAME:
             name = view.say("app.template.example_file")
             return self._send(200, app.example_template(), DOCX_TYPE,
@@ -328,7 +329,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                                                      jobs.kept_runs(data_dir, project_id)))
             if parts[2:] == ["new"]:
                 return self._html(pages.new_meeting_page(view, project, pages.meeting_types(), pages.languages(),
-                                                         jobs.DEFAULT_MAX_COST_USD))
+                                                         jobs.default_ceiling(data_dir)))
             if parts[2] == "m" and len(parts) == 4:
                 entry = library.meeting(data_dir, project_id, parts[3])
                 record = entry["record"]
@@ -360,15 +361,31 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 raise jobs.JobError("app.request.project_not_text")
             record = store.create_project(data_dir, name, client)
             return self._json({"id": record["id"]})
+        if path == "/api/project/context":
+            project_id, context = data.get("project", ""), data.get("context", "")
+            if not isinstance(project_id, str) or not isinstance(context, str):
+                raise jobs.JobError("app.request.context_not_text")
+            library.project(data_dir, project_id)  # NotFound for a project that does not exist
+            store.set_context(data_dir, project_id, context)
+            return self._json({"saved": True})
         if path == "/api/key":
+            provider = app.key_provider(data.get("provider", "gemini"))
             key = data.get("key", "")
             if not isinstance(key, str) or not key.strip():
                 raise jobs.JobError("app.key.paste")
             gemini.check_key(key.strip())
-            app.save_key(key.strip())
+            if provider is providers.GEMINI:
+                app.save_key(key.strip())
+            else:
+                app.save_key(key.strip(), provider.key_name)
             return self._json({"saved": True})
         if path == "/api/key/delete":
-            return self._json({"deleted": bool(app.delete_key())})
+            provider = app.key_provider(data.get("provider", "gemini"))
+            deleted = app.delete_key() if provider is providers.GEMINI else app.delete_key(provider.key_name)
+            return self._json({"deleted": bool(deleted)})
+        if path == "/api/summary-model":
+            company.set_summary_model(data_dir, data.get("model"))
+            return self._json({"model": data["model"]})
         if path == "/api/template/remove":
             return self._json({"removed": app.remove_template(data_dir)})
         if path == "/api/company":
@@ -386,7 +403,7 @@ class Handler(http.server.BaseHTTPRequestHandler):
                 request = jobs.check_request(data, data_dir, app.uploads, pages.meeting_types(), pages.languages())
                 job = app.runner.start(request)
             except jobs.JobError:
-                app.uploads.discard([data.get("transcript"), data.get("recording")])
+                app.uploads.discard([data.get("transcript"), data.get("recording"), data.get("notes")])
                 raise
             return self._json({"job": job.id})
         if path == "/api/open":
@@ -509,7 +526,7 @@ class App:
 
     def __init__(self, data_dir, *, port=0, token=None, read_key=None, save_key=None, delete_key=None,
                  endpoint=gemini.ENDPOINT, sleep=time.sleep, retry_delays=None, opener=None,
-                 default_language=texts.DEFAULT_LANGUAGE):
+                 default_language=texts.DEFAULT_LANGUAGE, endpoints=None):
         from meetingtool.reading import credentials
         from meetingtool.report import document
 
@@ -526,13 +543,25 @@ class App:
         self.opener = opener or open_with_the_system
         self.uploads = jobs.Uploads(self.data_dir)
         self.runner = jobs.Runner(self.data_dir, self.read_key, endpoint=endpoint, sleep=sleep,
-                                  retry_delays=retry_delays)
+                                  retry_delays=retry_delays, endpoints=endpoints)
         self.httpd = Server((HOST, port), Handler)
         self.httpd.app = self
         self.port = self.httpd.server_address[1]
         self.hosts = {f"{HOST}:{self.port}", f"localhost:{self.port}"}
         self.origins = {f"http://{host}" for host in self.hosts}
         self.thread = None
+
+    def saved_keys(self):
+        """Each provider's saved key (or None), by provider name: Gemini's
+        through the credential functions' default, the others by name."""
+        return {name: self.read_key() if provider is providers.GEMINI else self.read_key(provider.key_name)
+                for name, provider in providers.PROVIDERS.items()}
+
+    @staticmethod
+    def key_provider(name):
+        if not isinstance(name, str) or name not in providers.PROVIDERS:
+            raise jobs.JobError("app.key.unknown_provider", value=str(name)[:40])
+        return providers.PROVIDERS[name]
 
     @property
     def url(self):

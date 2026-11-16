@@ -2,6 +2,7 @@
 
     python -m meetingtool.summary --frames DIR --transcript FILE
         [--project ID --title TITLE --date YYYY-MM-DD] [--type TYPE] [--language es|en] [--format summary|qa]
+        [--notes FILE [--notes-by NAME]] [--model MODEL]
 
 TYPE is one of presale, negotiation, requirements, kickoff, status, technical
 or training (INGOL D-178).
@@ -10,6 +11,16 @@ The summary needs the frames read first (python -m meetingtool.reading read).
 The question-and-answer register (--format qa) does not: it reads the
 transcript first, and then only the frames of the answers that relied on the
 screen; with no video, DIR is any folder outside a repository for the result.
+
+--notes gives the summary a participant's notes (.docx or .txt) as a second
+source, and --notes-by who took them (WI-2.0.0); the register takes none.
+
+--model chooses who writes the summary (WI-2.0.0, amendment 1): gpt-6.1-sol
+(the default, OpenAI), claude-opus-5-5 or claude-sonnet-5-5 (Anthropic), or
+gemini-flash-latest (Google). Each provider's key is its own, in the Windows
+Credential Manager: Gemini's is saved with python -m meetingtool.reading key
+set or in the application's Settings, the others in Settings.
+The frames and the register are read by Gemini, whatever the model.
 """
 
 import argparse
@@ -17,10 +28,10 @@ import sys
 import time
 
 from meetingtool.reading import credentials, gemini
-from meetingtool.summary import qa, writer
+from meetingtool.summary import providers, qa, writer
 
 
-def main(argv=None, *, read_key=None, endpoint=gemini.ENDPOINT, sleep=time.sleep):
+def main(argv=None, *, read_key=None, endpoint=gemini.ENDPOINT, endpoints=None, sleep=time.sleep):
     for stream in (sys.stdout, sys.stderr):
         if hasattr(stream, "reconfigure"):
             stream.reconfigure(encoding="utf-8")
@@ -44,22 +55,47 @@ def main(argv=None, *, read_key=None, endpoint=gemini.ENDPOINT, sleep=time.sleep
                         help="summary (default), or qa: every question of the meeting with its complete answer, "
                              "reading only the frames of the answers that relied on the screen")
     parser.add_argument("--video", help="the recording, stored with the meeting in the project")
+    parser.add_argument("--notes", help="a participant's notes (.docx or .txt), a second source for the summary")
+    parser.add_argument("--notes-by", default="", help="who took the notes (default: a participant)")
     parser.add_argument("--data-dir", help="the projects' data folder (default: as for meetingtool.projects)")
-    parser.add_argument("--max-cost", type=float, default=writer.MAX_COST_USD,
-                        help=f"estimated spending ceiling in US$ (default {writer.MAX_COST_USD:.2f}), from list "
-                             "prices; a request that could go over it is not sent, and a run in which an answer "
-                             "used more tokens than estimated stops")
+    parser.add_argument("--model", default=providers.DEFAULT_MODEL,
+                        help=f"who writes the summary: {', '.join(providers.MODELS)} (default "
+                             f"{providers.DEFAULT_MODEL}); the register is always written by Gemini")
+    parser.add_argument("--max-cost", type=float, default=None,
+                        help="estimated spending ceiling in US$ (default: two attempts at the model's worst case, "
+                             f"never under {writer.MAX_COST_USD:.2f}), from list prices; a request that could go "
+                             "over it is not sent, and a run in which an answer used more tokens than estimated "
+                             "stops")
     args = parser.parse_args(argv)
-    write = qa.write_register if args.format == "qa" else writer.write_summary
     try:
-        saved = read_key()
+        spec = providers.model(args.model)
+    except gemini.ReadingError as error:
+        print(f"error: {error}", file=sys.stderr)
+        return 2
+    summary = args.format != "qa"
+    provider = spec.provider if summary else providers.GEMINI
+    if args.max_cost is None:
+        args.max_cost = (providers.summary_ceiling(args.model, writer.MAX_OUTPUT_TOKENS) if summary
+                         else writer.MAX_COST_USD)
+    write = qa.write_register if args.format == "qa" else writer.write_summary
+    if args.notes and args.format == "qa":
+        print("error: --notes goes with the summary; the register (--format qa) takes no notes", file=sys.stderr)
+        return 2
+    notes = {"notes": args.notes, "notes_author": args.notes_by} if args.notes else {}
+    if summary:  # the model and its own address (the tests' fake servers, through endpoints)
+        notes["model"] = args.model
+        endpoint = endpoint if provider is providers.GEMINI else (endpoints or {}).get(provider.name)
+    try:
+        # Gemini's key is the credential functions' default (as before); another provider's goes by its name.
+        saved = read_key() if provider is providers.GEMINI else read_key(provider.key_name)
         if not saved:
-            print("error: no Gemini key is saved. Save yours with: python -m meetingtool.reading key set",
-                  file=sys.stderr)
+            where = ("python -m meetingtool.reading key set" if provider is providers.GEMINI
+                     else "the application's Settings")
+            print(f"error: no {provider.label} key is saved. Save yours with: {where}", file=sys.stderr)
             return 2
         result = write(args.frames, args.transcript, saved, data_dir=args.data_dir, project=args.project,
                        title=args.title, date=args.date, meeting_type=args.meeting_type, language=args.language,
-                       recording=args.video, endpoint=endpoint, max_cost_usd=args.max_cost, sleep=sleep)
+                       recording=args.video, endpoint=endpoint, max_cost_usd=args.max_cost, sleep=sleep, **notes)
     except (gemini.ReadingError, credentials.CredentialError) as error:
         print(f"error: {error}", file=sys.stderr)
         return 2

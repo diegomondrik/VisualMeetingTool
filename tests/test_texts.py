@@ -29,7 +29,7 @@ from meetingtool.app import company, jobs, library
 from meetingtool.projects import store
 from meetingtool.reading import gemini
 from meetingtool.report import document
-from meetingtool.summary import writer
+from meetingtool.summary import providers, writer
 from tests import test_qa, test_report, test_summary
 from tests.test_app import Processing, Running
 from tests.test_reading import answer_for
@@ -153,6 +153,7 @@ KNOWN_SAME = {
     "app.company.logo": "a logo is a logo",
     "app.new.recording": "video, in both",
     "app.console.error": "the console's prefix, as the commands write it",
+    "app.version": "the product's name and its version number",  # WI-2.0.0
 }
 
 
@@ -195,6 +196,7 @@ SCRIPT_TECHNICAL = {
     "form[data-api]", "project", "/p/", "button[data-open]", "click", "/api/open", "?name=", "template",
     "/api/template", "logo", "/api/logo", "process", "button[type=submit]", "summary",
     "/api/upload?kind=transcript&name=", "/api/upload?kind=recording&name=", "/api/process", "/job/", "td", "h2",
+    "/api/upload?kind=notes&name=",  # WI-2.0.0: a participant's notes
     "table", "list", "tr", "th", "stage ", "pending", "skipped", "", " s", "done", "p", "a", "button", "/m/",
     "failed", "hint detail", "/new", "job", "/api/jobs/", "running", "/api/running", "DOMContentLoaded", " — ",
     "hint kept", "span", "message", "role", "status", "/api/kept/discard",  # WI20: what a failed run kept
@@ -407,7 +409,10 @@ def visible(page):
 PROJECT, CLIENT, COMPANY = "Zeta 9", "Omega", "Nexo"
 PROCESSED, TERMINAL, LOOSE, TEMPLATE = "Kappa 3", "Sigma 2", "tanda-07", "G7.dotx"
 DATA = (PROJECT, CLIENT, COMPANY, PROCESSED, TERMINAL, LOOSE, TEMPLATE, "zeta-9", "MeetingTool", "US$", "HTTP",
-        "Gemini", "Word", document.TEMPLATE_NAME)
+        "Gemini", "Word", document.TEMPLATE_NAME,
+        # The models and providers of the summary (amendment 1): names, not words of either language.
+        *(model.label for model in providers.MODELS.values()),
+        *(provider.label for provider in providers.PROVIDERS.values()))
 ALLOWED_WORDS = {"s", PSEUDO}  # the seconds' unit, next to a number; the made-up language's code
 NAMES = re.compile(r"\{[a-z_]+\}")  # the data an entry of the page's script names, which the script puts in
 
@@ -605,8 +610,8 @@ class StageLanguageTest(Processing):
         def run():
             self.fake.script[:] = [400]
             return self.process()
-        found = self.each_language(run, "reading", {"es": "Gemini rechazó el pedido (HTTP 400)",
-                                                    "en": "Gemini refused the request (HTTP 400)"})
+        found = self.each_language(run, "reading", {"es": "el servicio de IA rechazó el pedido (HTTP 400)",
+                                                    "en": "the AI service refused the request (HTTP 400)"})
         for job in found.values():
             self.assertEqual(job["detail"], ["fake error 400"])
             self.assertNotIn("fake error", job["error"])
@@ -674,10 +679,10 @@ class OutsideTest(Processing):
 
     def test_google_s_reason_is_a_detail_in_the_application_and_inline_in_the_terminal(self):
         error = gemini.ReadingError("gemini.refused", status=403, reason=texts.External("API key not valid."))
-        self.assertEqual(str(error), "Gemini refused the request (HTTP 403): API key not valid.")
-        self.assertEqual(error.text("en"), "Gemini refused the request (HTTP 403)")
+        self.assertEqual(str(error), "the AI service refused the request (HTTP 403): API key not valid.")
+        self.assertEqual(error.text("en"), "the AI service refused the request (HTTP 403)")
         self.assertEqual(error.details("en"), ["API key not valid."])
-        self.assertTrue(error.text("es").startswith("Gemini rechazó el pedido (HTTP 403)"))
+        self.assertTrue(error.text("es").startswith("el servicio de IA rechazó el pedido (HTTP 403)"))
         self.assertEqual(error.details("es"), ["API key not valid."])
 
     def test_a_detail_inside_a_message_inside_another_comes_up(self):

@@ -13,9 +13,10 @@ import json
 import re
 from urllib.parse import quote
 
-from meetingtool import texts
-from meetingtool.app.jobs import STAGE_KEYS
-from meetingtool.summary import writer
+from meetingtool import __version__, texts
+from meetingtool.app.jobs import NOTES_BY_LIMIT, STAGE_KEYS
+from meetingtool.projects.store import CONTEXT_LIMIT
+from meetingtool.summary import providers, writer
 
 EXAMPLE_NAME = "plantilla-de-ejemplo.docx"
 BRAND = "MeetingTool"
@@ -224,7 +225,8 @@ def layout_page(view, title, body, active=""):
             f"<body data-texts=\"{e(view.script_texts())}\">"
             f"<header><a class=\"brand\" href=\"/\">{company}{brand}</a><nav>{nav}</nav></header>"
             "<div id=\"running\" class=\"banner\" hidden></div>"
-            f"<main>{body}</main><footer>{view.t('app.footer')}</footer></body></html>")
+            f"<main>{body}</main><footer>{view.t('app.footer')} "
+            f"<span class=\"version\">{view.t('app.version', version=__version__)}</span></footer></body></html>")
 
 
 def _result_cells(view, result):
@@ -290,10 +292,24 @@ def project_page(view, project, meetings, knowledge, kept=()):
             f"<th>{view.t('app.col.meeting')}</th><th>{view.t('app.col.type')}</th>"
             f"<th>{view.t('app.col.format')}</th><th>{view.t('app.col.cost')}</th></tr>{rows}</table>"
             f"{_kept_block(view, project, kept)}"
+            f"{_context_block(view, project)}"
             f"<section><h2>{view.t('app.project.knowledge')}</h2>"
             f"<p class=\"hint\">{view.t('app.project.knowledge_hint')}</p>"
             f"<div class=\"summary knowledge\">{markdown(view, knowledge)}</div></section>")
     return layout_page(view, project["name"], body, "projects")
+
+
+def _context_block(view, project):
+    """The project's context, which every summary of it reads first, to read
+    and change (WI-2.0.0)."""
+    return (f"<section class=\"card\"><h2>{view.t('app.project.context')}</h2>"
+            f"<p class=\"hint\">{view.t('app.project.context_hint')}</p>"
+            "<form data-api=\"/api/project/context\" data-then=\"reload\">"
+            f"<input type=\"hidden\" name=\"project\" value=\"{e(project['id'])}\">"
+            f"<textarea name=\"context\" rows=\"6\" maxlength=\"{CONTEXT_LIMIT}\" "
+            f"aria-label=\"{view.t('app.project.context')}\">{e(project.get('context') or '')}</textarea>"
+            f"<button type=\"submit\">{view.t('app.project.context_save')}</button>"
+            "<p class=\"message\" role=\"status\"></p></form></section>")
 
 
 def stage_label(view, stage):
@@ -380,6 +396,11 @@ def new_meeting_page(view, project, meeting_types, languages, max_cost):
             f"{view.t('app.format.summary')}</label>"
             "<label class=\"inline\"><input type=\"radio\" name=\"format\" value=\"qa\"> "
             f"{view.t('app.format.qa')} <small>{view.t('app.new.qa_hint')}</small></label></fieldset>"
+            f"<fieldset><legend>{view.t('app.new.optional')}</legend>"
+            f"<label>{view.t('app.new.notes')} <small>{view.t('app.new.notes_hint')}</small>"
+            "<input name=\"notes\" type=\"file\" accept=\".docx,.txt\"></label>"
+            f"<label>{view.t('app.new.notes_by')} <input name=\"notes_by\" maxlength=\"{NOTES_BY_LIMIT}\">"
+            "</label></fieldset>"
             f"<label>{view.t('app.new.ceiling')} <input name=\"max_cost\" type=\"number\" min=\"0.01\" max=\"5\" "
             f"step=\"0.01\" value=\"{max_cost:.2f}\" required> <small>{view.t('app.new.ceiling_hint')}</small></label>"
             f"<button type=\"submit\">{view.t('app.new.process')}</button><p class=\"message\" role=\"status\"></p>"
@@ -410,6 +431,8 @@ def _template_block(view, info, problem):
     if info.start and info.dropped:
         where = "index" if info.start == "index" else "marker"
         understood.append(view.t(DROPPED_KEYS[where, info.dropped == 1], count=info.dropped))
+    elif not info.start and info.after_break:
+        understood.append(f'<strong class="warning">{view.t("app.template.after_break_one" if info.after_break == 1 else "app.template.after_break", count=info.after_break)}</strong>')
     elif not info.start:
         understood.append(view.t("app.template.all_cover"))
     return f"<p>{named}</p><ul class=\"understood\">" + "".join(f"<li>{item}</li>" for item in understood) + "</ul>"
@@ -446,21 +469,63 @@ def _language_block(view):
             "<p class=\"message\" role=\"status\"></p></form></section>")
 
 
-def settings_page(view, key_length, company, template_info=None, template_problem=""):
-    key = (view.t("app.key.saved", length=key_length) if key_length else view.t("app.key.none"))
-    template = _template_block(view, template_info, template_problem)
-    kept = template_info is not None or bool(template_problem)
-    body = (f"<h1>{view.t('app.settings.title')}</h1>"
-            + _language_block(view) + _company_block(view, company)
-            + f"<section class=\"card\"><h2>{view.t('app.key.title')}</h2>"
-            f"<p id=\"key-status\">{key}</p><p class=\"hint\">{view.t('app.key.hint')}</p>"
-            f"<form data-api=\"/api/key\" data-then=\"reload\"><label>{view.t('app.key.new')} "
+def _model_block(view, chosen):
+    """The model that writes the summary (amendment 1): one choice for each
+    model of the list, with what one summary costs and whether it was tested
+    in the application."""
+    choices = []
+    for model in providers.MODELS.values():
+        checked = " checked" if model.id == chosen else ""
+        marks = [model.provider.label]
+        if model.id == providers.DEFAULT_MODEL:
+            marks.append(view.say("app.model.recommended"))
+        if not model.tested:
+            marks.append(view.say("app.model.untested"))
+        choices.append(f"<label class=\"choice\"><input type=\"radio\" name=\"model\" value=\"{e(model.id)}\"{checked}> "
+                       f"{e(model.label)} — {e(' · '.join(marks))} <small>"
+                       f"{view.t('app.model.cost', cost=view.money(providers.shown_cost(model.id)))}</small></label>")
+    return (f"<section class=\"card\"><h2>{view.t('app.model.title')}</h2>"
+            f"<form data-api=\"/api/summary-model\" data-then=\"reload\">{''.join(choices)}"
+            f"<button type=\"submit\">{view.t('app.model.save')}</button><p class=\"message\" role=\"status\"></p>"
+            f"</form><p class=\"hint\">{view.t('app.model.hint')}</p></section>")
+
+
+KEY_HINTS = {"gemini": "app.key.hint.gemini", "openai": "app.key.hint.openai", "anthropic": "app.key.hint.anthropic"}
+
+
+def _key_block(view, provider, length):
+    """One provider's key: whether one is saved (never the key), and forms to
+    save a new one and to delete it."""
+    status = view.t("app.key.saved", length=length) if length else view.t("app.key.none")
+    hidden = f"<input type=\"hidden\" name=\"provider\" value=\"{e(provider.name)}\">"
+    hint = view.t(KEY_HINTS[provider.name])
+    return (f"<div class=\"key\"><h3>{view.t('app.key.of', provider=provider.label)}</h3>"
+            f"<p id=\"key-status-{e(provider.name)}\">{status}</p><p class=\"hint\">{hint}</p>"
+            f"<form data-api=\"/api/key\" data-then=\"reload\">{hidden}<label>{view.t('app.key.new')} "
             "<input name=\"key\" type=\"password\" autocomplete=\"off\" required></label>"
             f"<button type=\"submit\">{view.t('app.key.save')}</button><p class=\"message\" role=\"status\"></p></form>"
-            + ("<form data-api=\"/api/key/delete\" data-then=\"reload\" "
-               f"data-confirm=\"{view.t('app.key.delete_confirm')}\">"
+            + (f"<form data-api=\"/api/key/delete\" data-then=\"reload\" "
+               f"data-confirm=\"{view.t('app.key.delete_confirm_of', provider=provider.label)}\">{hidden}"
                f"<button type=\"submit\" class=\"secondary\">{view.t('app.key.delete')}</button>"
-               "<p class=\"message\" role=\"status\"></p></form>" if key_length else "")
+               "<p class=\"message\" role=\"status\"></p></form>" if length else "")
+            + "</div>")
+
+
+def settings_page(view, key_lengths, company, template_info=None, template_problem="", chosen_model=None):
+    """`key_lengths` is each provider's saved key length (0 for none), by
+    provider name; a number alone is Gemini's (as before amendment 1)."""
+    if not isinstance(key_lengths, dict):
+        key_lengths = {"gemini": key_lengths}
+    template = _template_block(view, template_info, template_problem)
+    kept = template_info is not None or bool(template_problem)
+    keys = "".join(_key_block(view, providers.PROVIDERS[name], key_lengths.get(name, 0))
+                   for name in ("gemini", "openai", "anthropic"))
+    body = (f"<h1>{view.t('app.settings.title')}</h1>"
+            + f"<p class=\"hint\">{view.t('app.version', version=__version__)}</p>"
+            + _language_block(view) + _company_block(view, company)
+            + _model_block(view, chosen_model or providers.DEFAULT_MODEL)
+            + f"<section class=\"card\"><h2>{view.t('app.key.title')}</h2>"
+            f"<p class=\"hint\">{view.t('app.key.intro')}</p>{keys}"
             + f"</section><section class=\"card\"><h2>{view.t('app.template.title')}</h2>"
             f"{template}<p class=\"hint\">{view.t('app.template.hint')} "
             f"<a href=\"/{e(EXAMPLE_NAME)}\" download>{view.t('app.template.example')}</a>"

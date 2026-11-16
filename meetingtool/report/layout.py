@@ -62,6 +62,9 @@ class Layout:
     tocs: list              # (begin paragraph, end paragraph, instruction) of each kept table of contents
     fields: list            # kinds of the fields found in what is kept, in order of first appearance
     dropped: int            # paragraphs with text among the dropped children
+    # With no report start (nothing dropped): paragraphs with text after the body's first page break, which every
+    # report copies as if they were cover (WI-2.0.0: a template's sample text opened a real report).
+    after_break: int = 0
 
 
 # ── Reading the template ─────────────────────────────────────────────────────
@@ -175,7 +178,25 @@ def read_layout(document):
         raise LayoutError("layout.unknown_fields", unknown=", ".join(unknown))
     model = dropped[1:] if start_kind == "marker" else dropped  # the marker's own line is not model
     dropped_text = sum(1 for p in paragraphs(model) if paragraph_text(p).strip())
-    return Layout(start, start_kind, tocs, fields, dropped_text)
+    return Layout(start, start_kind, tocs, fields, dropped_text, _after_break(children) if start is None else 0)
+
+
+def _after_break(children):
+    """Paragraphs with text after the first page break of the body (a page
+    break, a section break, or a paragraph set to start a new page), tables
+    included; a paragraph whose text follows its own page break counts too."""
+    for number, child in enumerate(children):
+        if number and list(child.iter(qn("w:pageBreakBefore"))):
+            return sum(1 for p in paragraphs(children[number:]) if paragraph_text(p).strip())
+        breaks = [node for node in child.iter(qn("w:br")) if node.get(qn("w:type")) == "page"]
+        if breaks or section_break(child) is not None:
+            own = 0
+            if breaks:
+                last = breaks[-1]
+                after_it = list(last.itersiblings()) + list(last.getparent().itersiblings())
+                own = 1 if "".join(t.text or "" for node in after_it for t in node.iter(qn("w:t"))).strip() else 0
+            return own + sum(1 for p in paragraphs(children[number + 1:]) if paragraph_text(p).strip())
+    return 0
 
 
 # ── Filling it ───────────────────────────────────────────────────────────────

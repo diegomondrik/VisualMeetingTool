@@ -29,7 +29,8 @@ UI_NAMES = (
     "Estimated spending ceiling in dollars", "Process", "Summary", "Questions and answers", "Processing",
     "Frames of the video", "Reading of the frames", "Word report", "Saving the meeting in the project",
     "Open the Word report", "What the project already knows", "Kept from runs that failed", "Discard",
-    "Language of the application", "Company", "Gemini key", "New key", "Save the key", "Delete the key",
+    "Language of the application", "Company", "Keys", "New key", "Save the key", "Delete the key",
+    "Model that writes the summary", "Save the model",
     "The company's Word template", "Download an example template",
     "Presale", "Sales or negotiation", "Requirements gathering", "Project kickoff", "Status", "Technical",
     "Training",
@@ -115,7 +116,7 @@ class StructureTest(unittest.TestCase):
             self.assertIn(html.unescape(title), html.unescape(contents))
 
     def test_it_covers_what_a_person_installing_it_for_the_first_time_has_to_do(self):
-        for needle in ("Installing", "Gemini key", "Your first meeting", "Cost and the spending ceiling",
+        for needle in ("Installing", "Gemini key", "OpenAI API key", "Your first meeting", "Cost and the spending ceiling",
                        "Where your files are", "Privacy", "Updating and uninstalling", "Troubleshooting",
                        "Run anyway", "WebView2", "Credential Manager"):
             self.assertIn(needle, VISIBLE)

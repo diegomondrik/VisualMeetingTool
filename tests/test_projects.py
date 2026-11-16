@@ -225,5 +225,32 @@ class CommandLineTest(DataFolderTestCase):
         self.assertIn("error: project missing does not exist", result.stderr)
 
 
+class ContextTest(DataFolderTestCase):
+    """WI-2.0.0, AC07: a project's context, which every summary of it reads first, can be changed."""
+
+    def test_the_context_is_saved_and_the_knowledge_is_rebuilt_with_it(self):
+        store.create_project(self.data, "Preventa X", "Cliente X")
+        store.set_context(self.data, "preventa-x", "  Somos el proveedor.\r\nNuestra demo usa datos inventados.  \n")
+        record = store.list_projects(self.data)[0]
+        self.assertEqual(record["context"], "Somos el proveedor.\nNuestra demo usa datos inventados.")
+        knowledge = store.knowledge_context(self.data, "preventa-x")
+        self.assertIn("## Context\n\nSomos el proveedor.\nNuestra demo usa datos inventados.", knowledge)
+        store.set_context(self.data, "preventa-x", "")
+        self.assertIn("## Context\n\n(none)", store.knowledge_context(self.data, "preventa-x"))
+
+    def test_a_context_longer_than_the_limit_is_refused_and_the_old_one_stays(self):
+        store.create_project(self.data, "Preventa X", "Cliente X", context="El de antes.")
+        with self.assertRaises(store.ProjectError) as caught:
+            store.set_context(self.data, "preventa-x", "x" * (store.CONTEXT_LIMIT + 1))
+        self.assertEqual(caught.exception.message.key, "projects.context_too_long")
+        self.assertEqual(store.list_projects(self.data)[0]["context"], "El de antes.")
+
+    def test_a_project_that_does_not_exist_or_a_path_is_refused(self):
+        for project in ("missing", "../fuera"):
+            with self.subTest(project=project):
+                with self.assertRaises(store.ProjectError):
+                    store.set_context(self.data, project, "Contexto.")
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -160,6 +160,25 @@ def create_project(data_dir, name, client, context=""):
     return record
 
 
+# The longest context a project keeps (WI-2.0.0): every summary of the project reads it.
+CONTEXT_LIMIT = 4000
+
+
+def set_context(data_dir, project_id, context):
+    """Change a project's context (what every summary of it reads first) and
+    rebuild its knowledge; ProjectError when it is longer than CONTEXT_LIMIT."""
+    folder = _project_dir(data_dir, project_id)
+    context = "\n".join(line.rstrip() for line in context.replace("\r\n", "\n").split("\n")).strip()
+    if len(context) > CONTEXT_LIMIT:
+        raise ProjectError("projects.context_too_long", length=len(context), limit=CONTEXT_LIMIT)
+    with data_lock(data_dir):
+        record = _read_record(folder / "project.json", ("id", "name"))
+        record["context"] = context
+        _write_json(folder / "project.json", record)
+        rebuild_knowledge(data_dir, project_id)
+    return record
+
+
 def list_projects(data_dir):
     """Return every project record, sorted by identifier."""
     data_dir = Path(data_dir)
@@ -180,12 +199,14 @@ def _parse_date(value):
 
 
 def add_meeting(data_dir, project_id, title, date, meeting_type="", recording="", transcript="",
-                summary="", key_points=(), meeting_folder=""):
+                summary="", key_points=(), meeting_folder="", notes="", notes_by=""):
     """Add a meeting to a project, rebuild its knowledge file, and return the
     meeting record. _project_dir checks the project's own folder, which also
     covers a data folder inside a git work tree. `meeting_folder`, the meeting's
     own folder relative to the project's (the application's results), is
-    recorded only when given: a meeting added from the terminal has none."""
+    recorded only when given: a meeting added from the terminal has none. So
+    are a participant's notes (`notes`, their file) and who took them
+    (`notes_by`), WI-2.0.0."""
     folder = _project_dir(data_dir, project_id)
     iso_date = _parse_date(date)
     if iso_date is None:
@@ -207,6 +228,9 @@ def add_meeting(data_dir, project_id, title, date, meeting_type="", recording=""
     }
     if meeting_folder:
         record["folder"] = meeting_folder
+    if notes:
+        record["notes"] = str(Path(notes).resolve())
+        record["notes_by"] = notes_by.strip()
     with data_lock(data_dir):
         # The meeting's folder reserves its identifier, made exclusively under
         # the lock; one holding nothing is what a save cut short left.
